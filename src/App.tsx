@@ -21,9 +21,52 @@ export default function App() {
   const [copiedId, setCopiedId] = useState<string | null>(null);
 
   // Generated results
-  const [visualPrompt, setVisualPrompt] = useState('');
-  const [captionPrompt, setCaptionPrompt] = useState('');
-  const [seoPrompt, setSeoPrompt] = useState('');
+  const [visualPrompt, setVisualPrompt] = useState<string>(() => {
+    try {
+      return localStorage.getItem('marketboost_autosave_visual') || '';
+    } catch {
+      return '';
+    }
+  });
+  const [captionPrompt, setCaptionPrompt] = useState<string>(() => {
+    try {
+      return localStorage.getItem('marketboost_autosave_caption') || '';
+    } catch {
+      return '';
+    }
+  });
+  const [seoPrompt, setSeoPrompt] = useState<string>(() => {
+    try {
+      return localStorage.getItem('marketboost_autosave_seo') || '';
+    } catch {
+      return '';
+    }
+  });
+
+  // Auto-save prompts on change
+  useEffect(() => {
+    try {
+      localStorage.setItem('marketboost_autosave_visual', visualPrompt);
+    } catch (e) {
+      console.error('Failed to auto-save visual prompt', e);
+    }
+  }, [visualPrompt]);
+
+  useEffect(() => {
+    try {
+      localStorage.setItem('marketboost_autosave_caption', captionPrompt);
+    } catch (e) {
+      console.error('Failed to auto-save caption prompt', e);
+    }
+  }, [captionPrompt]);
+
+  useEffect(() => {
+    try {
+      localStorage.setItem('marketboost_autosave_seo', seoPrompt);
+    } catch (e) {
+      console.error('Failed to auto-save seo prompt', e);
+    }
+  }, [seoPrompt]);
 
   // Loading/Video Recording overlay
   const [recordingStatus, setRecordingStatus] = useState<string | null>(null);
