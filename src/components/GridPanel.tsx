@@ -162,6 +162,13 @@ export const GridPanel: React.FC<GridPanelProps> = ({
   const [videoSelectedPanelKeys, setVideoSelectedPanelKeys] = useState<string[]>([]);
   const [autoCenterEnabled, setAutoCenterEnabled] = useState<boolean>(false);
 
+  // Global PNG Watermark States
+  const [watermarkImg, setWatermarkImg] = useState<HTMLImageElement | null>(null);
+  const [watermarkOpacity, setWatermarkOpacity] = useState<number>(0.5);
+  const [watermarkScale, setWatermarkScale] = useState<number>(20);
+  const [watermarkPosition, setWatermarkPosition] = useState<'top-left' | 'center' | 'bottom-right'>('bottom-right');
+  const [watermarkName, setWatermarkName] = useState<string | null>(null);
+
   // Grid Slices State
   const [pieces, setPieces] = useState<GridPiece[]>([]);
 
@@ -224,6 +231,57 @@ export const GridPanel: React.FC<GridPanelProps> = ({
     }
   }, [autoCenterEnabled]);
 
+  const drawWatermarkOnCanvas = (ctx: CanvasRenderingContext2D, canvasWidth: number, canvasHeight: number) => {
+    if (!watermarkImg) return;
+    
+    ctx.save();
+    ctx.globalAlpha = watermarkOpacity;
+    
+    const aspect = watermarkImg.width / watermarkImg.height;
+    const w = canvasWidth * (watermarkScale / 100);
+    const h = w / aspect;
+    const margin = canvasWidth * 0.05; // 5% margin
+    
+    let x = 0;
+    let y = 0;
+    
+    if (watermarkPosition === 'top-left') {
+      x = margin;
+      y = margin;
+    } else if (watermarkPosition === 'center') {
+      x = (canvasWidth - w) / 2;
+      y = (canvasHeight - h) / 2;
+    } else if (watermarkPosition === 'bottom-right') {
+      x = canvasWidth - w - margin;
+      y = canvasHeight - h - margin;
+    }
+    
+    ctx.drawImage(watermarkImg, x, y, w, h);
+    ctx.restore();
+  };
+
+  const handleWatermarkUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      const img = new Image();
+      img.onload = () => {
+        setWatermarkImg(img);
+        setWatermarkName(file.name);
+      };
+      img.src = event.target?.result as string;
+    };
+    reader.readAsDataURL(file);
+    e.target.value = '';
+  };
+
+  const handleRemoveWatermark = () => {
+    setWatermarkImg(null);
+    setWatermarkName(null);
+  };
+
   // Redraw canvases when grid pieces change
   useEffect(() => {
     pieces.forEach((piece, idx) => {
@@ -232,7 +290,7 @@ export const GridPanel: React.FC<GridPanelProps> = ({
     if (gridAspectRatio === '9:16') {
       drawPreviewCanvas();
     }
-  }, [pieces, gridAspectRatio, logoCompany, logoBrand, igSticker, draggingSticker, igWhiteImg, igBlackImg]);
+  }, [pieces, gridAspectRatio, logoCompany, logoBrand, igSticker, draggingSticker, igWhiteImg, igBlackImg, watermarkImg, watermarkOpacity, watermarkScale, watermarkPosition]);
 
   const drawPieceCanvas = (idx: number) => {
     const canvas = canvasRefs.current[idx];
@@ -257,6 +315,9 @@ export const GridPanel: React.FC<GridPanelProps> = ({
       ctx.scale(piece.baseScale * piece.zoom, piece.baseScale * piece.zoom);
       ctx.drawImage(piece.img, -piece.img.width / 2, -piece.img.height / 2);
       ctx.restore();
+
+      // Apply global watermark on interactive canvas pieces
+      drawWatermarkOnCanvas(ctx, targetWidth, targetHeight);
     }
   };
 
@@ -623,6 +684,9 @@ export const GridPanel: React.FC<GridPanelProps> = ({
         targetCtx.fillText(igSticker.text, igSticker.x + igSticker.size + 15, igSticker.y + (igSticker.size / 2));
       }
     }
+
+    // Apply global watermark to each sliced panel in batch cut
+    drawWatermarkOnCanvas(targetCtx, targetWidth, targetHeight);
 
     return targetCanvas.toDataURL('image/png', 0.9);
   };
@@ -1054,6 +1118,9 @@ export const GridPanel: React.FC<GridPanelProps> = ({
         ctx.fillText(igSticker.text, igSticker.x + igSticker.size + 15, igSticker.y + (igSticker.size / 2));
       }
     }
+
+    // Apply global watermark to all output panel files
+    drawWatermarkOnCanvas(ctx, targetWidth, targetHeight);
 
     return canvas.toDataURL('image/png', 0.9);
   };
@@ -1609,6 +1676,115 @@ export const GridPanel: React.FC<GridPanelProps> = ({
                     </div>
                   </div>
                 )}
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* Global PNG Watermark Controls */}
+        <div className="bg-sky-50 border border-sky-100 rounded-2xl p-4 space-y-3 shadow-3xs">
+          <h3 className="text-xs font-extrabold text-sky-950 flex items-center gap-1.5">
+            <Icons.Layers className="w-4 h-4 text-sky-600" /> PNG Watermark Global
+          </h3>
+          <p className="text-[10px] text-sky-850 font-medium leading-relaxed">
+            Unggah logo PNG transparan untuk diterapkan otomatis pada semua panel potongan grid (Feed, Portrait, & Story).
+          </p>
+
+          <div className="space-y-3">
+            {/* Upload Area */}
+            {!watermarkImg ? (
+              <label className="cursor-pointer border-2 border-dashed border-sky-200 hover:border-sky-400 bg-white hover:bg-sky-50/30 transition-all rounded-xl p-3.5 flex flex-col items-center justify-center gap-1.5 text-center group">
+                <Icons.UploadCloud className="w-6 h-6 text-sky-500 group-hover:scale-110 transition-transform" />
+                <div>
+                  <span className="text-[11px] font-bold text-slate-700 block">Pilih Logo Watermark</span>
+                  <span className="text-[9px] text-slate-400 font-semibold block mt-0.5">Mendukung file PNG Transparan</span>
+                </div>
+                <input type="file" accept="image/png" onChange={handleWatermarkUpload} className="hidden" />
+              </label>
+            ) : (
+              <div className="bg-white border border-sky-100 rounded-xl p-3 space-y-3 shadow-3xs">
+                <div className="flex items-center justify-between gap-2 border-b border-sky-50 pb-2">
+                  <div className="flex items-center gap-2 min-w-0">
+                    <div className="w-8 h-8 rounded border border-slate-200 bg-slate-50 flex items-center justify-center overflow-hidden p-0.5 shadow-inner shrink-0">
+                      <img src={watermarkImg.src} className="max-w-full max-h-full object-contain" alt="" />
+                    </div>
+                    <span className="text-[10px] font-bold text-slate-700 truncate block" title={watermarkName || 'Watermark'}>
+                      {watermarkName || 'Watermark.png'}
+                    </span>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={handleRemoveWatermark}
+                    className="p-1 hover:bg-rose-50 text-rose-500 hover:text-rose-600 rounded transition-colors cursor-pointer"
+                    title="Hapus Watermark"
+                  >
+                    <Icons.Trash2 className="w-3.5 h-3.5" />
+                  </button>
+                </div>
+
+                {/* Opacity Control */}
+                <div>
+                  <div className="flex justify-between items-center text-[9px] font-bold text-slate-500 uppercase mb-1">
+                    <span>Opasitas Watermark</span>
+                    <span className="text-sky-600 font-extrabold">{Math.round(watermarkOpacity * 100)}%</span>
+                  </div>
+                  <input
+                    type="range"
+                    min="0.1"
+                    max="1"
+                    step="0.05"
+                    value={watermarkOpacity}
+                    onChange={(e) => setWatermarkOpacity(parseFloat(e.target.value))}
+                    className="w-full accent-sky-500 h-1 cursor-pointer bg-slate-100 rounded-lg outline-none"
+                  />
+                </div>
+
+                {/* Scale Control */}
+                <div>
+                  <div className="flex justify-between items-center text-[9px] font-bold text-slate-500 uppercase mb-1">
+                    <span>Ukuran Skala</span>
+                    <span className="text-sky-600 font-extrabold">{watermarkScale}% dari panel</span>
+                  </div>
+                  <input
+                    type="range"
+                    min="5"
+                    max="80"
+                    step="1"
+                    value={watermarkScale}
+                    onChange={(e) => setWatermarkScale(parseInt(e.target.value))}
+                    className="w-full accent-sky-500 h-1 cursor-pointer bg-slate-100 rounded-lg outline-none"
+                  />
+                </div>
+
+                {/* Position Control */}
+                <div>
+                  <span className="text-[9px] font-bold text-slate-500 uppercase block mb-1">Posisi Watermark</span>
+                  <div className="grid grid-cols-3 gap-1.5">
+                    {(['top-left', 'center', 'bottom-right'] as const).map((pos) => {
+                      let label = '';
+                      if (pos === 'top-left') label = 'Kiri Atas';
+                      if (pos === 'center') label = 'Tengah';
+                      if (pos === 'bottom-right') label = 'Kanan Bawah';
+
+                      const isActive = watermarkPosition === pos;
+
+                      return (
+                        <button
+                          key={pos}
+                          type="button"
+                          onClick={() => setWatermarkPosition(pos)}
+                          className={`py-1 text-[9px] font-bold rounded-lg border transition-all text-center cursor-pointer ${
+                            isActive
+                              ? 'bg-sky-600 text-white border-sky-600 shadow-3xs'
+                              : 'bg-slate-50 text-slate-600 border-slate-200 hover:bg-slate-100 hover:border-sky-200'
+                          }`}
+                        >
+                          {label}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
               </div>
             )}
           </div>
