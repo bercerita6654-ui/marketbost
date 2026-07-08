@@ -13,6 +13,102 @@ interface GridPanelProps {
   setActiveTab?: (tab: 'visual' | 'caption' | 'seo' | 'grid') => void;
 }
 
+// Detect the bounding box of the foreground product/content inside an image or sub-rect
+function detectFocalBoundingBox(
+  source: HTMLCanvasElement | HTMLImageElement,
+  cols: number = 1,
+  rows: number = 1,
+  colIdx: number = 0,
+  rowIdx: number = 0
+): { x: number; y: number; width: number; height: number } | null {
+  const scanCanvas = document.createElement('canvas');
+  const maxDim = 120; // smaller is faster and less memory-intensive
+  
+  // Calculate source dimensions and clip area
+  let srcWidth = source.width;
+  let srcHeight = source.height;
+  let srcX = 0;
+  let srcY = 0;
+  
+  if (cols > 1 || rows > 1) {
+    srcWidth = source.width / cols;
+    srcHeight = source.height / rows;
+    srcX = colIdx * srcWidth;
+    srcY = rowIdx * srcHeight;
+  }
+
+  let scanWidth = srcWidth;
+  let scanHeight = srcHeight;
+  if (scanWidth > maxDim || scanHeight > maxDim) {
+    if (scanWidth > scanHeight) {
+      scanHeight = Math.round((scanHeight * maxDim) / scanWidth);
+      scanWidth = maxDim;
+    } else {
+      scanWidth = Math.round((scanWidth * maxDim) / scanHeight);
+      scanHeight = maxDim;
+    }
+  }
+
+  scanCanvas.width = scanWidth;
+  scanCanvas.height = scanHeight;
+  const ctx = scanCanvas.getContext('2d', { alpha: true });
+  if (!ctx) return null;
+
+  try {
+    ctx.drawImage(source, srcX, srcY, srcWidth, srcHeight, 0, 0, scanWidth, scanHeight);
+    const imgData = ctx.getImageData(0, 0, scanWidth, scanHeight);
+    const data = imgData.data;
+
+    let minX = scanWidth;
+    let maxX = 0;
+    let minY = scanHeight;
+    let maxY = 0;
+    let nonBgCount = 0;
+
+    for (let y = 0; y < scanHeight; y++) {
+      for (let x = 0; x < scanWidth; x++) {
+        const idx = (y * scanWidth + x) * 4;
+        const r = data[idx];
+        const g = data[idx + 1];
+        const b = data[idx + 2];
+        const a = data[idx + 3];
+
+        // Background classification:
+        // - transparent (alpha < 30)
+        // - white-ish/light background (r, g, b > 235)
+        // - black-ish/dark background (r, g, b < 25)
+        const isTransparent = a < 30;
+        const isWhite = r > 235 && g > 235 && b > 235;
+        const isBlack = r < 25 && g < 25 && b < 25;
+
+        if (!isTransparent && !isWhite && !isBlack) {
+          nonBgCount++;
+          if (x < minX) minX = x;
+          if (x > maxX) maxX = x;
+          if (y < minY) minY = y;
+          if (y > maxY) maxY = y;
+        }
+      }
+    }
+
+    // If we found a clear foreground object (taking up some minimum pixel area)
+    if (nonBgCount > (scanWidth * scanHeight) * 0.005 && maxX >= minX && maxY >= minY) {
+      const scaleX = srcWidth / scanWidth;
+      const scaleY = srcHeight / scanHeight;
+      return {
+        x: minX * scaleX,
+        y: minY * scaleY,
+        width: (maxX - minX) * scaleX,
+        height: (maxY - minY) * scaleY,
+      };
+    }
+  } catch (err) {
+    console.warn("Focal box detection failed (probably CORS restrictions or empty canvas):", err);
+  }
+
+  return null;
+}
+
 export const GridPanel: React.FC<GridPanelProps> = ({
   companyLogos,
   brandLogos,
@@ -63,6 +159,8 @@ export const GridPanel: React.FC<GridPanelProps> = ({
   const [previewImage, setPreviewImage] = useState<MasterImage | null>(null);
   const [includeVideoSlideshow, setIncludeVideoSlideshow] = useState<boolean>(true);
   const [videoSelectedImageIds, setVideoSelectedImageIds] = useState<string[]>([]);
+  const [videoSelectedPanelKeys, setVideoSelectedPanelKeys] = useState<string[]>([]);
+  const [autoCenterEnabled, setAutoCenterEnabled] = useState<boolean>(false);
 
   // Grid Slices State
   const [pieces, setPieces] = useState<GridPiece[]>([]);
@@ -118,6 +216,13 @@ export const GridPanel: React.FC<GridPanelProps> = ({
       return next;
     });
   }, [cols, rows]);
+
+  // Automatically re-cut active master image when autoCenterEnabled changes
+  useEffect(() => {
+    if (masterImages.length > 0 && masterImages[activeMasterIdx]) {
+      handleCutSingleImage(activeMasterIdx);
+    }
+  }, [autoCenterEnabled]);
 
   // Redraw canvases when grid pieces change
   useEffect(() => {
@@ -378,12 +483,38 @@ export const GridPanel: React.FC<GridPanelProps> = ({
         const scaleY = targetHeight / pieceHeight;
         const baseScale = Math.max(scaleX, scaleY);
 
+        let panX = targetWidth / 2;
+        let panY = targetHeight / 2;
+        let finalScale = baseScale;
+
+        if (autoCenterEnabled) {
+          const box = detectFocalBoundingBox(img, cols, rows, x, y);
+          if (box) {
+            const focalCenterX = box.x + box.width / 2;
+            const focalCenterY = box.y + box.height / 2;
+
+            // Smart-Crop: fit the product safely within 85% of the target canvas boundaries
+            const fitScaleX = (targetWidth * 0.85) / box.width;
+            const fitScaleY = (targetHeight * 0.85) / box.height;
+            const fitScale = Math.min(fitScaleX, fitScaleY);
+
+            if (fitScale < baseScale) {
+              finalScale = Math.max(fitScale, Math.min(scaleX, scaleY));
+            } else {
+              finalScale = Math.min(fitScale, baseScale * 1.15);
+            }
+
+            panX = targetWidth / 2 - (focalCenterX - pieceWidth / 2) * finalScale;
+            panY = targetHeight / 2 - (focalCenterY - pieceHeight / 2) * finalScale;
+          }
+        }
+
         newPieces.push({
           img: croppedImg,
           zoom: 1,
-          panX: targetWidth / 2,
-          panY: targetHeight / 2,
-          baseScale: baseScale
+          panX: panX,
+          panY: panY,
+          baseScale: finalScale
         });
       }
     }
@@ -438,9 +569,34 @@ export const GridPanel: React.FC<GridPanelProps> = ({
     const scaleY = targetHeight / pieceHeight;
     const baseScale = Math.max(scaleX, scaleY);
 
+    let panX = targetWidth / 2;
+    let panY = targetHeight / 2;
+    let finalScale = baseScale;
+
+    if (autoCenterEnabled) {
+      const box = detectFocalBoundingBox(imgElement, cols, rows, colIdx, rowIdx);
+      if (box) {
+        const focalCenterX = box.x + box.width / 2;
+        const focalCenterY = box.y + box.height / 2;
+
+        const fitScaleX = (targetWidth * 0.85) / box.width;
+        const fitScaleY = (targetHeight * 0.85) / box.height;
+        const fitScale = Math.min(fitScaleX, fitScaleY);
+
+        if (fitScale < baseScale) {
+          finalScale = Math.max(fitScale, Math.min(scaleX, scaleY));
+        } else {
+          finalScale = Math.min(fitScale, baseScale * 1.15);
+        }
+
+        panX = targetWidth / 2 - (focalCenterX - pieceWidth / 2) * finalScale;
+        panY = targetHeight / 2 - (focalCenterY - pieceHeight / 2) * finalScale;
+      }
+    }
+
     targetCtx.save();
-    targetCtx.translate(targetWidth / 2, targetHeight / 2);
-    targetCtx.scale(baseScale, baseScale);
+    targetCtx.translate(panX, panY);
+    targetCtx.scale(finalScale, finalScale);
     targetCtx.drawImage(sliceCanvas, -pieceWidth / 2, -pieceHeight / 2);
     targetCtx.restore();
 
@@ -502,13 +658,19 @@ export const GridPanel: React.FC<GridPanelProps> = ({
       }
 
       // Automatically generate video slideshow and pack it directly in the zip if enabled
-      if (includeVideoSlideshow && videoSelectedImageIds.length > 0) {
+      if (includeVideoSlideshow && videoSelectedPanelKeys.length > 0) {
         onRecordingStart('Menyiapkan & Merekam Video Slideshow untuk ZIP...');
-        const selectedMasters = masterImages.filter(m => videoSelectedImageIds.includes(m.id));
         const videoSlices: string[] = [];
-        selectedMasters.forEach(m => {
-          for (let r = 0; r < rows; r++) {
-            for (let c = 0; c < cols; c++) {
+        
+        videoSelectedPanelKeys.forEach(key => {
+          if (key.startsWith('batch_')) {
+            const parts = key.split('_'); // ["batch", imgIdx, sliceIdx]
+            const imgIdx = parseInt(parts[1], 10);
+            const sliceIdx = parseInt(parts[2], 10);
+            const r = Math.floor(sliceIdx / cols);
+            const c = sliceIdx % cols;
+            const m = masterImages[imgIdx];
+            if (m) {
               const dataUrl = getPieceDataUrlForImage(m.img, c, r, true);
               if (dataUrl) {
                 videoSlices.push(dataUrl);
@@ -520,6 +682,13 @@ export const GridPanel: React.FC<GridPanelProps> = ({
         if (videoSlices.length > 0) {
           try {
             const videoResult = await generateVideoBlob(videoSlices);
+            
+            // Check maximum size constraint (30MB)
+            const maxBytes = 30 * 1024 * 1024; // 30MB
+            if (videoResult.blob.size > maxBytes) {
+              alert(`Ukuran video slideshow (${(videoResult.blob.size / (1024 * 1024)).toFixed(2)} MB) melebihi batas 30MB. Video tetap disertakan dalam ZIP, namun disarankan mengurangi jumlah panel terpilih.`);
+            }
+            
             folder?.file(`${nameToUse || 'Slideshow'}_Video.${videoResult.ext}`, videoResult.blob);
           } catch (videoErr) {
             console.error("Gagal menyisipkan video ke ZIP:", videoErr);
@@ -552,8 +721,17 @@ export const GridPanel: React.FC<GridPanelProps> = ({
     }
     setTempZipName(customZipName);
     setRenameModalType('batch');
-    // Pre-select only up to 4 master images for the video slideshow
-    setVideoSelectedImageIds(masterImages.slice(0, 4).map(m => m.id));
+    
+    // Pre-select all available panels in batch!
+    const initialKeys: string[] = [];
+    masterImages.forEach((m, imgIdx) => {
+      for (let r = 0; r < rows; r++) {
+        for (let c = 0; c < cols; c++) {
+          initialKeys.push(`batch_${imgIdx}_${r * cols + c}`);
+        }
+      }
+    });
+    setVideoSelectedPanelKeys(initialKeys);
     setIncludeVideoSlideshow(true);
     setRenameModalOpen(true);
   };
@@ -571,14 +749,39 @@ export const GridPanel: React.FC<GridPanelProps> = ({
       const scaleY = targetHeight / img.height;
       const baseScale = Math.max(scaleX, scaleY);
 
+      let panX = targetWidth / 2;
+      let panY = targetHeight / 2;
+      let finalScale = baseScale;
+
+      if (autoCenterEnabled) {
+        const box = detectFocalBoundingBox(img);
+        if (box) {
+          const focalCenterX = box.x + box.width / 2;
+          const focalCenterY = box.y + box.height / 2;
+
+          const fitScaleX = (targetWidth * 0.85) / box.width;
+          const fitScaleY = (targetHeight * 0.85) / box.height;
+          const fitScale = Math.min(fitScaleX, fitScaleY);
+
+          if (fitScale < baseScale) {
+            finalScale = Math.max(fitScale, Math.min(scaleX, scaleY));
+          } else {
+            finalScale = Math.min(fitScale, baseScale * 1.15);
+          }
+
+          panX = targetWidth / 2 - (focalCenterX - img.width / 2) * finalScale;
+          panY = targetHeight / 2 - (focalCenterY - img.height / 2) * finalScale;
+        }
+      }
+
       setPieces((prev) => {
         const next = [...prev];
         next[idx] = {
           img,
           zoom: 1,
-          panX: targetWidth / 2,
-          panY: targetHeight / 2,
-          baseScale
+          panX,
+          panY,
+          baseScale: finalScale
         };
         return next;
       });
@@ -935,6 +1138,39 @@ export const GridPanel: React.FC<GridPanelProps> = ({
       }
     }
 
+    // Automatically generate video slideshow and pack it directly in the zip if enabled
+    if (includeVideoSlideshow && videoSelectedPanelKeys.length > 0) {
+      onRecordingStart('Menyiapkan & Merekam Video Slideshow untuk ZIP...');
+      const videoSlices: string[] = [];
+      
+      videoSelectedPanelKeys.forEach(key => {
+        if (key.startsWith('slice_')) {
+          const sliceIdx = parseInt(key.replace('slice_', ''), 10);
+          const url = getPieceDataUrl(sliceIdx);
+          if (url) {
+            videoSlices.push(url);
+          }
+        }
+      });
+
+      if (videoSlices.length > 0) {
+        try {
+          const videoResult = await generateVideoBlob(videoSlices);
+          
+          // Check maximum size constraint (30MB)
+          const maxBytes = 30 * 1024 * 1024; // 30MB
+          if (videoResult.blob.size > maxBytes) {
+            alert(`Ukuran video slideshow (${(videoResult.blob.size / (1024 * 1024)).toFixed(2)} MB) melebihi batas 30MB. Video tetap disertakan dalam ZIP, namun disarankan mengurangi jumlah panel terpilih.`);
+          }
+          
+          folder?.file(`${nameToUse || 'Slideshow'}_Video.${videoResult.ext}`, videoResult.blob);
+        } catch (videoErr) {
+          console.error("Gagal menyisipkan video ke ZIP:", videoErr);
+        }
+      }
+    }
+
+    onRecordingStart('Membuat file ZIP hasil potong...');
     const zipContent = await zip.generateAsync({ type: 'blob' });
     const url = URL.createObjectURL(zipContent);
     const a = document.createElement('a');
@@ -954,6 +1190,11 @@ export const GridPanel: React.FC<GridPanelProps> = ({
     }
     setTempZipName(customZipName);
     setRenameModalType('slices');
+    
+    // Pre-select all valid slice panels!
+    const initialKeys = validPieces.map(p => `slice_${p.idx}`);
+    setVideoSelectedPanelKeys(initialKeys);
+    setIncludeVideoSlideshow(true);
     setRenameModalOpen(true);
   };
 
@@ -1115,6 +1356,48 @@ export const GridPanel: React.FC<GridPanelProps> = ({
     }
   };
 
+  const getAvailablePanelsForVideo = () => {
+    if (renameModalType === 'slices') {
+      const list: { key: string; label: string; imgSrc: string; imgIdx: number; colIdx: number; rowIdx: number; sliceIdx: number }[] = [];
+      const activeMaster = masterImages[activeMasterIdx];
+      if (!activeMaster) return [];
+      for (let r = 0; r < rows; r++) {
+        for (let c = 0; c < cols; c++) {
+          const idx = r * cols + c;
+          list.push({
+            key: `slice_${idx}`,
+            label: `Panel ${idx + 1}`,
+            imgSrc: activeMaster.src,
+            imgIdx: activeMasterIdx,
+            colIdx: c,
+            rowIdx: r,
+            sliceIdx: idx
+          });
+        }
+      }
+      return list;
+    } else {
+      const list: { key: string; label: string; imgSrc: string; imgIdx: number; colIdx: number; rowIdx: number; sliceIdx: number }[] = [];
+      masterImages.forEach((m, imgIdx) => {
+        for (let r = 0; r < rows; r++) {
+          for (let c = 0; c < cols; c++) {
+            const sliceIdx = r * cols + c;
+            list.push({
+              key: `batch_${imgIdx}_${sliceIdx}`,
+              label: `${m.name} - P${sliceIdx + 1}`,
+              imgSrc: m.src,
+              imgIdx,
+              colIdx: c,
+              rowIdx: r,
+              sliceIdx
+            });
+          }
+        }
+      });
+      return list;
+    }
+  };
+
   return (
     <div className="flex-1 flex overflow-hidden h-full w-full bg-slate-900 text-slate-200">
       {/* COLUMN KIRI: Grid Controls & Form (Light theme matches left sidebar style) */}
@@ -1175,6 +1458,32 @@ export const GridPanel: React.FC<GridPanelProps> = ({
                 />
               </div>
             </div>
+          </div>
+
+          {/* Auto-Center / Smart-Crop Toggle */}
+          <div className="border-t border-indigo-200 pt-3 mt-3 space-y-2">
+            <div className="flex items-center justify-between">
+              <span className="text-[10px] font-bold text-indigo-500 uppercase tracking-widest">Auto-Center & Smart-Crop</span>
+              <span className="text-[9px] font-semibold text-indigo-400 bg-indigo-50 px-1.5 py-0.5 rounded-full">Subject Focus</span>
+            </div>
+            <label className="flex items-center justify-between p-2.5 bg-white border border-indigo-100 rounded-xl hover:border-indigo-300 transition-all cursor-pointer select-none">
+              <div className="flex items-center gap-2">
+                <Icons.Target className={`w-4 h-4 ${autoCenterEnabled ? 'text-indigo-600' : 'text-slate-400'}`} />
+                <div className="text-left">
+                  <p className="text-[10px] font-bold text-slate-700">Pusatkan Produk Otomatis</p>
+                  <p className="text-[8px] text-slate-400">Deteksi rasio & fokus subjek</p>
+                </div>
+              </div>
+              <div className="relative">
+                <input
+                  type="checkbox"
+                  checked={autoCenterEnabled}
+                  onChange={(e) => setAutoCenterEnabled(e.target.checked)}
+                  className="sr-only peer"
+                />
+                <div className="w-8 h-4.5 bg-slate-200 rounded-full peer peer-focus:ring-2 peer-focus:ring-indigo-300 peer-checked:after:translate-x-full after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-3.5 after:w-3.5 after:transition-all peer-checked:bg-indigo-600"></div>
+              </div>
+            </label>
           </div>
 
           {/* Auto-cut image upload panel */}
@@ -1718,74 +2027,137 @@ export const GridPanel: React.FC<GridPanelProps> = ({
                 </p>
               </div>
 
-              {/* Automatic Video Slideshow configuration (only for batch mode) */}
-              {renameModalType === 'batch' && (
-                <div className="space-y-3 pt-3 border-t border-slate-800/80">
-                  <div className="flex items-center justify-between">
-                    <label className="flex items-center gap-2 cursor-pointer select-none">
-                      <input
-                        type="checkbox"
-                        checked={includeVideoSlideshow}
-                        onChange={(e) => setIncludeVideoSlideshow(e.target.checked)}
-                        className="w-4 h-4 rounded border-slate-800 bg-slate-950 text-indigo-600 focus:ring-indigo-500 cursor-pointer"
-                      />
-                      <span className="text-[11px] font-bold text-indigo-400 uppercase tracking-wider">
-                        Otomatis Buat & Download Video Slideshow
-                      </span>
-                    </label>
-                  </div>
-                  
-                  {includeVideoSlideshow && (
-                    <div className="space-y-2">
-                      <div className="flex justify-between items-center text-[10px] text-slate-400">
-                        <span>Pilih gambar utama untuk slideshow video:</span>
-                        <span className="font-bold text-indigo-400 font-mono">({videoSelectedImageIds.length}/4 Gambar)</span>
+              {/* Automatic Video Slideshow configuration (Slices & Batch) */}
+              <div className="space-y-3 pt-3 border-t border-slate-800/80">
+                <div className="flex items-center justify-between">
+                  <label className="flex items-center gap-2 cursor-pointer select-none">
+                    <input
+                      type="checkbox"
+                      checked={includeVideoSlideshow}
+                      onChange={(e) => setIncludeVideoSlideshow(e.target.checked)}
+                      className="w-4 h-4 rounded border-slate-800 bg-slate-950 text-indigo-600 focus:ring-indigo-500 cursor-pointer"
+                    />
+                    <span className="text-[11px] font-bold text-indigo-400 uppercase tracking-wider">
+                      Otomatis Gabung Video Slideshow ke ZIP
+                    </span>
+                  </label>
+                </div>
+                
+                {includeVideoSlideshow && (
+                  <div className="space-y-2.5">
+                    <div className="flex justify-between items-end text-[10px] text-slate-400">
+                      <div>
+                        <p className="font-bold text-slate-300">Pilih panel foto untuk dijadikan video slideshow:</p>
+                        <p className="text-[9px] text-slate-500 mt-0.5">Urutan video akan mengikuti urutan pemilihan panel</p>
                       </div>
-                      <div className="max-h-[160px] overflow-y-auto border border-slate-800 bg-slate-950/40 rounded-2xl p-2 space-y-1.5 scrollbar-thin">
-                        {masterImages.map((m) => {
-                          const isSelected = videoSelectedImageIds.includes(m.id);
+                      <span className="font-bold text-indigo-400 font-mono shrink-0">
+                        ({videoSelectedPanelKeys.length} Terpilih)
+                      </span>
+                    </div>
+
+                    {/* Quick Selection Actions */}
+                    <div className="flex gap-2 text-[9px] font-bold">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const allKeys = getAvailablePanelsForVideo().map(p => p.key);
+                          setVideoSelectedPanelKeys(allKeys);
+                        }}
+                        className="px-2.5 py-1 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-lg transition-colors cursor-pointer"
+                      >
+                        Pilih Semua
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setVideoSelectedPanelKeys([]);
+                        }}
+                        className="px-2.5 py-1 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-lg transition-colors cursor-pointer"
+                      >
+                        Hapus Semua
+                      </button>
+                    </div>
+
+                    {/* Scrollable Visual Slices Selection Grid */}
+                    <div className="max-h-[220px] overflow-y-auto border border-slate-800 bg-slate-950/50 rounded-2xl p-3 scrollbar-thin">
+                      <div className="grid grid-cols-3 gap-2">
+                        {getAvailablePanelsForVideo().map((p) => {
+                          const isSelected = videoSelectedPanelKeys.includes(p.key);
+                          const colCount = cols;
+                          const rowCount = rows;
+                          // CSS Background-Image technique to render exact slice preview perfectly
+                          const bgSizeStyle = `${colCount * 100}% ${rowCount * 100}%`;
+                          const bgPosXStyle = colCount > 1 ? `${(p.colIdx / (colCount - 1)) * 100}%` : '50%';
+                          const bgPosYStyle = rowCount > 1 ? `${(p.rowIdx / (rowCount - 1)) * 100}%` : '50%';
+
                           return (
                             <div
-                              key={m.id}
+                              key={p.key}
                               onClick={() => {
-                                setVideoSelectedImageIds(prev => {
-                                  if (prev.includes(m.id)) {
-                                    return prev.filter(id => id !== m.id);
+                                setVideoSelectedPanelKeys(prev => {
+                                  if (prev.includes(p.key)) {
+                                    return prev.filter(k => k !== p.key);
                                   } else {
-                                    if (prev.length >= 4) {
-                                      alert("Maksimal 4 gambar utama yang dapat dimasukkan ke dalam slideshow video.");
-                                      return prev;
-                                    }
-                                    return [...prev, m.id];
+                                    return [...prev, p.key];
                                   }
                                 });
                               }}
-                              className={`flex items-center gap-3 p-2 rounded-xl border transition-all cursor-pointer ${
+                              className={`relative group rounded-xl border p-1 flex flex-col items-center gap-1.5 transition-all duration-200 cursor-pointer select-none ${
                                 isSelected 
-                                  ? 'bg-indigo-950/20 border-indigo-800/40 text-white' 
-                                  : 'bg-transparent border-slate-850 text-slate-400 hover:border-slate-800 hover:text-slate-300'
+                                  ? 'bg-indigo-950/30 border-indigo-500 text-white ring-1 ring-indigo-500/50' 
+                                  : 'bg-slate-900/40 border-slate-800/80 text-slate-400 hover:border-slate-700 hover:bg-slate-900/70'
                               }`}
                             >
-                              <div className={`w-4 h-4 rounded flex items-center justify-center border transition-all ${
+                              {/* Slices representation using the background image trick */}
+                              <div 
+                                className="w-12 h-12 rounded-lg border border-slate-800 bg-no-repeat overflow-hidden shadow-inner shrink-0"
+                                style={{
+                                  backgroundImage: `url(${p.imgSrc})`,
+                                  backgroundSize: bgSizeStyle,
+                                  backgroundPosition: `${bgPosXStyle} ${bgPosYStyle}`
+                                }}
+                              />
+                              <div className="min-w-0 flex flex-col items-center w-full">
+                                <p className="text-[9px] font-bold truncate max-w-full text-center tracking-tight leading-none" title={p.label}>
+                                  {p.label}
+                                </p>
+                              </div>
+
+                              {/* Selection overlay indicator */}
+                              <div className={`absolute top-1 right-1 w-3.5 h-3.5 rounded-full flex items-center justify-center border transition-all ${
                                 isSelected 
                                   ? 'bg-indigo-600 border-indigo-500 text-white' 
-                                  : 'border-slate-700 bg-slate-950 text-transparent'
+                                  : 'border-slate-800 bg-slate-950 text-transparent'
                               }`}>
                                 {isSelected && <Icons.Check className="w-2.5 h-2.5 stroke-[3]" />}
-                              </div>
-                              <img src={m.src} className="w-8 h-8 object-cover rounded-lg border border-slate-800" alt="" />
-                              <div className="min-w-0 flex-1">
-                                <p className="text-[10px] font-bold truncate">{m.name}</p>
-                                <p className="text-[9px] text-slate-500 font-mono">{m.dimensions}</p>
                               </div>
                             </div>
                           );
                         })}
                       </div>
                     </div>
-                  )}
-                </div>
-              )}
+
+                    {/* Max File Size Constraints Checker & Indicator */}
+                    <div className="flex items-center justify-between p-2.5 bg-slate-950/80 rounded-xl border border-slate-850 text-[10px]">
+                      <div className="flex items-center gap-2">
+                        <Icons.HardDrive className={`w-3.5 h-3.5 ${videoSelectedPanelKeys.length * 0.15 > 30 ? 'text-rose-500 animate-pulse' : (videoSelectedPanelKeys.length * 0.15 > 20 ? 'text-amber-500' : 'text-slate-400')}`} />
+                        <span className="text-slate-400 font-bold">Estimasi Ukuran:</span>
+                      </div>
+                      <div className="font-mono text-right font-black">
+                        <span className={videoSelectedPanelKeys.length * 0.15 > 30 ? 'text-rose-500 font-extrabold' : (videoSelectedPanelKeys.length * 0.15 > 20 ? 'text-amber-500 font-extrabold' : 'text-indigo-400')}>
+                          {(videoSelectedPanelKeys.length * 0.15).toFixed(2)} MB
+                        </span>
+                        <span className="text-slate-500"> / 30.00 MB</span>
+                      </div>
+                    </div>
+                    {videoSelectedPanelKeys.length * 0.15 > 30 && (
+                      <p className="text-[9px] text-rose-500 font-bold leading-relaxed bg-rose-950/20 p-2 rounded-lg border border-rose-900/30">
+                        ⚠️ Ukuran video diperkirakan melebihi 30MB! Silakan batalkan beberapa panel untuk menjaga kualitas dan kompresi tetap optimal.
+                      </p>
+                    )}
+                  </div>
+                )}
+              </div>
 
               {/* Dynamic preview of generated file names */}
               <div className="bg-slate-950/60 border border-slate-850 rounded-2xl p-4 space-y-3">
@@ -1809,9 +2181,9 @@ export const GridPanel: React.FC<GridPanelProps> = ({
                         <>
                           {tempZipName || 'Panel'}-1.png, {tempZipName || 'Panel'}-2.png, ...
                           <div className="text-[9px] text-slate-500 font-normal mt-0.5">Slicing {masterImages.length} file sekaligus (Total {masterImages.length * cols * rows} panel)</div>
-                          {includeVideoSlideshow && videoSelectedImageIds.length > 0 && (
+                          {includeVideoSlideshow && videoSelectedPanelKeys.length > 0 && (
                             <div className="text-[9px] text-indigo-400 font-normal mt-1.5">
-                              + Video Slideshow ({videoSelectedImageIds.length * cols * rows} slides)
+                              + Video Slideshow ({videoSelectedPanelKeys.length} slides)
                             </div>
                           )}
                         </>
@@ -1819,6 +2191,11 @@ export const GridPanel: React.FC<GridPanelProps> = ({
                         <>
                           {tempZipName || 'Panel'}-1.png, {tempZipName || 'Panel'}-2.png, ...
                           <div className="text-[9px] text-slate-500 font-normal mt-0.5">Slicing canvas grid aktif ({cols * rows} panel)</div>
+                          {includeVideoSlideshow && videoSelectedPanelKeys.length > 0 && (
+                            <div className="text-[9px] text-indigo-400 font-normal mt-1.5">
+                              + Video Slideshow ({videoSelectedPanelKeys.length} slides)
+                            </div>
+                          )}
                         </>
                       )}
                     </div>
