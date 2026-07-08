@@ -501,6 +501,33 @@ export const GridPanel: React.FC<GridPanelProps> = ({
         }
       }
 
+      // Automatically generate video slideshow and pack it directly in the zip if enabled
+      if (includeVideoSlideshow && videoSelectedImageIds.length > 0) {
+        onRecordingStart('Menyiapkan & Merekam Video Slideshow untuk ZIP...');
+        const selectedMasters = masterImages.filter(m => videoSelectedImageIds.includes(m.id));
+        const videoSlices: string[] = [];
+        selectedMasters.forEach(m => {
+          for (let r = 0; r < rows; r++) {
+            for (let c = 0; c < cols; c++) {
+              const dataUrl = getPieceDataUrlForImage(m.img, c, r, true);
+              if (dataUrl) {
+                videoSlices.push(dataUrl);
+              }
+            }
+          }
+        });
+
+        if (videoSlices.length > 0) {
+          try {
+            const videoResult = await generateVideoBlob(videoSlices);
+            folder?.file(`${nameToUse || 'Slideshow'}_Video.${videoResult.ext}`, videoResult.blob);
+          } catch (videoErr) {
+            console.error("Gagal menyisipkan video ke ZIP:", videoErr);
+          }
+        }
+      }
+
+      onRecordingStart('Membuat file ZIP hasil potong...');
       const zipContent = await zip.generateAsync({ type: 'blob' });
       const url = URL.createObjectURL(zipContent);
       const a = document.createElement('a');
@@ -525,7 +552,8 @@ export const GridPanel: React.FC<GridPanelProps> = ({
     }
     setTempZipName(customZipName);
     setRenameModalType('batch');
-    setVideoSelectedImageIds(masterImages.map(m => m.id));
+    // Pre-select only up to 4 master images for the video slideshow
+    setVideoSelectedImageIds(masterImages.slice(0, 4).map(m => m.id));
     setIncludeVideoSlideshow(true);
     setRenameModalOpen(true);
   };
@@ -930,74 +958,73 @@ export const GridPanel: React.FC<GridPanelProps> = ({
   };
 
   // Video Slideshow Slides Video Generator
-  const handleDownloadVideo = async (customImages?: string[]) => {
+  const generateVideoBlob = async (customImages?: string[]): Promise<{ blob: Blob; ext: string }> => {
     const validImages = customImages || (pieces.map((p, idx) => getPieceDataUrl(idx)).filter((x) => x !== null) as string[]);
 
     if (validImages.length === 0) {
-      alert("Harap unggah minimal 1 gambar ke dalam slot grid.");
-      return;
+      throw new Error("Harap unggah minimal 1 gambar ke dalam slot grid.");
     }
 
     onRecordingStart('Merekam Slideshow Video...');
 
-    try {
-      const targetWidth = 1080;
-      const targetHeight = gridAspectRatio === '9:16' ? 1920 : (gridAspectRatio === '3:4' ? 1440 : 1080);
+    const targetWidth = 1080;
+    const targetHeight = gridAspectRatio === '9:16' ? 1920 : (gridAspectRatio === '3:4' ? 1440 : 1080);
 
-      const canvas = document.createElement('canvas');
-      canvas.width = targetWidth;
-      canvas.height = targetHeight;
-      const ctx = canvas.getContext('2d', { alpha: false });
-      if (!ctx) throw new Error("Gagal mengambil context 2D");
+    const canvas = document.createElement('canvas');
+    canvas.width = targetWidth;
+    canvas.height = targetHeight;
+    const ctx = canvas.getContext('2d', { alpha: false });
+    if (!ctx) throw new Error("Gagal mengambil context 2D");
 
-      const loadedImages = await Promise.all(validImages.map((url) => {
-        return new Promise<HTMLImageElement>((resolve, reject) => {
-          const img = new Image();
-          img.crossOrigin = "anonymous";
-          img.onload = () => resolve(img);
-          img.onerror = reject;
-          img.src = url;
-        });
-      }));
-
-      const stream = canvas.captureStream(30);
-
-      let mimeType = 'video/mp4';
-      let ext = 'mp4';
-      if (!MediaRecorder.isTypeSupported(mimeType)) {
-        mimeType = 'video/webm;codecs=vp8';
-        ext = 'webm';
-      }
-
-      const recorder = new MediaRecorder(stream, {
-        mimeType: mimeType,
-        videoBitsPerSecond: 10000000
+    const loadedImages = await Promise.all(validImages.map((url) => {
+      return new Promise<HTMLImageElement>((resolve, reject) => {
+        const img = new Image();
+        img.crossOrigin = "anonymous";
+        img.onload = () => resolve(img);
+        img.onerror = reject;
+        img.src = url;
       });
+    }));
 
-      const chunks: Blob[] = [];
-      recorder.ondataavailable = (ev) => {
-        if (ev && ev.data.size > 0) chunks.push(ev.data);
+    const stream = canvas.captureStream(30);
+
+    let mimeType = 'video/mp4';
+    let ext = 'mp4';
+    if (!MediaRecorder.isTypeSupported(mimeType)) {
+      mimeType = 'video/webm;codecs=vp8';
+      ext = 'webm';
+    }
+
+    const recorder = new MediaRecorder(stream, {
+      mimeType: mimeType,
+      videoBitsPerSecond: 10000000
+    });
+
+    const chunks: Blob[] = [];
+    recorder.ondataavailable = (ev) => {
+      if (ev && ev.data.size > 0) chunks.push(ev.data);
+    };
+
+    const recordingPromise = new Promise<Blob>((resolve, reject) => {
+      recorder.onstop = () => {
+        const blob = new Blob(chunks, { type: mimeType });
+        resolve(blob);
       };
+      recorder.onerror = reject;
+    });
 
-      const recordingPromise = new Promise<Blob>((resolve, reject) => {
-        recorder.onstop = () => {
-          const blob = new Blob(chunks, { type: mimeType });
-          resolve(blob);
-        };
-        recorder.onerror = reject;
-      });
+    recorder.start(100);
 
-      recorder.start(100);
+    const slideDuration = 2800; // milliseconds
+    const transitionDuration = 500;
+    const totalDuration = loadedImages.length * slideDuration;
 
-      const slideDuration = 2800; // milliseconds
-      const transitionDuration = 500;
-      const totalDuration = loadedImages.length * slideDuration;
+    // Random transition types per image slide
+    const transitions = loadedImages.map(() => Math.floor(Math.random() * 4));
 
-      // Random transition types per image slide
-      const transitions = loadedImages.map(() => Math.floor(Math.random() * 4));
+    let startTime: number | null = null;
 
-      let startTime: number | null = null;
-
+    return new Promise<{ blob: Blob; ext: string }>((resolveOverall, rejectOverall) => {
       const drawFrame = (timestamp: number) => {
         if (!startTime) startTime = timestamp;
         const elapsed = timestamp - startTime;
@@ -1007,6 +1034,9 @@ export const GridPanel: React.FC<GridPanelProps> = ({
 
         if (elapsed >= totalDuration + 200) {
           recorder.stop();
+          recordingPromise.then((blob) => {
+            resolveOverall({ blob, ext });
+          }).catch(rejectOverall);
           return;
         }
 
@@ -1027,7 +1057,6 @@ export const GridPanel: React.FC<GridPanelProps> = ({
           ctx.drawImage(imgCurrent, 0, 0, targetWidth, targetHeight);
         } else {
           const progress = (slideElapsed - (slideDuration - transitionDuration)) / transitionDuration;
-          // Ease-in-out progress
           const easeProgress = progress < 0.5 ? 2 * progress * progress : 1 - Math.pow(-2 * progress + 2, 2) / 2;
 
           const tType = transitions[currentSlideIndex];
@@ -1064,8 +1093,12 @@ export const GridPanel: React.FC<GridPanelProps> = ({
       };
 
       requestAnimationFrame(drawFrame);
+    });
+  };
 
-      const blob = await recordingPromise;
+  const handleDownloadVideo = async (customImages?: string[]) => {
+    try {
+      const { blob, ext } = await generateVideoBlob(customImages);
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
@@ -1074,10 +1107,9 @@ export const GridPanel: React.FC<GridPanelProps> = ({
       a.click();
       document.body.removeChild(a);
       URL.revokeObjectURL(url);
-
-    } catch (error) {
+    } catch (error: any) {
       console.error("Gagal membuat video:", error);
-      alert("Terjadi kesalahan saat memproses video. Browser sandbox Anda mungkin membatasi captureStream atau MediaRecorder.");
+      alert(error?.message || "Terjadi kesalahan saat memproses video. Browser sandbox Anda mungkin membatasi captureStream atau MediaRecorder.");
     } finally {
       onRecordingEnd();
     }
@@ -1705,9 +1737,10 @@ export const GridPanel: React.FC<GridPanelProps> = ({
                   
                   {includeVideoSlideshow && (
                     <div className="space-y-2">
-                      <span className="text-[10px] text-slate-400 block leading-relaxed">
-                        Pilih gambar utama yang ingin dimasukkan ke dalam video slideshow:
-                      </span>
+                      <div className="flex justify-between items-center text-[10px] text-slate-400">
+                        <span>Pilih gambar utama untuk slideshow video:</span>
+                        <span className="font-bold text-indigo-400 font-mono">({videoSelectedImageIds.length}/4 Gambar)</span>
+                      </div>
                       <div className="max-h-[160px] overflow-y-auto border border-slate-800 bg-slate-950/40 rounded-2xl p-2 space-y-1.5 scrollbar-thin">
                         {masterImages.map((m) => {
                           const isSelected = videoSelectedImageIds.includes(m.id);
@@ -1715,11 +1748,17 @@ export const GridPanel: React.FC<GridPanelProps> = ({
                             <div
                               key={m.id}
                               onClick={() => {
-                                setVideoSelectedImageIds(prev => 
-                                  prev.includes(m.id) 
-                                    ? prev.filter(id => id !== m.id) 
-                                    : [...prev, m.id]
-                                );
+                                setVideoSelectedImageIds(prev => {
+                                  if (prev.includes(m.id)) {
+                                    return prev.filter(id => id !== m.id);
+                                  } else {
+                                    if (prev.length >= 4) {
+                                      alert("Maksimal 4 gambar utama yang dapat dimasukkan ke dalam slideshow video.");
+                                      return prev;
+                                    }
+                                    return [...prev, m.id];
+                                  }
+                                });
                               }}
                               className={`flex items-center gap-3 p-2 rounded-xl border transition-all cursor-pointer ${
                                 isSelected 
@@ -1804,28 +1843,7 @@ export const GridPanel: React.FC<GridPanelProps> = ({
                   setCustomZipName(finalName);
                   setRenameModalOpen(false);
                   if (renameModalType === 'batch') {
-                    handleBatchCutAllToZip(finalName).then(() => {
-                      if (includeVideoSlideshow && videoSelectedImageIds.length > 0) {
-                        const selectedMasters = masterImages.filter(m => videoSelectedImageIds.includes(m.id));
-                        const videoSlices: string[] = [];
-                        selectedMasters.forEach(m => {
-                          for (let r = 0; r < rows; r++) {
-                            for (let c = 0; c < cols; c++) {
-                              const dataUrl = getPieceDataUrlForImage(m.img, c, r, true);
-                              if (dataUrl) {
-                                videoSlices.push(dataUrl);
-                              }
-                            }
-                          }
-                        });
-
-                        if (videoSlices.length > 0) {
-                          setTimeout(() => {
-                            handleDownloadVideo(videoSlices);
-                          }, 1000);
-                        }
-                      }
-                    });
+                    handleBatchCutAllToZip(finalName);
                   } else {
                     handleDownloadZip(finalName);
                   }
