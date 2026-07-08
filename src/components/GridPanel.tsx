@@ -43,9 +43,18 @@ export const GridPanel: React.FC<GridPanelProps> = ({
     }
   };
 
-  // Master Image File
-  const [masterImg, setMasterImg] = useState<HTMLImageElement | null>(null);
-  const [masterDimensions, setMasterDimensions] = useState<string>('');
+  interface MasterImage {
+    id: string;
+    img: HTMLImageElement;
+    src: string;
+    name: string;
+    dimensions: string;
+  }
+
+  // Master Images List (supports up to 5 master images)
+  const [masterImages, setMasterImages] = useState<MasterImage[]>([]);
+  const [activeMasterIdx, setActiveMasterIdx] = useState<number>(0);
+  const [customZipName, setCustomZipName] = useState<string>('MarketBoost_Grid');
 
   // Grid Slices State
   const [pieces, setPieces] = useState<GridPiece[]>([]);
@@ -243,28 +252,57 @@ export const GridPanel: React.FC<GridPanelProps> = ({
     ctx.restore();
   };
 
-  // Master Image Auto-cut Upload
+  // Master Image Auto-cut Upload (Supports uploading multiple, up to 5 master images total)
   const handleMasterUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
+    const files = e.target.files;
+    if (!files || files.length === 0) return;
 
-    const img = new Image();
-    img.onload = () => {
-      setMasterImg(img);
-      setMasterDimensions(`${img.width} x ${img.height} px`);
-    };
-    img.src = URL.createObjectURL(file);
-  };
-
-  // Execute Matrix Grid Auto-cut
-  const handleCutImage = () => {
-    if (!masterImg) {
-      alert("Silakan unggah 1 Gambar Utama terlebih dahulu.");
+    const currentCount = masterImages.length;
+    const remainingSlots = 5 - currentCount;
+    if (remainingSlots <= 0) {
+      alert("Maksimal 5 gambar utama (1 utama + 4 tambahan) telah terunggah.");
       return;
     }
 
-    const pieceWidth = masterImg.width / cols;
-    const pieceHeight = masterImg.height / rows;
+    const filesToLoad = Array.from(files).slice(0, remainingSlots) as File[];
+
+    filesToLoad.forEach((file) => {
+      const img = new Image();
+      img.onload = () => {
+        const newImgObj: MasterImage = {
+          id: Math.random().toString(36).substring(2, 9),
+          img,
+          src: img.src,
+          name: file.name,
+          dimensions: `${img.width} x ${img.height} px`
+        };
+        setMasterImages((prev) => {
+          const next = [...prev, newImgObj];
+          return next;
+        });
+      };
+      img.src = URL.createObjectURL(file);
+    });
+  };
+
+  const handleDeleteMasterImage = (idx: number) => {
+    setMasterImages((prev) => {
+      const next = prev.filter((_, i) => i !== idx);
+      if (activeMasterIdx >= next.length) {
+        setActiveMasterIdx(Math.max(0, next.length - 1));
+      }
+      return next;
+    });
+  };
+
+  // Execute Matrix Grid Slicing for a single specified master image index
+  const handleCutSingleImage = (idx: number) => {
+    const selectedObj = masterImages[idx];
+    if (!selectedObj) return;
+
+    const img = selectedObj.img;
+    const pieceWidth = img.width / cols;
+    const pieceHeight = img.height / rows;
 
     const newPieces: GridPiece[] = [];
 
@@ -276,7 +314,7 @@ export const GridPanel: React.FC<GridPanelProps> = ({
         const tempCtx = tempCanvas.getContext('2d');
         if (tempCtx) {
           tempCtx.drawImage(
-            masterImg,
+            img,
             x * pieceWidth, y * pieceHeight, pieceWidth, pieceHeight,
             0, 0, pieceWidth, pieceHeight
           );
@@ -302,6 +340,134 @@ export const GridPanel: React.FC<GridPanelProps> = ({
     }
 
     setPieces(newPieces);
+  };
+
+  // Default cut action for active master image
+  const handleCutImage = () => {
+    if (masterImages.length === 0) {
+      alert("Silakan unggah Gambar Utama terlebih dahulu.");
+      return;
+    }
+    handleCutSingleImage(activeMasterIdx);
+  };
+
+  // Helper to generate a slice data URL for *any* master image, applying current watermark overlays
+  const getPieceDataUrlForImage = (
+    imgElement: HTMLImageElement,
+    colIdx: number,
+    rowIdx: number,
+    applyOverlays: boolean = true
+  ): string | null => {
+    const targetWidth = 1080;
+    const targetHeight = gridAspectRatio === '9:16' ? 1920 : (gridAspectRatio === '3:4' ? 1440 : 1080);
+
+    const pieceWidth = imgElement.width / cols;
+    const pieceHeight = imgElement.height / rows;
+
+    const sliceCanvas = document.createElement('canvas');
+    sliceCanvas.width = pieceWidth;
+    sliceCanvas.height = pieceHeight;
+    const sliceCtx = sliceCanvas.getContext('2d');
+    if (!sliceCtx) return null;
+
+    sliceCtx.drawImage(
+      imgElement,
+      colIdx * pieceWidth, rowIdx * pieceHeight, pieceWidth, pieceHeight,
+      0, 0, pieceWidth, pieceHeight
+    );
+
+    const targetCanvas = document.createElement('canvas');
+    targetCanvas.width = targetWidth;
+    targetCanvas.height = targetHeight;
+    const targetCtx = targetCanvas.getContext('2d');
+    if (!targetCtx) return null;
+
+    targetCtx.fillStyle = '#000000';
+    targetCtx.fillRect(0, 0, targetWidth, targetHeight);
+
+    const scaleX = targetWidth / pieceWidth;
+    const scaleY = targetHeight / pieceHeight;
+    const baseScale = Math.max(scaleX, scaleY);
+
+    targetCtx.save();
+    targetCtx.translate(targetWidth / 2, targetHeight / 2);
+    targetCtx.scale(baseScale, baseScale);
+    targetCtx.drawImage(sliceCanvas, -pieceWidth / 2, -pieceHeight / 2);
+    targetCtx.restore();
+
+    if (applyOverlays && gridAspectRatio === '9:16') {
+      if (logoCompany.active && logoCompany.img) {
+        const aspect = logoCompany.img.width / logoCompany.img.height;
+        const h = logoCompany.size / aspect;
+        targetCtx.drawImage(logoCompany.img, logoCompany.x, logoCompany.y, logoCompany.size, h);
+      }
+      if (logoBrand.active && logoBrand.img) {
+        const aspect = logoBrand.img.width / logoBrand.img.height;
+        const h = logoBrand.size / aspect;
+        targetCtx.drawImage(logoBrand.img, logoBrand.x, logoBrand.y, logoBrand.size, h);
+      }
+      if (igSticker.active) {
+        const icon = igSticker.color === 'white' ? igWhiteImg : igBlackImg;
+        if (icon) {
+          targetCtx.drawImage(icon, igSticker.x, igSticker.y, igSticker.size, igSticker.size);
+        }
+        targetCtx.font = `bold ${igSticker.size * 0.75}px Arial`;
+        targetCtx.fillStyle = igSticker.color;
+        targetCtx.textAlign = 'left';
+        targetCtx.textBaseline = 'middle';
+        targetCtx.fillText(igSticker.text, igSticker.x + igSticker.size + 15, igSticker.y + (igSticker.size / 2));
+      }
+    }
+
+    return targetCanvas.toDataURL('image/png', 0.9);
+  };
+
+  // Batch Crop All Uploaded Images to ZIP with Watermarks
+  const handleBatchCutAllToZip = async () => {
+    if (masterImages.length === 0) {
+      alert("Harap unggah minimal 1 Gambar Utama terlebih dahulu.");
+      return;
+    }
+
+    onRecordingStart('Menyiapkan batch potong semua gambar...');
+
+    try {
+      const zip = new JSZip();
+      const folder = zip.folder(customZipName || "MarketBoost_Batch_Slices");
+
+      for (let imgIdx = 0; imgIdx < masterImages.length; imgIdx++) {
+        const m = masterImages[imgIdx];
+        const baseName = m.name.replace(/\.[^/.]+$/, ""); // Strip file extension
+        
+        let panelIndex = 1;
+        for (let r = 0; r < rows; r++) {
+          for (let c = 0; c < cols; c++) {
+            const dataUrl = getPieceDataUrlForImage(m.img, c, r, true);
+            if (dataUrl) {
+              const base64Data = dataUrl.split(',')[1];
+              const filename = `${customZipName || 'Panel'}_${baseName}_Panel_${panelIndex}.png`;
+              folder?.file(filename, base64Data, { base64: true });
+            }
+            panelIndex++;
+          }
+        }
+      }
+
+      const zipContent = await zip.generateAsync({ type: 'blob' });
+      const url = URL.createObjectURL(zipContent);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `${customZipName || 'MarketBoost_Batch_Grid'}_${cols}x${rows}.zip`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    } catch (e) {
+      console.error(e);
+      alert("Gagal melakukan batch potong.");
+    } finally {
+      onRecordingEnd();
+    }
   };
 
   // Manual image upload on a specific slot
@@ -640,7 +806,7 @@ export const GridPanel: React.FC<GridPanelProps> = ({
     const collageUrl = collageCanvas.toDataURL('image/png', 0.9);
     const link = document.createElement('a');
     link.href = collageUrl;
-    link.download = `Collage_${cols}x${rows}_${Math.floor(10000 + Math.random() * 90000)}.png`;
+    link.download = `${customZipName || 'Collage'}_Collage_${cols}x${rows}.png`;
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
@@ -655,7 +821,7 @@ export const GridPanel: React.FC<GridPanelProps> = ({
     }
     const link = document.createElement('a');
     link.href = url;
-    link.download = `Panel_${idx + 1}_${cols}x${rows}.png`;
+    link.download = `${customZipName || 'Panel'}_Panel_${idx + 1}.png`;
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
@@ -671,13 +837,13 @@ export const GridPanel: React.FC<GridPanelProps> = ({
     }
 
     const zip = new JSZip();
-    const folder = zip.folder("MarketBoost_Slices");
+    const folder = zip.folder(customZipName || "MarketBoost_Slices");
 
     for (const piece of validPieces) {
       if (piece.url) {
         // Strip data:image/png;base64,
         const base64Data = piece.url.split(',')[1];
-        folder?.file(`Panel_${piece.idx + 1}.png`, base64Data, { base64: true });
+        folder?.file(`${customZipName || 'Panel'}_Panel_${piece.idx + 1}.png`, base64Data, { base64: true });
       }
     }
 
@@ -685,7 +851,7 @@ export const GridPanel: React.FC<GridPanelProps> = ({
     const url = URL.createObjectURL(zipContent);
     const a = document.createElement('a');
     a.href = url;
-    a.download = `MarketBoost_Grid_Slices_${cols}x${rows}.zip`;
+    a.download = `${customZipName || 'MarketBoost_Grid_Slices'}_${cols}x${rows}.zip`;
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);
@@ -909,29 +1075,94 @@ export const GridPanel: React.FC<GridPanelProps> = ({
           </div>
 
           {/* Auto-cut image upload panel */}
-          <div className="border-t border-indigo-200 pt-3 mt-3">
-            <label className="text-[10px] font-bold text-indigo-500 uppercase tracking-widest block mb-2 text-center">Opsi 1: Potong Otomatis (Auto-Cut)</label>
+          <div className="border-t border-indigo-200 pt-3 mt-3 space-y-3">
+            <label className="text-[10px] font-bold text-indigo-500 uppercase tracking-widest block text-center">Opsi 1: Potong Otomatis (Auto-Cut)</label>
             <div className="flex flex-col items-center">
               <label className="cursor-pointer w-full bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2.5 rounded-xl font-bold transition duration-200 flex justify-center items-center gap-2 shadow-sm text-xs">
-                <Icons.UploadCloud className="w-4 h-4" /> Unggah 1 Gambar Utama
-                <input type="file" accept="image/*" onChange={handleMasterUpload} className="hidden" />
+                <Icons.UploadCloud className="w-4 h-4" /> Unggah Gambar (Bisa Banyak)
+                <input type="file" accept="image/*" multiple onChange={handleMasterUpload} className="hidden" />
               </label>
+              <span className="text-[9px] text-indigo-400 font-semibold mt-1 block text-center">Bisa upload tambahan 4 gambar (Total 5)</span>
             </div>
 
-            {masterImg && (
-              <div className="mt-3 p-3 bg-white border border-indigo-100 rounded-xl flex flex-col items-center">
-                <div className="w-full flex justify-between items-center mb-1">
-                  <span className="text-[10px] font-bold text-slate-400 uppercase">Preview Utama</span>
-                  <span className="text-[9px] font-bold text-indigo-600 bg-indigo-50 px-1.5 py-0.5 rounded">{masterDimensions}</span>
+            {masterImages.length > 0 && (
+              <div className="space-y-3 pt-1">
+                <div className="flex justify-between items-center">
+                  <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">
+                    Daftar Gambar ({masterImages.length}/5)
+                  </span>
+                  {masterImages.length < 5 && (
+                    <span className="text-[9px] font-medium text-emerald-600 bg-emerald-50 px-1.5 py-0.5 rounded-full">
+                      +{5 - masterImages.length} slot
+                    </span>
+                  )}
                 </div>
-                <img src={masterImg.src} className="max-h-28 object-contain rounded border border-slate-200 mb-2" alt="Uploaded master source" />
-                <button
-                  type="button"
-                  onClick={handleCutImage}
-                  className="w-full bg-slate-800 hover:bg-slate-700 text-white px-3 py-1.5 rounded text-xs font-bold transition-all flex items-center justify-center gap-1"
-                >
-                  <Icons.Scissors className="w-3.5 h-3.5" /> Potong ke Grid & Terapkan
-                </button>
+
+                {/* Thumbnail Gallery */}
+                <div className="grid grid-cols-5 gap-1.5">
+                  {masterImages.map((m, idx) => (
+                    <div
+                      key={m.id}
+                      onClick={() => setActiveMasterIdx(idx)}
+                      className={`relative aspect-square rounded-lg border-2 overflow-hidden cursor-pointer group transition-all ${
+                        activeMasterIdx === idx ? 'border-indigo-600 ring-2 ring-indigo-600/15 scale-105' : 'border-slate-200 hover:border-slate-400'
+                      }`}
+                      title={`Klik untuk memilih: ${m.name}`}
+                    >
+                      <img src={m.src} className="w-full h-full object-cover" alt={m.name} />
+                      {activeMasterIdx === idx && (
+                        <div className="absolute top-0.5 right-0.5 bg-indigo-600 text-white rounded-full p-0.5 flex items-center justify-center shadow-xs">
+                          <Icons.Check className="w-2 h-2" />
+                        </div>
+                      )}
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleDeleteMasterImage(idx);
+                        }}
+                        className="absolute -top-1 -right-1 bg-rose-600 text-white p-1 rounded-full opacity-0 group-hover:opacity-100 transition-opacity hover:bg-rose-700 focus:opacity-100 shadow-xs"
+                        title="Hapus gambar ini"
+                      >
+                        <Icons.X className="w-2 h-2" />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+
+                {/* Selected Image Info & Actions */}
+                {masterImages[activeMasterIdx] && (
+                  <div className="p-3 bg-white border border-indigo-100 rounded-xl space-y-2.5 shadow-sm">
+                    <div className="flex justify-between items-center text-[10px] gap-2">
+                      <span className="font-bold text-slate-600 truncate max-w-[140px]" title={masterImages[activeMasterIdx].name}>
+                        {masterImages[activeMasterIdx].name}
+                      </span>
+                      <span className="font-mono bg-indigo-50 text-indigo-700 px-1.5 py-0.5 rounded font-extrabold text-[9px] shrink-0">
+                        {masterImages[activeMasterIdx].dimensions}
+                      </span>
+                    </div>
+                    <div className="grid grid-cols-2 gap-2">
+                      <button
+                        type="button"
+                        onClick={() => handleCutSingleImage(activeMasterIdx)}
+                        className="w-full bg-indigo-600 hover:bg-indigo-700 text-white py-1.5 rounded-lg text-[10px] font-bold transition-all flex items-center justify-center gap-1 shadow-xs cursor-pointer"
+                        title="Potong gambar ini ke canvas grid"
+                      >
+                        <Icons.Scissors className="w-3 h-3" />
+                        <span>Terapkan Grid</span>
+                      </button>
+                      <button
+                        type="button"
+                        onClick={handleBatchCutAllToZip}
+                        className="w-full bg-slate-800 hover:bg-slate-700 text-slate-100 py-1.5 rounded-lg text-[10px] font-bold transition-all flex items-center justify-center gap-1 shadow-xs cursor-pointer"
+                        title="Batch potong semua gambar sekaligus dan download ZIP"
+                      >
+                        <Icons.FolderArchive className="w-3 h-3 text-indigo-400" />
+                        <span>Batch Potong</span>
+                      </button>
+                    </div>
+                  </div>
+                )}
               </div>
             )}
           </div>
@@ -1147,7 +1378,7 @@ export const GridPanel: React.FC<GridPanelProps> = ({
         </div>
 
         {/* Workspace Title & Actions Area */}
-        <div className="bg-slate-900 border border-slate-800 p-4 rounded-2xl flex flex-col md:flex-row justify-between items-start md:items-center gap-4 shadow-md mb-5 shrink-0">
+        <div className="bg-slate-900 border border-slate-800 p-4 rounded-2xl flex flex-col xl:flex-row justify-between items-start xl:items-center gap-4 shadow-md mb-5 shrink-0">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 bg-indigo-600/10 text-indigo-400 rounded-xl flex items-center justify-center border border-indigo-500/20 shadow-inner shrink-0">
               <Icons.LayoutGrid className="w-5 h-5" />
@@ -1160,32 +1391,47 @@ export const GridPanel: React.FC<GridPanelProps> = ({
               <p className="text-[11px] text-slate-400 font-mono mt-0.5">Dimensi: {cols}x{rows} • Rasio: {gridAspectRatio === '1:1' ? '1:1 Feed' : gridAspectRatio === '3:4' ? '3:4 Portrait' : '9:16 Story'} • Resolution: 1080x{gridAspectRatio === '9:16' ? 1920 : (gridAspectRatio === '3:4' ? 1440 : 1080)}px per panel</p>
             </div>
           </div>
+ 
+          <div className="flex flex-wrap items-center gap-3 w-full xl:w-auto">
+            {/* Custom ZIP Naming Input */}
+            <div className="flex items-center gap-2 bg-slate-950 border border-slate-800 px-3 py-1.5 rounded-xl shrink-0 w-full sm:w-auto">
+              <Icons.Edit3 className="w-3.5 h-3.5 text-indigo-400" />
+              <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">Nama/Prefix:</span>
+              <input
+                type="text"
+                value={customZipName}
+                onChange={(e) => setCustomZipName(e.target.value.replace(/[^a-zA-Z0-9_-]/g, ''))}
+                placeholder="Prefix file..."
+                className="bg-transparent text-white text-xs font-bold outline-none border-b border-transparent focus:border-indigo-500 w-28 font-mono"
+              />
+            </div>
 
-          <div className="flex flex-wrap items-center gap-2 w-full md:w-auto">
-            <button
-              type="button"
-              onClick={handleDownloadCollage}
-              className="flex-1 md:flex-none bg-indigo-600 hover:bg-indigo-500 hover:scale-102 text-white px-4 py-2 rounded-xl font-bold text-xs transition-all flex items-center justify-center gap-1.5 shadow-md shadow-indigo-600/15 cursor-pointer active:scale-98"
-            >
-              <Icons.Layout className="w-3.5 h-3.5" />
-              <span>Download Collage</span>
-            </button>
-            <button
-              type="button"
-              onClick={handleDownloadZip}
-              className="flex-1 md:flex-none bg-slate-800 hover:bg-slate-700 hover:scale-102 text-slate-200 px-4 py-2 rounded-xl font-bold text-xs transition-all flex items-center justify-center gap-1.5 border border-slate-700 cursor-pointer active:scale-98"
-            >
-              <Icons.Download className="w-3.5 h-3.5" />
-              <span>Download ZIP Potongan</span>
-            </button>
-            <button
-              type="button"
-              onClick={handleDownloadVideo}
-              className="flex-1 md:flex-none bg-rose-600 hover:bg-rose-500 hover:scale-102 text-white px-4 py-2 rounded-xl font-bold text-xs transition-all flex items-center justify-center gap-1.5 shadow-md shadow-rose-600/15 cursor-pointer active:scale-98"
-            >
-              <Icons.Video className="w-3.5 h-3.5 animate-pulse" />
-              <span>Buat Video Slideshow</span>
-            </button>
+            <div className="flex flex-wrap gap-2 w-full sm:w-auto">
+              <button
+                type="button"
+                onClick={handleDownloadCollage}
+                className="flex-1 sm:flex-none bg-indigo-600 hover:bg-indigo-500 hover:scale-102 text-white px-4 py-2 rounded-xl font-bold text-xs transition-all flex items-center justify-center gap-1.5 shadow-md shadow-indigo-600/15 cursor-pointer active:scale-98"
+              >
+                <Icons.Layout className="w-3.5 h-3.5" />
+                <span>Download Collage</span>
+              </button>
+              <button
+                type="button"
+                onClick={handleDownloadZip}
+                className="flex-1 sm:flex-none bg-slate-800 hover:bg-slate-700 hover:scale-102 text-slate-200 px-4 py-2 rounded-xl font-bold text-xs transition-all flex items-center justify-center gap-1.5 border border-slate-700 cursor-pointer active:scale-98"
+              >
+                <Icons.Download className="w-3.5 h-3.5" />
+                <span>Download ZIP Potongan</span>
+              </button>
+              <button
+                type="button"
+                onClick={handleDownloadVideo}
+                className="flex-1 sm:flex-none bg-rose-600 hover:bg-rose-500 hover:scale-102 text-white px-4 py-2 rounded-xl font-bold text-xs transition-all flex items-center justify-center gap-1.5 shadow-md shadow-rose-600/15 cursor-pointer active:scale-98"
+              >
+                <Icons.Video className="w-3.5 h-3.5 animate-pulse" />
+                <span>Buat Video Slideshow</span>
+              </button>
+            </div>
           </div>
         </div>
 
