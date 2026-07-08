@@ -58,6 +58,8 @@ export const GridPanel: React.FC<GridPanelProps> = ({
   const [renameModalOpen, setRenameModalOpen] = useState<boolean>(false);
   const [renameModalType, setRenameModalType] = useState<'batch' | 'slices'>('batch');
   const [tempZipName, setTempZipName] = useState<string>('MarketBoost_Grid');
+  const [draggedImgIdx, setDraggedImgIdx] = useState<number | null>(null);
+  const [dragOverImgIdx, setDragOverImgIdx] = useState<number | null>(null);
 
   // Grid Slices State
   const [pieces, setPieces] = useState<GridPiece[]>([]);
@@ -296,6 +298,47 @@ export const GridPanel: React.FC<GridPanelProps> = ({
       }
       return next;
     });
+  };
+
+  const handleDragStart = (e: React.DragEvent, index: number) => {
+    setDraggedImgIdx(index);
+    e.dataTransfer.effectAllowed = 'move';
+  };
+
+  const handleDragOver = (e: React.DragEvent, index: number) => {
+    e.preventDefault();
+    if (draggedImgIdx === null || draggedImgIdx === index) return;
+    setDragOverImgIdx(index);
+  };
+
+  const handleDragEnd = () => {
+    setDraggedImgIdx(null);
+    setDragOverImgIdx(null);
+  };
+
+  const handleDrop = (e: React.DragEvent, index: number) => {
+    e.preventDefault();
+    if (draggedImgIdx === null || draggedImgIdx === index) return;
+
+    setMasterImages((prev) => {
+      const next = [...prev];
+      const [draggedItem] = next.splice(draggedImgIdx, 1);
+      next.splice(index, 0, draggedItem);
+      
+      // Update activeMasterIdx to point to the newly dropped position
+      if (activeMasterIdx === draggedImgIdx) {
+        setActiveMasterIdx(index);
+      } else if (activeMasterIdx > draggedImgIdx && activeMasterIdx <= index) {
+        setActiveMasterIdx(activeMasterIdx - 1);
+      } else if (activeMasterIdx < draggedImgIdx && activeMasterIdx >= index) {
+        setActiveMasterIdx(activeMasterIdx + 1);
+      }
+      
+      return next;
+    });
+
+    setDraggedImgIdx(null);
+    setDragOverImgIdx(null);
   };
 
   // Execute Matrix Grid Slicing for a single specified master image index
@@ -1127,12 +1170,24 @@ export const GridPanel: React.FC<GridPanelProps> = ({
                     <div
                       key={m.id}
                       onClick={() => setActiveMasterIdx(idx)}
-                      className={`relative aspect-square rounded-lg border-2 overflow-hidden cursor-pointer group transition-all ${
-                        activeMasterIdx === idx ? 'border-indigo-600 ring-2 ring-indigo-600/15 scale-105' : 'border-slate-200 hover:border-slate-400'
+                      draggable
+                      onDragStart={(e) => handleDragStart(e, idx)}
+                      onDragOver={(e) => handleDragOver(e, idx)}
+                      onDragEnd={handleDragEnd}
+                      onDrop={(e) => handleDrop(e, idx)}
+                      className={`relative aspect-square rounded-lg border-2 overflow-hidden cursor-grab active:cursor-grabbing group transition-all ${
+                        activeMasterIdx === idx 
+                          ? 'border-indigo-600 ring-2 ring-indigo-600/15 scale-105' 
+                          : 'border-slate-200 hover:border-slate-400'
+                      } ${draggedImgIdx === idx ? 'opacity-30 border-dashed border-indigo-400' : ''} ${
+                        dragOverImgIdx === idx ? 'border-emerald-500 scale-95' : ''
                       }`}
-                      title={`Klik untuk memilih: ${m.name}`}
+                      title={`Klik untuk memilih, Seret untuk mengurutkan: ${m.name}`}
                     >
-                      <img src={m.src} className="w-full h-full object-cover" alt={m.name} />
+                      <img src={m.src} className="w-full h-full object-cover pointer-events-none" alt={m.name} />
+                      <div className="absolute inset-0 bg-black/10 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center pointer-events-none">
+                        <Icons.Move className="w-4 h-4 text-white drop-shadow-md" />
+                      </div>
                       {activeMasterIdx === idx && (
                         <div className="absolute top-0.5 right-0.5 bg-indigo-600 text-white rounded-full p-0.5 flex items-center justify-center shadow-xs">
                           <Icons.Check className="w-2 h-2" />
