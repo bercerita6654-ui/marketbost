@@ -211,6 +211,31 @@ export const GridPanel: React.FC<GridPanelProps> = ({
     bImg.onload = () => setIgBlackImg(bImg);
   }, []);
 
+  // Load default watermark from Google Drive on mount
+  useEffect(() => {
+    const driveImgId = '1dyed9YL6QxBSDefdx47sf8pWXUVWD3nc';
+    const directUrl = `https://lh3.googleusercontent.com/d/${driveImgId}`;
+    
+    const img = new Image();
+    img.crossOrigin = "anonymous";
+    img.onload = () => {
+      setWatermarkImg(img);
+      setWatermarkName("Watermark_Drive.png");
+    };
+    img.onerror = () => {
+      // Fallback url if lh3 is blocked or fails
+      const fallbackUrl = `https://docs.google.com/uc?export=view&id=${driveImgId}`;
+      const imgFallback = new Image();
+      imgFallback.crossOrigin = "anonymous";
+      imgFallback.onload = () => {
+        setWatermarkImg(imgFallback);
+        setWatermarkName("Watermark_Drive.png");
+      };
+      imgFallback.src = fallbackUrl;
+    };
+    img.src = directUrl;
+  }, []);
+
   // Sync pieces array when matrix is resized
   useEffect(() => {
     const total = cols * rows;
