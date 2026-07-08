@@ -169,6 +169,9 @@ export const GridPanel: React.FC<GridPanelProps> = ({
   const [watermarkPosition, setWatermarkPosition] = useState<'top-left' | 'center' | 'bottom-right'>('bottom-right');
   const [watermarkName, setWatermarkName] = useState<string | null>(null);
 
+  // Preset Loading State
+  const [isPresetLoading, setIsPresetLoading] = useState<boolean>(false);
+
   // Grid Slices State
   const [pieces, setPieces] = useState<GridPiece[]>([]);
 
@@ -280,6 +283,235 @@ export const GridPanel: React.FC<GridPanelProps> = ({
   const handleRemoveWatermark = () => {
     setWatermarkImg(null);
     setWatermarkName(null);
+  };
+
+  const handleExportPreset = () => {
+    onRecordingStart('Menyiapkan berkas preset workspace (JSON)...');
+    try {
+      // Helper to serialize images to base64 if needed
+      const serializeImage = (img: HTMLImageElement | null): string | null => {
+        if (!img) return null;
+        if (img.src.startsWith('data:')) return img.src;
+        try {
+          const canvas = document.createElement('canvas');
+          canvas.width = img.naturalWidth || img.width;
+          canvas.height = img.naturalHeight || img.height;
+          const ctx = canvas.getContext('2d');
+          if (ctx) {
+            ctx.drawImage(img, 0, 0);
+            return canvas.toDataURL('image/png');
+          }
+        } catch (err) {
+          console.warn("Serialization failed, keeping original src:", err);
+        }
+        return img.src;
+      };
+
+      const serializedMasterImages = masterImages.map(m => ({
+        id: m.id,
+        name: m.name,
+        dimensions: m.dimensions,
+        src: serializeImage(m.img) || m.src
+      }));
+
+      const serializedPieces = pieces.map(p => ({
+        zoom: p.zoom,
+        panX: p.panX,
+        panY: p.panY,
+        baseScale: p.baseScale,
+        imgSrc: p.img ? (serializeImage(p.img) || p.img.src) : null
+      }));
+
+      const presetData = {
+        version: "1.0",
+        cols,
+        rows,
+        gridAspectRatio,
+        autoCenterEnabled,
+        customZipName,
+        includeVideoSlideshow,
+        videoSelectedPanelKeys,
+        watermarkOpacity,
+        watermarkScale,
+        watermarkPosition,
+        watermarkName,
+        watermarkImgSrc: watermarkImg ? serializeImage(watermarkImg) : null,
+        igUsername,
+        igColor,
+        masterImages: serializedMasterImages,
+        pieces: serializedPieces,
+        logoCompany: {
+          x: logoCompany.x,
+          y: logoCompany.y,
+          size: logoCompany.size,
+          active: logoCompany.active,
+          imgSrc: logoCompany.img ? serializeImage(logoCompany.img) : null
+        },
+        logoBrand: {
+          x: logoBrand.x,
+          y: logoBrand.y,
+          size: logoBrand.size,
+          active: logoBrand.active,
+          imgSrc: logoBrand.img ? serializeImage(logoBrand.img) : null
+        },
+        igSticker: {
+          active: igSticker.active,
+          x: igSticker.x,
+          y: igSticker.y,
+          size: igSticker.size,
+          color: igSticker.color,
+          text: igSticker.text
+        }
+      };
+
+      const jsonStr = JSON.stringify(presetData, null, 2);
+      const blob = new Blob([jsonStr], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `${customZipName || 'MarketBoost'}_GridPreset.json`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+    } catch (err) {
+      console.error("Gagal mengekspor preset:", err);
+      alert("Gagal mengekspor preset workspace.");
+    } finally {
+      onRecordingEnd();
+    }
+  };
+
+  const handleImportPreset = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setIsPresetLoading(true);
+    onRecordingStart('Memuat berkas preset JSON & merekonstruksi workspace...');
+
+    const reader = new FileReader();
+    reader.onload = async (event) => {
+      try {
+        const data = JSON.parse(event.target?.result as string);
+
+        // Helper to load image from src asynchronously
+        const loadImageAsync = (src: string | null): Promise<HTMLImageElement | null> => {
+          if (!src) return Promise.resolve(null);
+          return new Promise((resolve) => {
+            const img = new Image();
+            img.onload = () => resolve(img);
+            img.onerror = () => {
+              console.error("Failed to load image from preset:", src.substring(0, 50));
+              resolve(null);
+            };
+            img.src = src;
+          });
+        };
+
+        // 1. Basic properties
+        if (data.cols !== undefined) setCols(data.cols);
+        if (data.rows !== undefined) setRows(data.rows);
+        if (data.gridAspectRatio !== undefined) setGridAspectRatio(data.gridAspectRatio);
+        if (data.autoCenterEnabled !== undefined) setAutoCenterEnabled(data.autoCenterEnabled);
+        if (data.customZipName !== undefined) setCustomZipName(data.customZipName);
+        if (data.includeVideoSlideshow !== undefined) setIncludeVideoSlideshow(data.includeVideoSlideshow);
+        if (data.videoSelectedPanelKeys !== undefined) setVideoSelectedPanelKeys(data.videoSelectedPanelKeys);
+        if (data.igUsername !== undefined) setIgUsername(data.igUsername);
+        if (data.igColor !== undefined) setIgColor(data.igColor);
+
+        // 2. Watermark settings
+        if (data.watermarkOpacity !== undefined) setWatermarkOpacity(data.watermarkOpacity);
+        if (data.watermarkScale !== undefined) setWatermarkScale(data.watermarkScale);
+        if (data.watermarkPosition !== undefined) setWatermarkPosition(data.watermarkPosition);
+        if (data.watermarkName !== undefined) setWatermarkName(data.watermarkName);
+
+        if (data.watermarkImgSrc) {
+          const img = await loadImageAsync(data.watermarkImgSrc);
+          setWatermarkImg(img);
+        } else {
+          setWatermarkImg(null);
+        }
+
+        // 3. logoCompany, logoBrand, igSticker
+        if (data.logoCompany) {
+          const img = await loadImageAsync(data.logoCompany.imgSrc);
+          setLogoCompany({
+            x: data.logoCompany.x ?? 50,
+            y: data.logoCompany.y ?? 50,
+            size: data.logoCompany.size ?? 200,
+            active: data.logoCompany.active ?? false,
+            img
+          });
+        }
+
+        if (data.logoBrand) {
+          const img = await loadImageAsync(data.logoBrand.imgSrc);
+          setLogoBrand({
+            x: data.logoBrand.x ?? 830,
+            y: data.logoBrand.y ?? 50,
+            size: data.logoBrand.size ?? 200,
+            active: data.logoBrand.active ?? false,
+            img
+          });
+        }
+
+        if (data.igSticker) {
+          setIgSticker({
+            active: data.igSticker.active ?? false,
+            x: data.igSticker.x ?? 580,
+            y: data.igSticker.y ?? 1750,
+            size: data.igSticker.size ?? 45,
+            color: data.igSticker.color ?? 'white',
+            text: data.igSticker.text ?? 'globalmart.id'
+          });
+        }
+
+        // 4. Master Images list
+        if (Array.isArray(data.masterImages)) {
+          const loadedMaster = await Promise.all(
+            data.masterImages.map(async (m: any) => {
+              const img = await loadImageAsync(m.src);
+              return {
+                id: m.id || Math.random().toString(36).substring(2, 9),
+                name: m.name || 'unnamed.png',
+                dimensions: m.dimensions || 'unknown px',
+                src: m.src,
+                img: img!
+              };
+            })
+          );
+          const validMaster = loadedMaster.filter(m => m.img !== null);
+          setMasterImages(validMaster);
+        }
+
+        // 5. Pieces list
+        if (Array.isArray(data.pieces)) {
+          const loadedPieces = await Promise.all(
+            data.pieces.map(async (p: any) => {
+              const img = await loadImageAsync(p.imgSrc);
+              return {
+                zoom: p.zoom ?? 1,
+                panX: p.panX ?? 0,
+                panY: p.panY ?? 0,
+                baseScale: p.baseScale ?? 1,
+                img: img
+              };
+            })
+          );
+          setPieces(loadedPieces);
+        }
+
+        alert("Workspace berhasil dipulihkan dari file preset JSON!");
+      } catch (err) {
+        console.error("Gagal mengimpor preset:", err);
+        alert("Format file preset JSON tidak valid atau rusak.");
+      } finally {
+        setIsPresetLoading(false);
+        onRecordingEnd();
+      }
+    };
+    reader.readAsText(file);
+    e.target.value = '';
   };
 
   // Redraw canvases when grid pieces change
@@ -1946,6 +2178,47 @@ export const GridPanel: React.FC<GridPanelProps> = ({
             </div>
           </div>
         )}
+
+        {/* Workspace Presets (Save & Restore) */}
+        <div className="bg-indigo-50/40 border border-indigo-100 rounded-2xl p-4 space-y-3 shadow-3xs">
+          <h3 className="text-xs font-extrabold text-indigo-950 flex items-center gap-1.5">
+            <Icons.Save className="w-4 h-4 text-indigo-600" /> Workspace Presets (JSON)
+          </h3>
+          <p className="text-[10px] text-indigo-900/80 font-medium leading-relaxed">
+            Simpan semua pengaturan tata letak, urutan gambar utama, kustomisasi watermarking, dan konfigurasi pangkas (zoom/pan) ke berkas JSON untuk digunakan kembali nanti.
+          </p>
+
+          <div className="grid grid-cols-2 gap-2">
+            {/* Export Button */}
+            <button
+              type="button"
+              onClick={handleExportPreset}
+              className="flex items-center justify-center gap-1.5 py-1.5 px-3 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl font-bold text-[11px] transition-all cursor-pointer shadow-3xs"
+            >
+              <Icons.Download className="w-3.5 h-3.5" />
+              <span>Simpan Preset</span>
+            </button>
+
+            {/* Import Button */}
+            <label className="flex items-center justify-center gap-1.5 py-1.5 px-3 bg-white hover:bg-indigo-50/50 text-indigo-700 border border-indigo-200 hover:border-indigo-300 rounded-xl font-bold text-[11px] transition-all cursor-pointer shadow-3xs text-center">
+              <Icons.Upload className="w-3.5 h-3.5 text-indigo-500" />
+              <span>Muat Preset</span>
+              <input
+                type="file"
+                accept=".json,application/json"
+                onChange={handleImportPreset}
+                className="hidden"
+              />
+            </label>
+          </div>
+          
+          {isPresetLoading && (
+            <div className="text-[9px] text-indigo-600 font-bold flex items-center justify-center gap-1 bg-white border border-indigo-100 p-1.5 rounded-lg animate-pulse">
+              <Icons.Loader2 className="w-3 h-3 animate-spin" />
+              <span>Memproses pemulihan workspace...</span>
+            </div>
+          )}
+        </div>
       </div>
 
       {/* COLUMN KANAN: Real-time Canvas Grid Workspace (Dark Theme, Spacious, Immersive) */}
