@@ -172,8 +172,52 @@ export const GridPanel: React.FC<GridPanelProps> = ({
   // Preset Loading State
   const [isPresetLoading, setIsPresetLoading] = useState<boolean>(false);
 
+  // Slicing Loading States
+  const [isSlicing, setIsSlicing] = useState<boolean>(false);
+  const [slicingMessage, setSlicingMessage] = useState<string>('');
+
   // Grid Slices State
   const [pieces, setPieces] = useState<GridPiece[]>([]);
+
+  // Bulk Renaming States
+  const [renamePrefix, setRenamePrefix] = useState<string>('Product');
+  const [renameSeparator, setRenameSeparator] = useState<string>('-');
+  const [renameStartCounter, setRenameStartCounter] = useState<number>(1);
+  const [renamePadding, setRenamePadding] = useState<string>('2'); // '1' | '2' | '3'
+  const [renameExtension, setRenameExtension] = useState<string>('.jpg'); // '.png' | '.jpg'
+  const [isRenamerOpen, setIsRenamerOpen] = useState<boolean>(true);
+
+  // Helper to generate custom sequenced name for a slice
+  const getPieceFilename = (idx: number): string => {
+    const prefix = renamePrefix.trim() || 'Product';
+    const separator = renameSeparator;
+    const counterNum = renameStartCounter + idx;
+    
+    let counterStr = String(counterNum);
+    const paddingLength = parseInt(renamePadding, 10);
+    if (counterStr.length < paddingLength) {
+      counterStr = counterStr.padStart(paddingLength, '0');
+    }
+    
+    const ext = renameExtension; // '.jpg' or '.png'
+    return `${prefix}${separator}${counterStr}${ext}`;
+  };
+
+  // Helper to generate custom sequenced name for a batch slice
+  const getBatchPieceFilename = (globalIdx: number): string => {
+    const prefix = renamePrefix.trim() || 'Product';
+    const separator = renameSeparator;
+    const counterNum = renameStartCounter + globalIdx;
+    
+    let counterStr = String(counterNum);
+    const paddingLength = parseInt(renamePadding, 10);
+    if (counterStr.length < paddingLength) {
+      counterStr = counterStr.padStart(paddingLength, '0');
+    }
+    
+    const ext = renameExtension; // '.jpg' or '.png'
+    return `${prefix}${separator}${counterStr}${ext}`;
+  };
 
   // Logos/IG Overlays for 9:16
   const [logoCompany, setLogoCompany] = useState<LogoSticker>({ img: null, x: 50, y: 50, size: 200, active: false });
@@ -854,7 +898,8 @@ export const GridPanel: React.FC<GridPanelProps> = ({
     imgElement: HTMLImageElement,
     colIdx: number,
     rowIdx: number,
-    applyOverlays: boolean = true
+    applyOverlays: boolean = true,
+    formatType: 'image/png' | 'image/jpeg' = 'image/png'
   ): string | null => {
     const targetWidth = 1080;
     const targetHeight = gridAspectRatio === '9:16' ? 1920 : (gridAspectRatio === '3:4' ? 1440 : 1080);
@@ -945,7 +990,7 @@ export const GridPanel: React.FC<GridPanelProps> = ({
     // Apply global watermark to each sliced panel in batch cut
     drawWatermarkOnCanvas(targetCtx, targetWidth, targetHeight);
 
-    return targetCanvas.toDataURL('image/png', 0.9);
+    return targetCanvas.toDataURL(formatType, 0.9);
   };
 
   // Batch Crop All Uploaded Images to ZIP with Watermarks
@@ -955,22 +1000,25 @@ export const GridPanel: React.FC<GridPanelProps> = ({
       return;
     }
 
+    setIsSlicing(true);
+    setSlicingMessage('Menyiapkan batch potong seluruh Gambar Utama...');
     onRecordingStart('Menyiapkan batch potong semua gambar...');
 
     try {
       const zip = new JSZip();
-      const folder = zip.folder(nameToUse || "MarketBoost_Batch_Slices");
+      const folder = zip.folder(nameToUse || renamePrefix || "MarketBoost_Batch_Slices");
+      const mime = renameExtension === '.jpg' ? 'image/jpeg' : 'image/png';
 
-      let globalPanelIndex = 1;
+      let globalPanelIndex = 0;
       for (let imgIdx = 0; imgIdx < masterImages.length; imgIdx++) {
         const m = masterImages[imgIdx];
         
         for (let r = 0; r < rows; r++) {
           for (let c = 0; c < cols; c++) {
-            const dataUrl = getPieceDataUrlForImage(m.img, c, r, true);
+            const dataUrl = getPieceDataUrlForImage(m.img, c, r, true, mime);
             if (dataUrl) {
               const base64Data = dataUrl.split(',')[1];
-              const filename = `${nameToUse || 'Panel'}-${globalPanelIndex}.png`;
+              const filename = getBatchPieceFilename(globalPanelIndex);
               folder?.file(filename, base64Data, { base64: true });
             }
             globalPanelIndex++;
@@ -980,6 +1028,7 @@ export const GridPanel: React.FC<GridPanelProps> = ({
 
       // Automatically generate video slideshow and pack it directly in the zip if enabled
       if (includeVideoSlideshow && videoSelectedPanelKeys.length > 0) {
+        setSlicingMessage('Merekam Video Slideshow untuk disisipkan ke berkas ZIP...');
         onRecordingStart('Menyiapkan & Merekam Video Slideshow untuk ZIP...');
         const videoSlices: string[] = [];
         
@@ -992,7 +1041,7 @@ export const GridPanel: React.FC<GridPanelProps> = ({
             const c = sliceIdx % cols;
             const m = masterImages[imgIdx];
             if (m) {
-              const dataUrl = getPieceDataUrlForImage(m.img, c, r, true);
+              const dataUrl = getPieceDataUrlForImage(m.img, c, r, true, mime);
               if (dataUrl) {
                 videoSlices.push(dataUrl);
               }
@@ -1017,6 +1066,7 @@ export const GridPanel: React.FC<GridPanelProps> = ({
         }
       }
 
+      setSlicingMessage('Mengompresi potongan gambar ke berkas ZIP...');
       onRecordingStart('Membuat file ZIP hasil potong...');
       const zipContent = await zip.generateAsync({ type: 'blob' });
       const url = URL.createObjectURL(zipContent);
@@ -1031,6 +1081,8 @@ export const GridPanel: React.FC<GridPanelProps> = ({
       console.error(e);
       alert("Gagal melakukan batch potong.");
     } finally {
+      setIsSlicing(false);
+      setSlicingMessage('');
       onRecordingEnd();
     }
   };
@@ -1329,7 +1381,7 @@ export const GridPanel: React.FC<GridPanelProps> = ({
   };
 
   // Render high-res snapshot of a specific slice with overlays applied on top
-  const getPieceDataUrl = (idx: number): string | null => {
+  const getPieceDataUrl = (idx: number, formatType: 'image/png' | 'image/jpeg' = 'image/png'): string | null => {
     const piece = pieces[idx];
     if (!piece || !piece.img) return null;
 
@@ -1379,7 +1431,7 @@ export const GridPanel: React.FC<GridPanelProps> = ({
     // Apply global watermark to all output panel files
     drawWatermarkOnCanvas(ctx, targetWidth, targetHeight);
 
-    return canvas.toDataURL('image/png', 0.9);
+    return canvas.toDataURL(formatType, 0.9);
   };
 
   // Unified Collage Image Generation
@@ -1390,53 +1442,64 @@ export const GridPanel: React.FC<GridPanelProps> = ({
       return;
     }
 
-    const targetWidth = 1080;
-    const targetHeight = gridAspectRatio === '9:16' ? 1920 : (gridAspectRatio === '3:4' ? 1440 : 1080);
+    setIsSlicing(true);
+    setSlicingMessage("Menggabungkan seluruh panel menjadi 1 collage...");
+    try {
+      const targetWidth = 1080;
+      const targetHeight = gridAspectRatio === '9:16' ? 1920 : (gridAspectRatio === '3:4' ? 1440 : 1080);
 
-    const collageCanvas = document.createElement('canvas');
-    collageCanvas.width = targetWidth * cols;
-    collageCanvas.height = targetHeight * rows;
-    const ctx = collageCanvas.getContext('2d');
-    if (!ctx) return;
+      const collageCanvas = document.createElement('canvas');
+      collageCanvas.width = targetWidth * cols;
+      collageCanvas.height = targetHeight * rows;
+      const ctx = collageCanvas.getContext('2d');
+      if (!ctx) return;
 
-    ctx.fillStyle = '#ffffff';
-    ctx.fillRect(0, 0, collageCanvas.width, collageCanvas.height);
+      ctx.fillStyle = '#ffffff';
+      ctx.fillRect(0, 0, collageCanvas.width, collageCanvas.height);
 
-    let pieceIndex = 0;
-    for (let y = 0; y < rows; y++) {
-      for (let x = 0; x < cols; x++) {
-        const url = getPieceDataUrl(pieceIndex);
-        if (url) {
-          const img = await new Promise<HTMLImageElement>((resolve) => {
-            const tempImg = new Image();
-            tempImg.onload = () => resolve(tempImg);
-            tempImg.src = url;
-          });
-          ctx.drawImage(img, x * targetWidth, y * targetHeight, targetWidth, targetHeight);
+      let pieceIndex = 0;
+      for (let y = 0; y < rows; y++) {
+        for (let x = 0; x < cols; x++) {
+          const url = getPieceDataUrl(pieceIndex);
+          if (url) {
+            const img = await new Promise<HTMLImageElement>((resolve) => {
+              const tempImg = new Image();
+              tempImg.onload = () => resolve(tempImg);
+              tempImg.src = url;
+            });
+            ctx.drawImage(img, x * targetWidth, y * targetHeight, targetWidth, targetHeight);
+          }
+          pieceIndex++;
         }
-        pieceIndex++;
       }
-    }
 
-    const collageUrl = collageCanvas.toDataURL('image/png', 0.9);
-    const link = document.createElement('a');
-    link.href = collageUrl;
-    link.download = `${customZipName || 'Collage'}-collage.png`;
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
+      const collageUrl = collageCanvas.toDataURL('image/png', 0.9);
+      const link = document.createElement('a');
+      link.href = collageUrl;
+      link.download = `${customZipName || 'Collage'}-collage.png`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+    } catch (err: any) {
+      console.error(err);
+      alert("Gagal mengunduh collage: " + (err.message || err));
+    } finally {
+      setIsSlicing(false);
+      setSlicingMessage('');
+    }
   };
 
   // Download a single specific panel slice directly
   const handleDownloadSinglePiece = (idx: number) => {
-    const url = getPieceDataUrl(idx);
+    const mime = renameExtension === '.jpg' ? 'image/jpeg' : 'image/png';
+    const url = getPieceDataUrl(idx, mime);
     if (!url) {
       alert("Belum ada gambar di slot ini.");
       return;
     }
     const link = document.createElement('a');
     link.href = url;
-    link.download = `${customZipName || 'Panel'}-${idx + 1}.png`;
+    link.download = getPieceFilename(idx);
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
@@ -1444,66 +1507,81 @@ export const GridPanel: React.FC<GridPanelProps> = ({
 
   // ZIP Downloader for all Slices as single archive pack
   const handleDownloadZip = async (nameToUse: string = customZipName) => {
-    const validPieces = pieces.map((p, idx) => ({ url: getPieceDataUrl(idx), idx })).filter((x) => x.url !== null);
+    const mime = renameExtension === '.jpg' ? 'image/jpeg' : 'image/png';
+    const validPieces = pieces.map((p, idx) => ({ url: getPieceDataUrl(idx, mime), idx })).filter((x) => x.url !== null);
 
     if (validPieces.length === 0) {
       alert("Harap unggah minimal 1 gambar ke dalam slot grid.");
       return;
     }
 
-    const zip = new JSZip();
-    const folder = zip.folder(nameToUse || "MarketBoost_Slices");
+    setIsSlicing(true);
+    setSlicingMessage("Menyiapkan potongan gambar...");
+    try {
+      const zip = new JSZip();
+      const folder = zip.folder(nameToUse || renamePrefix || "MarketBoost_Slices");
 
-    for (const piece of validPieces) {
-      if (piece.url) {
-        // Strip data:image/png;base64,
-        const base64Data = piece.url.split(',')[1];
-        folder?.file(`${nameToUse || 'Panel'}-${piece.idx + 1}.png`, base64Data, { base64: true });
-      }
-    }
-
-    // Automatically generate video slideshow and pack it directly in the zip if enabled
-    if (includeVideoSlideshow && videoSelectedPanelKeys.length > 0) {
-      onRecordingStart('Menyiapkan & Merekam Video Slideshow untuk ZIP...');
-      const videoSlices: string[] = [];
-      
-      videoSelectedPanelKeys.forEach(key => {
-        if (key.startsWith('slice_')) {
-          const sliceIdx = parseInt(key.replace('slice_', ''), 10);
-          const url = getPieceDataUrl(sliceIdx);
-          if (url) {
-            videoSlices.push(url);
-          }
-        }
-      });
-
-      if (videoSlices.length > 0) {
-        try {
-          const videoResult = await generateVideoBlob(videoSlices);
-          
-          // Check maximum size constraint (30MB)
-          const maxBytes = 30 * 1024 * 1024; // 30MB
-          if (videoResult.blob.size > maxBytes) {
-            alert(`Ukuran video slideshow (${(videoResult.blob.size / (1024 * 1024)).toFixed(2)} MB) melebihi batas 30MB. Video tetap disertakan dalam ZIP, namun disarankan mengurangi jumlah panel terpilih.`);
-          }
-          
-          folder?.file(`${nameToUse || 'Slideshow'}_Video.${videoResult.ext}`, videoResult.blob);
-        } catch (videoErr) {
-          console.error("Gagal menyisipkan video ke ZIP:", videoErr);
+      for (const piece of validPieces) {
+        if (piece.url) {
+          // Strip data:image/png;base64, or data:image/jpeg;base64,
+          const base64Data = piece.url.split(',')[1];
+          const filename = getPieceFilename(piece.idx);
+          folder?.file(filename, base64Data, { base64: true });
         }
       }
-    }
 
-    onRecordingStart('Membuat file ZIP hasil potong...');
-    const zipContent = await zip.generateAsync({ type: 'blob' });
-    const url = URL.createObjectURL(zipContent);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `${nameToUse || 'MarketBoost_Grid_Slices'}_${cols}x${rows}.zip`;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(url);
+      // Automatically generate video slideshow and pack it directly in the zip if enabled
+      if (includeVideoSlideshow && videoSelectedPanelKeys.length > 0) {
+        setSlicingMessage("Merekam Video Slideshow untuk disisipkan ke berkas ZIP...");
+        onRecordingStart('Menyiapkan & Merekam Video Slideshow untuk ZIP...');
+        const videoSlices: string[] = [];
+        
+        videoSelectedPanelKeys.forEach(key => {
+          if (key.startsWith('slice_')) {
+            const sliceIdx = parseInt(key.replace('slice_', ''), 10);
+            const url = getPieceDataUrl(sliceIdx, mime);
+            if (url) {
+              videoSlices.push(url);
+            }
+          }
+        });
+
+        if (videoSlices.length > 0) {
+          try {
+            const videoResult = await generateVideoBlob(videoSlices);
+            
+            // Check maximum size constraint (30MB)
+            const maxBytes = 30 * 1024 * 1024; // 30MB
+            if (videoResult.blob.size > maxBytes) {
+              alert(`Ukuran video slideshow (${(videoResult.blob.size / (1024 * 1024)).toFixed(2)} MB) melebihi batas 30MB. Video tetap disertakan dalam ZIP, namun disarankan mengurangi jumlah panel terpilih.`);
+            }
+            
+            folder?.file(`${nameToUse || 'Slideshow'}_Video.${videoResult.ext}`, videoResult.blob);
+          } catch (videoErr) {
+            console.error("Gagal menyisipkan video ke ZIP:", videoErr);
+          }
+        }
+      }
+
+      setSlicingMessage("Mengompresi potongan gambar ke berkas ZIP...");
+      onRecordingStart('Membuat file ZIP hasil potong...');
+      const zipContent = await zip.generateAsync({ type: 'blob' });
+      const url = URL.createObjectURL(zipContent);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `${nameToUse || 'MarketBoost_Grid_Slices'}_${cols}x${rows}.zip`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    } catch (err: any) {
+      console.error(err);
+      alert("Gagal memotong & mengunduh ZIP: " + (err.message || err));
+    } finally {
+      setIsSlicing(false);
+      setSlicingMessage("");
+      onRecordingEnd();
+    }
   };
 
   const openDownloadZipRenamePopup = () => {
@@ -1662,6 +1740,8 @@ export const GridPanel: React.FC<GridPanelProps> = ({
   };
 
   const handleDownloadVideo = async (customImages?: string[]) => {
+    setIsSlicing(true);
+    setSlicingMessage("Merekam video slideshow...");
     try {
       const { blob, ext } = await generateVideoBlob(customImages);
       const url = URL.createObjectURL(blob);
@@ -1676,6 +1756,8 @@ export const GridPanel: React.FC<GridPanelProps> = ({
       console.error("Gagal membuat video:", error);
       alert(error?.message || "Terjadi kesalahan saat memproses video. Browser sandbox Anda mungkin membatasi captureStream atau MediaRecorder.");
     } finally {
+      setIsSlicing(false);
+      setSlicingMessage("");
       onRecordingEnd();
     }
   };
@@ -1723,7 +1805,26 @@ export const GridPanel: React.FC<GridPanelProps> = ({
   };
 
   return (
-    <div className="flex-1 flex overflow-hidden h-full w-full bg-slate-900 text-slate-200">
+    <div className="flex-1 flex overflow-hidden h-full w-full bg-slate-900 text-slate-200 relative">
+      {/* PROCESSING & SLICING FULLSCREEN OVERLAY */}
+      {isSlicing && (
+        <div className="absolute inset-0 z-[100] bg-slate-950/90 backdrop-blur-md flex flex-col items-center justify-center p-6 text-center animate-in fade-in duration-300 space-y-4">
+          <div className="relative">
+            <div className="absolute inset-0 bg-indigo-500/20 rounded-full blur-2xl opacity-40 animate-pulse" />
+            <div className="w-16 h-16 bg-slate-900 border border-indigo-500/40 rounded-2xl flex items-center justify-center shadow-2xl relative z-10 animate-bounce">
+              <Icons.Loader2 className="w-8 h-8 text-indigo-400 animate-spin" />
+            </div>
+          </div>
+          <div className="space-y-1.5 max-w-sm relative z-10">
+            <h3 className="text-sm font-black text-white uppercase tracking-wider">Sedang Memproses Potongan</h3>
+            <p className="text-xs text-indigo-300 font-semibold font-mono">{slicingMessage || "Harap tunggu sebentar..."}</p>
+            <p className="text-[10px] text-slate-500 leading-relaxed pt-2">
+              Slicing Engine sedang merender kanvas presisi, menyematkan watermark, dan mengompresi gambar ke berkas ZIP. Mohon tidak menutup tab atau workspace ini.
+            </p>
+          </div>
+        </div>
+      )}
+
       {/* COLUMN KIRI: Grid Controls & Form (Light theme matches left sidebar style) */}
       <div className="w-[320px] bg-white border-r border-gray-200 flex flex-col overflow-y-auto shrink-0 p-4 space-y-4 text-slate-800">
         
@@ -2454,6 +2555,141 @@ export const GridPanel: React.FC<GridPanelProps> = ({
               );
             })}
           </div>
+        </div>
+
+        {/* PERSISTENT BULK RENAME OVERLAY */}
+        <div id="bulk-rename-overlay" className="absolute bottom-6 right-6 z-40 w-80 bg-slate-900/95 backdrop-blur-md border border-indigo-500/40 rounded-2xl p-4 shadow-2xl transition-all duration-300 text-white">
+          <div className="flex items-center justify-between border-b border-slate-800 pb-2 mb-3">
+            <div className="flex items-center gap-2">
+              <div className="p-1 bg-indigo-500/10 rounded-lg border border-indigo-500/20">
+                <Icons.Tag className="w-4 h-4 text-indigo-400" />
+              </div>
+              <div>
+                <h4 className="text-xs font-extrabold tracking-tight text-white uppercase">Bulk Renamer Overlay</h4>
+                <p className="text-[9px] text-slate-400 font-medium">Format: [Prefix][Separator][Counter].[Ext]</p>
+              </div>
+            </div>
+            <button
+              id="toggle-renamer-btn"
+              type="button"
+              onClick={() => setIsRenamerOpen(!isRenamerOpen)}
+              className="text-slate-400 hover:text-white transition-colors cursor-pointer"
+            >
+              {isRenamerOpen ? <Icons.ChevronDown className="w-4 h-4" /> : <Icons.ChevronUp className="w-4 h-4" />}
+            </button>
+          </div>
+
+          {isRenamerOpen ? (
+            <div className="space-y-3 text-[11px] animate-in fade-in duration-200">
+              {/* Custom Prefix */}
+              <div className="space-y-1">
+                <label className="text-[9px] font-bold text-indigo-400 uppercase tracking-wider block">Custom Prefix</label>
+                <div className="relative">
+                  <input
+                    id="rename-prefix-input"
+                    type="text"
+                    value={renamePrefix}
+                    onChange={(e) => setRenamePrefix(e.target.value.replace(/[^a-zA-Z0-9_-]/g, ''))}
+                    placeholder="e.g. Product"
+                    className="w-full bg-slate-950 border border-slate-800 hover:border-slate-700 focus:border-indigo-500 rounded-xl px-3 py-2 text-[11px] text-white font-bold outline-none font-mono transition-all"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-2">
+                {/* Separator Select */}
+                <div className="space-y-1">
+                  <label className="text-[9px] font-bold text-indigo-400 uppercase tracking-wider block">Separator</label>
+                  <select
+                    id="rename-separator-select"
+                    value={renameSeparator}
+                    onChange={(e) => setRenameSeparator(e.target.value)}
+                    className="w-full bg-slate-950 border border-slate-800 hover:border-slate-700 text-white rounded-xl px-2 py-2 text-[11px] font-bold outline-none font-mono"
+                  >
+                    <option value="-">- (Dash)</option>
+                    <option value="_">_ (Underscore)</option>
+                    <option value="">None</option>
+                  </select>
+                </div>
+
+                {/* Starting Number */}
+                <div className="space-y-1">
+                  <label className="text-[9px] font-bold text-indigo-400 uppercase tracking-wider block">Start Counter</label>
+                  <input
+                    id="rename-start-counter-input"
+                    type="number"
+                    min="1"
+                    value={renameStartCounter}
+                    onChange={(e) => setRenameStartCounter(Math.max(1, parseInt(e.target.value) || 1))}
+                    className="w-full bg-slate-950 border border-slate-800 hover:border-slate-700 text-white rounded-xl px-2.5 py-1.5 text-[11px] font-bold outline-none font-mono"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-2">
+                {/* Digit Padding */}
+                <div className="space-y-1">
+                  <label className="text-[9px] font-bold text-indigo-400 uppercase tracking-wider block">Padding Format</label>
+                  <select
+                    id="rename-padding-select"
+                    value={renamePadding}
+                    onChange={(e) => setRenamePadding(e.target.value)}
+                    className="w-full bg-slate-950 border border-slate-800 hover:border-slate-700 text-white rounded-xl px-2 py-2 text-[11px] font-bold outline-none font-mono"
+                  >
+                    <option value="1">1 (e.g. 1, 2)</option>
+                    <option value="2">01 (e.g. 01, 02)</option>
+                    <option value="3">001 (e.g. 001)</option>
+                  </select>
+                </div>
+
+                {/* File Format */}
+                <div className="space-y-1">
+                  <label className="text-[9px] font-bold text-indigo-400 uppercase tracking-wider block">Extension</label>
+                  <select
+                    id="rename-extension-select"
+                    value={renameExtension}
+                    onChange={(e) => setRenameExtension(e.target.value)}
+                    className="w-full bg-slate-950 border border-slate-800 hover:border-slate-700 text-white rounded-xl px-2 py-2 text-[11px] font-bold outline-none font-mono"
+                  >
+                    <option value=".jpg">.jpg (JPEG)</option>
+                    <option value=".png">.png (PNG)</option>
+                  </select>
+                </div>
+              </div>
+
+              {/* Live Preview box */}
+              <div className="bg-slate-950 border border-slate-800/80 rounded-xl p-2.5 mt-2.5">
+                <div className="flex justify-between text-[8px] font-bold text-slate-500 uppercase tracking-wider mb-1">
+                  <span>Live Preview Nama File</span>
+                  <span className="text-emerald-500 font-extrabold animate-pulse">● Aktif</span>
+                </div>
+                <div className="text-[10px] font-mono font-extrabold text-indigo-300 break-all select-all">
+                  {getPieceFilename(0)}
+                </div>
+                <div className="text-[10px] font-mono text-slate-500 mt-1">
+                  Panel berikutnya: {getPieceFilename(1)}
+                </div>
+              </div>
+
+              {/* Rename Quick Actions */}
+              <div className="pt-2 flex gap-2">
+                <button
+                  id="rename-download-zip-btn"
+                  type="button"
+                  onClick={() => handleDownloadZip(renamePrefix)}
+                  className="flex-1 py-2 bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl font-bold text-[11px] transition-all flex items-center justify-center gap-1.5 shadow-md shadow-indigo-600/15 cursor-pointer"
+                >
+                  <Icons.Download className="w-3.5 h-3.5" />
+                  <span>Download Slices ZIP</span>
+                </button>
+              </div>
+            </div>
+          ) : (
+            <div className="text-[9px] text-slate-400 font-mono flex items-center justify-between">
+              <span>Aktif format:</span>
+              <span className="font-bold text-indigo-400 font-mono">{renamePrefix}{renameSeparator}xx{renameExtension}</span>
+            </div>
+          )}
         </div>
       </div>
 
