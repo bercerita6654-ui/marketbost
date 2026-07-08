@@ -59,5 +59,6 @@ export interface CopiedPrompt {
   text: string;
   type: 'visual' | 'caption' | 'seo';
   timestamp: string;
+  customName?: string;
 }
 

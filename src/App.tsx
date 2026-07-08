@@ -764,6 +764,21 @@ export default function App() {
                         </div>
                       </div>
 
+                      {/* Custom Prompt Label */}
+                      <div className="flex items-center gap-2 px-2 py-1 bg-slate-900/60 rounded-lg border border-slate-800/50">
+                        <Icons.Bookmark className="w-3 h-3 text-blue-400 shrink-0" />
+                        <input
+                          type="text"
+                          value={item.customName || ''}
+                          placeholder="Beri nama prompt agar mudah diingat..."
+                          onChange={(e) => {
+                            const updated = recentCopies.map(r => r.id === item.id ? { ...r, customName: e.target.value } : r);
+                            saveRecentCopies(updated);
+                          }}
+                          className="w-full bg-transparent border-none text-[11px] font-bold text-slate-200 focus:text-white outline-none placeholder:text-slate-600 placeholder:font-normal py-0.5"
+                        />
+                      </div>
+
                       <div className="text-[11px] text-slate-300 bg-slate-900/50 p-2.5 rounded-lg border border-slate-800/50 font-mono break-words max-h-32 overflow-y-auto whitespace-pre-wrap leading-relaxed shadow-inner">
                         {item.text}
                       </div>
