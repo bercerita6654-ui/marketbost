@@ -55,6 +55,9 @@ export const GridPanel: React.FC<GridPanelProps> = ({
   const [masterImages, setMasterImages] = useState<MasterImage[]>([]);
   const [activeMasterIdx, setActiveMasterIdx] = useState<number>(0);
   const [customZipName, setCustomZipName] = useState<string>('MarketBoost_Grid');
+  const [renameModalOpen, setRenameModalOpen] = useState<boolean>(false);
+  const [renameModalType, setRenameModalType] = useState<'batch' | 'slices'>('batch');
+  const [tempZipName, setTempZipName] = useState<string>('MarketBoost_Grid');
 
   // Grid Slices State
   const [pieces, setPieces] = useState<GridPiece[]>([]);
@@ -423,7 +426,7 @@ export const GridPanel: React.FC<GridPanelProps> = ({
   };
 
   // Batch Crop All Uploaded Images to ZIP with Watermarks
-  const handleBatchCutAllToZip = async () => {
+  const handleBatchCutAllToZip = async (nameToUse: string = customZipName) => {
     if (masterImages.length === 0) {
       alert("Harap unggah minimal 1 Gambar Utama terlebih dahulu.");
       return;
@@ -433,7 +436,7 @@ export const GridPanel: React.FC<GridPanelProps> = ({
 
     try {
       const zip = new JSZip();
-      const folder = zip.folder(customZipName || "MarketBoost_Batch_Slices");
+      const folder = zip.folder(nameToUse || "MarketBoost_Batch_Slices");
 
       for (let imgIdx = 0; imgIdx < masterImages.length; imgIdx++) {
         const m = masterImages[imgIdx];
@@ -445,7 +448,7 @@ export const GridPanel: React.FC<GridPanelProps> = ({
             const dataUrl = getPieceDataUrlForImage(m.img, c, r, true);
             if (dataUrl) {
               const base64Data = dataUrl.split(',')[1];
-              const filename = `${customZipName || 'Panel'}_${baseName}_Panel_${panelIndex}.png`;
+              const filename = `${nameToUse || 'Panel'}_${baseName}_Panel_${panelIndex}.png`;
               folder?.file(filename, base64Data, { base64: true });
             }
             panelIndex++;
@@ -457,7 +460,7 @@ export const GridPanel: React.FC<GridPanelProps> = ({
       const url = URL.createObjectURL(zipContent);
       const a = document.createElement('a');
       a.href = url;
-      a.download = `${customZipName || 'MarketBoost_Batch_Grid'}_${cols}x${rows}.zip`;
+      a.download = `${nameToUse || 'MarketBoost_Batch_Grid'}_${cols}x${rows}.zip`;
       document.body.appendChild(a);
       a.click();
       document.body.removeChild(a);
@@ -468,6 +471,16 @@ export const GridPanel: React.FC<GridPanelProps> = ({
     } finally {
       onRecordingEnd();
     }
+  };
+
+  const openBatchCutRenamePopup = () => {
+    if (masterImages.length === 0) {
+      alert("Harap unggah minimal 1 Gambar Utama terlebih dahulu.");
+      return;
+    }
+    setTempZipName(customZipName);
+    setRenameModalType('batch');
+    setRenameModalOpen(true);
   };
 
   // Manual image upload on a specific slot
@@ -828,7 +841,7 @@ export const GridPanel: React.FC<GridPanelProps> = ({
   };
 
   // ZIP Downloader for all Slices as single archive pack
-  const handleDownloadZip = async () => {
+  const handleDownloadZip = async (nameToUse: string = customZipName) => {
     const validPieces = pieces.map((p, idx) => ({ url: getPieceDataUrl(idx), idx })).filter((x) => x.url !== null);
 
     if (validPieces.length === 0) {
@@ -837,13 +850,13 @@ export const GridPanel: React.FC<GridPanelProps> = ({
     }
 
     const zip = new JSZip();
-    const folder = zip.folder(customZipName || "MarketBoost_Slices");
+    const folder = zip.folder(nameToUse || "MarketBoost_Slices");
 
     for (const piece of validPieces) {
       if (piece.url) {
         // Strip data:image/png;base64,
         const base64Data = piece.url.split(',')[1];
-        folder?.file(`${customZipName || 'Panel'}_Panel_${piece.idx + 1}.png`, base64Data, { base64: true });
+        folder?.file(`${nameToUse || 'Panel'}_Panel_${piece.idx + 1}.png`, base64Data, { base64: true });
       }
     }
 
@@ -851,11 +864,22 @@ export const GridPanel: React.FC<GridPanelProps> = ({
     const url = URL.createObjectURL(zipContent);
     const a = document.createElement('a');
     a.href = url;
-    a.download = `${customZipName || 'MarketBoost_Grid_Slices'}_${cols}x${rows}.zip`;
+    a.download = `${nameToUse || 'MarketBoost_Grid_Slices'}_${cols}x${rows}.zip`;
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);
     URL.revokeObjectURL(url);
+  };
+
+  const openDownloadZipRenamePopup = () => {
+    const validPieces = pieces.map((p, idx) => ({ url: getPieceDataUrl(idx), idx })).filter((x) => x.url !== null);
+    if (validPieces.length === 0) {
+      alert("Harap unggah minimal 1 gambar ke dalam slot grid.");
+      return;
+    }
+    setTempZipName(customZipName);
+    setRenameModalType('slices');
+    setRenameModalOpen(true);
   };
 
   // Video Slideshow Slides Video Generator
@@ -1153,7 +1177,7 @@ export const GridPanel: React.FC<GridPanelProps> = ({
                       </button>
                       <button
                         type="button"
-                        onClick={handleBatchCutAllToZip}
+                        onClick={openBatchCutRenamePopup}
                         className="w-full bg-slate-800 hover:bg-slate-700 text-slate-100 py-1.5 rounded-lg text-[10px] font-bold transition-all flex items-center justify-center gap-1 shadow-xs cursor-pointer"
                         title="Batch potong semua gambar sekaligus dan download ZIP"
                       >
@@ -1417,7 +1441,7 @@ export const GridPanel: React.FC<GridPanelProps> = ({
               </button>
               <button
                 type="button"
-                onClick={handleDownloadZip}
+                onClick={openDownloadZipRenamePopup}
                 className="flex-1 sm:flex-none bg-slate-800 hover:bg-slate-700 hover:scale-102 text-slate-200 px-4 py-2 rounded-xl font-bold text-xs transition-all flex items-center justify-center gap-1.5 border border-slate-700 cursor-pointer active:scale-98"
               >
                 <Icons.Download className="w-3.5 h-3.5" />
@@ -1536,6 +1560,116 @@ export const GridPanel: React.FC<GridPanelProps> = ({
           </div>
         </div>
       </div>
+
+      {/* Rename File Output Popup Modal */}
+      {renameModalOpen && (
+        <div className="fixed inset-0 bg-slate-950/80 backdrop-blur-md z-[110] flex items-center justify-center p-4">
+          <div className="bg-slate-900 border border-slate-800 rounded-3xl w-full max-w-md overflow-hidden shadow-2xl animate-in fade-in zoom-in-95 duration-200">
+            {/* Header */}
+            <div className="p-5 border-b border-slate-800 bg-slate-950/50 flex justify-between items-center">
+              <div className="flex items-center gap-2">
+                <Icons.Edit3 className="w-5 h-5 text-indigo-400" />
+                <div>
+                  <h3 className="font-extrabold text-sm text-white tracking-tight">Rename File & Folder Output</h3>
+                  <p className="text-[10px] text-slate-400">Atur nama prefix untuk file hasil potong</p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setRenameModalOpen(false)}
+                className="p-1.5 hover:bg-slate-800 rounded-lg text-slate-400 hover:text-white transition-colors outline-none cursor-pointer"
+              >
+                <Icons.X className="w-4 h-4" />
+              </button>
+            </div>
+
+            {/* Content */}
+            <div className="p-5 space-y-4">
+              <div className="space-y-2">
+                <label className="text-[10px] font-bold text-indigo-400 uppercase tracking-wider block">Prefix Nama File</label>
+                <div className="relative">
+                  <input
+                    type="text"
+                    value={tempZipName}
+                    onChange={(e) => setTempZipName(e.target.value.replace(/[^a-zA-Z0-9_-]/g, ''))}
+                    placeholder="Masukkan prefix nama..."
+                    className="w-full bg-slate-950 border border-slate-800 hover:border-slate-700 focus:border-indigo-500 rounded-xl px-4 py-2.5 text-xs text-white font-bold outline-none font-mono transition-all pr-10"
+                    autoFocus
+                  />
+                  <div className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-500 font-mono text-[9px] font-bold">
+                    PNG
+                  </div>
+                </div>
+                <p className="text-[10px] text-slate-400 leading-relaxed">
+                  *Karakter yang diperbolehkan hanya huruf, angka, garis bawah (_), dan tanda hubung (-).
+                </p>
+              </div>
+
+              {/* Dynamic preview of generated file names */}
+              <div className="bg-slate-950/60 border border-slate-850 rounded-2xl p-4 space-y-3">
+                <span className="text-[9px] font-bold text-slate-400 uppercase tracking-widest block">Skema Preview Hasil Nama File</span>
+                
+                <div className="space-y-2 text-[10px] font-mono leading-relaxed">
+                  <div className="flex justify-between border-b border-slate-850/40 pb-1.5">
+                    <span className="text-slate-500">Folder ZIP:</span>
+                    <span className="text-indigo-300 font-bold">{tempZipName || 'MarketBoost_Grid'}</span>
+                  </div>
+                  <div className="flex justify-between border-b border-slate-850/40 pb-1.5">
+                    <span className="text-slate-500">Nama File ZIP:</span>
+                    <span className="text-indigo-400 font-bold truncate max-w-[200px]" title={`${tempZipName || 'MarketBoost_Grid'}_${cols}x${rows}.zip`}>
+                      {tempZipName || 'MarketBoost_Grid'}_{cols}x{rows}.zip
+                    </span>
+                  </div>
+                  <div className="flex justify-between items-start gap-2">
+                    <span className="text-slate-500 shrink-0">Nama Gambar Slice:</span>
+                    <div className="text-right text-emerald-400 font-bold break-all">
+                      {renameModalType === 'batch' ? (
+                        <>
+                          {tempZipName || 'Panel'}_[Nama_Asli]_Panel_1.png
+                          <div className="text-[9px] text-slate-500 font-normal mt-0.5">Slicing {masterImages.length} file sekaligus</div>
+                        </>
+                      ) : (
+                        <>
+                          {tempZipName || 'Panel'}_Panel_1.png
+                          <div className="text-[9px] text-slate-500 font-normal mt-0.5">Slicing canvas grid aktif ({cols * rows} panel)</div>
+                        </>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Footer */}
+            <div className="p-4 border-t border-slate-800 bg-slate-950/40 flex justify-end gap-2">
+              <button
+                type="button"
+                onClick={() => setRenameModalOpen(false)}
+                className="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white rounded-xl text-xs font-bold transition-all cursor-pointer"
+              >
+                Batal
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  const finalName = tempZipName.trim() || 'MarketBoost_Grid';
+                  setCustomZipName(finalName);
+                  setRenameModalOpen(false);
+                  if (renameModalType === 'batch') {
+                    handleBatchCutAllToZip(finalName);
+                  } else {
+                    handleDownloadZip(finalName);
+                  }
+                }}
+                className="px-4 py-2 bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 shadow-md shadow-indigo-600/15 cursor-pointer"
+              >
+                <Icons.Check className="w-3.5 h-3.5" />
+                <span>Mulai Potong & Download</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
