@@ -61,6 +61,8 @@ export const GridPanel: React.FC<GridPanelProps> = ({
   const [draggedImgIdx, setDraggedImgIdx] = useState<number | null>(null);
   const [dragOverImgIdx, setDragOverImgIdx] = useState<number | null>(null);
   const [previewImage, setPreviewImage] = useState<MasterImage | null>(null);
+  const [includeVideoSlideshow, setIncludeVideoSlideshow] = useState<boolean>(true);
+  const [videoSelectedImageIds, setVideoSelectedImageIds] = useState<string[]>([]);
 
   // Grid Slices State
   const [pieces, setPieces] = useState<GridPiece[]>([]);
@@ -523,6 +525,8 @@ export const GridPanel: React.FC<GridPanelProps> = ({
     }
     setTempZipName(customZipName);
     setRenameModalType('batch');
+    setVideoSelectedImageIds(masterImages.map(m => m.id));
+    setIncludeVideoSlideshow(true);
     setRenameModalOpen(true);
   };
 
@@ -926,8 +930,8 @@ export const GridPanel: React.FC<GridPanelProps> = ({
   };
 
   // Video Slideshow Slides Video Generator
-  const handleDownloadVideo = async () => {
-    const validImages = pieces.map((p, idx) => getPieceDataUrl(idx)).filter((x) => x !== null) as string[];
+  const handleDownloadVideo = async (customImages?: string[]) => {
+    const validImages = customImages || (pieces.map((p, idx) => getPieceDataUrl(idx)).filter((x) => x !== null) as string[]);
 
     if (validImages.length === 0) {
       alert("Harap unggah minimal 1 gambar ke dalam slot grid.");
@@ -1661,7 +1665,7 @@ export const GridPanel: React.FC<GridPanelProps> = ({
             </div>
 
             {/* Content */}
-            <div className="p-5 space-y-4">
+            <div className="p-5 space-y-4 max-h-[75vh] overflow-y-auto scrollbar-thin">
               <div className="space-y-2">
                 <label className="text-[10px] font-bold text-indigo-400 uppercase tracking-wider block">Prefix Nama File</label>
                 <div className="relative">
@@ -1681,6 +1685,68 @@ export const GridPanel: React.FC<GridPanelProps> = ({
                   *Karakter yang diperbolehkan hanya huruf, angka, garis bawah (_), dan tanda hubung (-).
                 </p>
               </div>
+
+              {/* Automatic Video Slideshow configuration (only for batch mode) */}
+              {renameModalType === 'batch' && (
+                <div className="space-y-3 pt-3 border-t border-slate-800/80">
+                  <div className="flex items-center justify-between">
+                    <label className="flex items-center gap-2 cursor-pointer select-none">
+                      <input
+                        type="checkbox"
+                        checked={includeVideoSlideshow}
+                        onChange={(e) => setIncludeVideoSlideshow(e.target.checked)}
+                        className="w-4 h-4 rounded border-slate-800 bg-slate-950 text-indigo-600 focus:ring-indigo-500 cursor-pointer"
+                      />
+                      <span className="text-[11px] font-bold text-indigo-400 uppercase tracking-wider">
+                        Otomatis Buat & Download Video Slideshow
+                      </span>
+                    </label>
+                  </div>
+                  
+                  {includeVideoSlideshow && (
+                    <div className="space-y-2">
+                      <span className="text-[10px] text-slate-400 block leading-relaxed">
+                        Pilih gambar utama yang ingin dimasukkan ke dalam video slideshow:
+                      </span>
+                      <div className="max-h-[160px] overflow-y-auto border border-slate-800 bg-slate-950/40 rounded-2xl p-2 space-y-1.5 scrollbar-thin">
+                        {masterImages.map((m) => {
+                          const isSelected = videoSelectedImageIds.includes(m.id);
+                          return (
+                            <div
+                              key={m.id}
+                              onClick={() => {
+                                setVideoSelectedImageIds(prev => 
+                                  prev.includes(m.id) 
+                                    ? prev.filter(id => id !== m.id) 
+                                    : [...prev, m.id]
+                                );
+                              }}
+                              className={`flex items-center gap-3 p-2 rounded-xl border transition-all cursor-pointer ${
+                                isSelected 
+                                  ? 'bg-indigo-950/20 border-indigo-800/40 text-white' 
+                                  : 'bg-transparent border-slate-850 text-slate-400 hover:border-slate-800 hover:text-slate-300'
+                              }`}
+                            >
+                              <div className={`w-4 h-4 rounded flex items-center justify-center border transition-all ${
+                                isSelected 
+                                  ? 'bg-indigo-600 border-indigo-500 text-white' 
+                                  : 'border-slate-700 bg-slate-950 text-transparent'
+                              }`}>
+                                {isSelected && <Icons.Check className="w-2.5 h-2.5 stroke-[3]" />}
+                              </div>
+                              <img src={m.src} className="w-8 h-8 object-cover rounded-lg border border-slate-800" alt="" />
+                              <div className="min-w-0 flex-1">
+                                <p className="text-[10px] font-bold truncate">{m.name}</p>
+                                <p className="text-[9px] text-slate-500 font-mono">{m.dimensions}</p>
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
 
               {/* Dynamic preview of generated file names */}
               <div className="bg-slate-950/60 border border-slate-850 rounded-2xl p-4 space-y-3">
@@ -1704,6 +1770,11 @@ export const GridPanel: React.FC<GridPanelProps> = ({
                         <>
                           {tempZipName || 'Panel'}-1.png, {tempZipName || 'Panel'}-2.png, ...
                           <div className="text-[9px] text-slate-500 font-normal mt-0.5">Slicing {masterImages.length} file sekaligus (Total {masterImages.length * cols * rows} panel)</div>
+                          {includeVideoSlideshow && videoSelectedImageIds.length > 0 && (
+                            <div className="text-[9px] text-indigo-400 font-normal mt-1.5">
+                              + Video Slideshow ({videoSelectedImageIds.length * cols * rows} slides)
+                            </div>
+                          )}
                         </>
                       ) : (
                         <>
@@ -1733,7 +1804,28 @@ export const GridPanel: React.FC<GridPanelProps> = ({
                   setCustomZipName(finalName);
                   setRenameModalOpen(false);
                   if (renameModalType === 'batch') {
-                    handleBatchCutAllToZip(finalName);
+                    handleBatchCutAllToZip(finalName).then(() => {
+                      if (includeVideoSlideshow && videoSelectedImageIds.length > 0) {
+                        const selectedMasters = masterImages.filter(m => videoSelectedImageIds.includes(m.id));
+                        const videoSlices: string[] = [];
+                        selectedMasters.forEach(m => {
+                          for (let r = 0; r < rows; r++) {
+                            for (let c = 0; c < cols; c++) {
+                              const dataUrl = getPieceDataUrlForImage(m.img, c, r, true);
+                              if (dataUrl) {
+                                videoSlices.push(dataUrl);
+                              }
+                            }
+                          }
+                        });
+
+                        if (videoSlices.length > 0) {
+                          setTimeout(() => {
+                            handleDownloadVideo(videoSlices);
+                          }, 1000);
+                        }
+                      }
+                    });
                   } else {
                     handleDownloadZip(finalName);
                   }
