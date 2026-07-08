@@ -60,6 +60,7 @@ export const GridPanel: React.FC<GridPanelProps> = ({
   const [tempZipName, setTempZipName] = useState<string>('MarketBoost_Grid');
   const [draggedImgIdx, setDraggedImgIdx] = useState<number | null>(null);
   const [dragOverImgIdx, setDragOverImgIdx] = useState<number | null>(null);
+  const [previewImage, setPreviewImage] = useState<MasterImage | null>(null);
 
   // Grid Slices State
   const [pieces, setPieces] = useState<GridPiece[]>([]);
@@ -1170,6 +1171,7 @@ export const GridPanel: React.FC<GridPanelProps> = ({
                     <div
                       key={m.id}
                       onClick={() => setActiveMasterIdx(idx)}
+                      onDoubleClick={() => setPreviewImage(m)}
                       draggable
                       onDragStart={(e) => handleDragStart(e, idx)}
                       onDragOver={(e) => handleDragOver(e, idx)}
@@ -1182,7 +1184,7 @@ export const GridPanel: React.FC<GridPanelProps> = ({
                       } ${draggedImgIdx === idx ? 'opacity-30 border-dashed border-indigo-400' : ''} ${
                         dragOverImgIdx === idx ? 'border-emerald-500 scale-95' : ''
                       }`}
-                      title={`Klik untuk memilih, Seret untuk mengurutkan: ${m.name}`}
+                      title={`Double-klik untuk memperbesar, Seret untuk mengurutkan: ${m.name}`}
                     >
                       <img src={m.src} className="w-full h-full object-cover pointer-events-none" alt={m.name} />
                       <div className="absolute inset-0 bg-black/10 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center pointer-events-none">
@@ -1197,9 +1199,20 @@ export const GridPanel: React.FC<GridPanelProps> = ({
                         type="button"
                         onClick={(e) => {
                           e.stopPropagation();
+                          setPreviewImage(m);
+                        }}
+                        className="absolute bottom-1 left-1 bg-indigo-600 hover:bg-indigo-700 text-white p-1 rounded-full opacity-0 group-hover:opacity-100 transition-opacity focus:opacity-100 shadow-sm cursor-pointer z-10 hover:scale-105"
+                        title="Pratinjau gambar penuh"
+                      >
+                        <Icons.Eye className="w-3 h-3" />
+                      </button>
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
                           handleDeleteMasterImage(idx);
                         }}
-                        className="absolute -top-1 -right-1 bg-rose-600 text-white p-1 rounded-full opacity-0 group-hover:opacity-100 transition-opacity hover:bg-rose-700 focus:opacity-100 shadow-xs"
+                        className="absolute -top-1 -right-1 bg-rose-600 text-white p-1 rounded-full opacity-0 group-hover:opacity-100 transition-opacity hover:bg-rose-700 focus:opacity-100 shadow-xs z-10"
                         title="Hapus gambar ini"
                       >
                         <Icons.X className="w-2 h-2" />
@@ -1212,9 +1225,19 @@ export const GridPanel: React.FC<GridPanelProps> = ({
                 {masterImages[activeMasterIdx] && (
                   <div className="p-3 bg-white border border-indigo-100 rounded-xl space-y-2.5 shadow-sm">
                     <div className="flex justify-between items-center text-[10px] gap-2">
-                      <span className="font-bold text-slate-600 truncate max-w-[140px]" title={masterImages[activeMasterIdx].name}>
-                        {masterImages[activeMasterIdx].name}
-                      </span>
+                      <div className="flex items-center gap-1.5 min-w-0">
+                        <button
+                          type="button"
+                          onClick={() => setPreviewImage(masterImages[activeMasterIdx])}
+                          className="p-1 hover:bg-indigo-50 text-indigo-600 hover:text-indigo-800 rounded transition-all shrink-0 cursor-pointer"
+                          title="Pratinjau Gambar Penuh"
+                        >
+                          <Icons.Eye className="w-3.5 h-3.5" />
+                        </button>
+                        <span className="font-bold text-slate-600 truncate" title={masterImages[activeMasterIdx].name}>
+                          {masterImages[activeMasterIdx].name}
+                        </span>
+                      </div>
                       <span className="font-mono bg-indigo-50 text-indigo-700 px-1.5 py-0.5 rounded font-extrabold text-[9px] shrink-0">
                         {masterImages[activeMasterIdx].dimensions}
                       </span>
@@ -1721,6 +1744,76 @@ export const GridPanel: React.FC<GridPanelProps> = ({
                 <span>Mulai Potong & Download</span>
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* Image Preview Lightbox Modal */}
+      {previewImage && (
+        <div className="fixed inset-0 bg-slate-950/95 backdrop-blur-md z-[120] flex flex-col items-center justify-center p-4">
+          {/* Top Actions bar */}
+          <div className="w-full max-w-4xl flex justify-between items-center mb-4 text-white">
+            <div className="flex items-center gap-2">
+              <Icons.Image className="w-5 h-5 text-indigo-400" />
+              <div>
+                <h3 className="font-extrabold text-sm text-white tracking-tight">{previewImage.name}</h3>
+                <p className="text-[10px] text-slate-400 font-mono">{previewImage.dimensions}</p>
+              </div>
+            </div>
+            <button
+              type="button"
+              onClick={() => setPreviewImage(null)}
+              className="p-2 bg-slate-800 hover:bg-slate-700 rounded-full text-white transition-all cursor-pointer shadow-lg hover:scale-105"
+              title="Tutup Pratinjau"
+            >
+              <Icons.X className="w-5 h-5" />
+            </button>
+          </div>
+
+          {/* Main Image View */}
+          <div className="relative max-w-4xl max-h-[75vh] bg-slate-900 border border-slate-800 rounded-3xl p-2 overflow-hidden flex items-center justify-center shadow-2xl group">
+            <img
+              src={previewImage.src}
+              className="max-w-full max-h-[70vh] object-contain rounded-2xl select-none"
+              alt={previewImage.name}
+            />
+          </div>
+
+          {/* Bottom Info bar / Navigation */}
+          <div className="mt-4 flex items-center gap-4 bg-slate-900/80 border border-slate-800/80 px-4 py-2 rounded-2xl shadow-xl">
+            <button
+              type="button"
+              disabled={masterImages.findIndex(m => m.id === previewImage.id) === 0}
+              onClick={() => {
+                const currentIdx = masterImages.findIndex(m => m.id === previewImage.id);
+                if (currentIdx > 0) {
+                  setPreviewImage(masterImages[currentIdx - 1]);
+                }
+              }}
+              className="p-2 bg-slate-800 hover:bg-slate-700 disabled:opacity-30 disabled:hover:bg-slate-800 rounded-xl text-white transition-all cursor-pointer shadow-md disabled:cursor-not-allowed"
+              title="Gambar Sebelumnya"
+            >
+              <Icons.ChevronLeft className="w-5 h-5" />
+            </button>
+
+            <span className="text-xs text-slate-400 font-bold font-mono">
+              {masterImages.findIndex(m => m.id === previewImage.id) + 1} / {masterImages.length}
+            </span>
+
+            <button
+              type="button"
+              disabled={masterImages.findIndex(m => m.id === previewImage.id) === masterImages.length - 1}
+              onClick={() => {
+                const currentIdx = masterImages.findIndex(m => m.id === previewImage.id);
+                if (currentIdx < masterImages.length - 1) {
+                  setPreviewImage(masterImages[currentIdx + 1]);
+                }
+              }}
+              className="p-2 bg-slate-800 hover:bg-slate-700 disabled:opacity-30 disabled:hover:bg-slate-800 rounded-xl text-white transition-all cursor-pointer shadow-md disabled:cursor-not-allowed"
+              title="Gambar Selanjutnya"
+            >
+              <Icons.ChevronRight className="w-5 h-5" />
+            </button>
           </div>
         </div>
       )}
