@@ -1,0 +1,6 @@
+{
+  "name": "MarketBoost AI",
+  "description": "A comprehensive e-commerce marketing tool for AI visual generation, SEO copywriting, social media captions, and grid collage creation.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
