@@ -438,20 +438,19 @@ export const GridPanel: React.FC<GridPanelProps> = ({
       const zip = new JSZip();
       const folder = zip.folder(nameToUse || "MarketBoost_Batch_Slices");
 
+      let globalPanelIndex = 1;
       for (let imgIdx = 0; imgIdx < masterImages.length; imgIdx++) {
         const m = masterImages[imgIdx];
-        const baseName = m.name.replace(/\.[^/.]+$/, ""); // Strip file extension
         
-        let panelIndex = 1;
         for (let r = 0; r < rows; r++) {
           for (let c = 0; c < cols; c++) {
             const dataUrl = getPieceDataUrlForImage(m.img, c, r, true);
             if (dataUrl) {
               const base64Data = dataUrl.split(',')[1];
-              const filename = `${nameToUse || 'Panel'}_${baseName}_Panel_${panelIndex}.png`;
+              const filename = `${nameToUse || 'Panel'}-${globalPanelIndex}.png`;
               folder?.file(filename, base64Data, { base64: true });
             }
-            panelIndex++;
+            globalPanelIndex++;
           }
         }
       }
@@ -819,7 +818,7 @@ export const GridPanel: React.FC<GridPanelProps> = ({
     const collageUrl = collageCanvas.toDataURL('image/png', 0.9);
     const link = document.createElement('a');
     link.href = collageUrl;
-    link.download = `${customZipName || 'Collage'}_Collage_${cols}x${rows}.png`;
+    link.download = `${customZipName || 'Collage'}-collage.png`;
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
@@ -834,7 +833,7 @@ export const GridPanel: React.FC<GridPanelProps> = ({
     }
     const link = document.createElement('a');
     link.href = url;
-    link.download = `${customZipName || 'Panel'}_Panel_${idx + 1}.png`;
+    link.download = `${customZipName || 'Panel'}-${idx + 1}.png`;
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
@@ -856,7 +855,7 @@ export const GridPanel: React.FC<GridPanelProps> = ({
       if (piece.url) {
         // Strip data:image/png;base64,
         const base64Data = piece.url.split(',')[1];
-        folder?.file(`${nameToUse || 'Panel'}_Panel_${piece.idx + 1}.png`, base64Data, { base64: true });
+        folder?.file(`${nameToUse || 'Panel'}-${piece.idx + 1}.png`, base64Data, { base64: true });
       }
     }
 
@@ -1625,12 +1624,12 @@ export const GridPanel: React.FC<GridPanelProps> = ({
                     <div className="text-right text-emerald-400 font-bold break-all">
                       {renameModalType === 'batch' ? (
                         <>
-                          {tempZipName || 'Panel'}_[Nama_Asli]_Panel_1.png
-                          <div className="text-[9px] text-slate-500 font-normal mt-0.5">Slicing {masterImages.length} file sekaligus</div>
+                          {tempZipName || 'Panel'}-1.png, {tempZipName || 'Panel'}-2.png, ...
+                          <div className="text-[9px] text-slate-500 font-normal mt-0.5">Slicing {masterImages.length} file sekaligus (Total {masterImages.length * cols * rows} panel)</div>
                         </>
                       ) : (
                         <>
-                          {tempZipName || 'Panel'}_Panel_1.png
+                          {tempZipName || 'Panel'}-1.png, {tempZipName || 'Panel'}-2.png, ...
                           <div className="text-[9px] text-slate-500 font-normal mt-0.5">Slicing canvas grid aktif ({cols * rows} panel)</div>
                         </>
                       )}
