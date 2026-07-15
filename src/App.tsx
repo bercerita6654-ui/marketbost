@@ -10,10 +10,23 @@ import * as Icons from 'lucide-react';
 
 export default function App() {
   const [activeTab, setActiveTab] = useState<ActiveTab>('visual');
-  const [productName, setProductName] = useState('this product');
+  const [productName, setProductName] = useState<string>(() => {
+    try {
+      return localStorage.getItem('marketboost_autosave_productName') || 'this product';
+    } catch {
+      return 'this product';
+    }
+  });
   
   // Shared Keywords state
-  const [keywords, setKeywords] = useState<string[]>([]);
+  const [keywords, setKeywords] = useState<string[]>(() => {
+    try {
+      const stored = localStorage.getItem('marketboost_autosave_keywords');
+      return stored ? JSON.parse(stored) : [];
+    } catch {
+      return [];
+    }
+  });
 
   // Recent copies state for cross-session tracking
   const [recentCopies, setRecentCopies] = useState<CopiedPrompt[]>([]);
@@ -43,7 +56,23 @@ export default function App() {
     }
   });
 
-  // Auto-save prompts on change
+  // Auto-save prompts, product name, and keywords on change
+  useEffect(() => {
+    try {
+      localStorage.setItem('marketboost_autosave_productName', productName);
+    } catch (e) {
+      console.error('Failed to auto-save product name', e);
+    }
+  }, [productName]);
+
+  useEffect(() => {
+    try {
+      localStorage.setItem('marketboost_autosave_keywords', JSON.stringify(keywords));
+    } catch (e) {
+      console.error('Failed to auto-save keywords', e);
+    }
+  }, [keywords]);
+
   useEffect(() => {
     try {
       localStorage.setItem('marketboost_autosave_visual', visualPrompt);
@@ -361,9 +390,15 @@ export default function App() {
               
               {/* Product Global Identifier input */}
               <div className="bg-slate-50 border border-slate-200 rounded-xl p-3.5 space-y-1.5 shadow-2xs">
-                <div className="flex items-center gap-1 text-[10px] font-bold text-slate-400 uppercase tracking-widest">
-                  <Icons.Package className="w-3.5 h-3.5 text-blue-500" />
-                  <span>Nama Utama Produk</span>
+                <div className="flex items-center justify-between text-[10px] font-bold text-slate-400 uppercase tracking-widest">
+                  <div className="flex items-center gap-1">
+                    <Icons.Package className="w-3.5 h-3.5 text-blue-500" />
+                    <span>Nama Utama Produk</span>
+                  </div>
+                  <span className="text-[9px] text-indigo-600 bg-indigo-50 px-1.5 py-0.5 rounded-md flex items-center gap-1 font-bold font-sans tracking-normal normal-case">
+                    <span className="w-1.5 h-1.5 rounded-full bg-indigo-500 animate-pulse" />
+                    Auto-Draft
+                  </span>
                 </div>
                 <input
                   type="text"

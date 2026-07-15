@@ -168,6 +168,12 @@ export const VisualPanel: React.FC<VisualPanelProps> = ({ productName, onGenerat
   const [propsVal, setPropsVal] = useState('');
   const [negativePrompt, setNegativePrompt] = useState('ugly, deformed, noisy, blurry, distorted, out of focus, bad anatomy, extra limbs, bad hands, mutated fingers, poorly drawn hands, poorly drawn face, disfigured, mutated face, mutated body');
 
+  // Product Sizing & Dimensions (cm)
+  const [sizePreset, setSizePreset] = useState<'none' | 'cosmetic' | 'tumbler' | 'shoe' | 'bag' | 'custom'>('none');
+  const [customHeight, setCustomHeight] = useState('15');
+  const [customWidth, setCustomWidth] = useState('8');
+  const [customLength, setCustomLength] = useState('');
+
   const handleGenerate = () => {
     const isCouple = propsVal.toLowerCase().includes('couple') || propsVal.toLowerCase().includes('prewedding') || productName.toLowerCase().includes('couple') || productName.toLowerCase().includes('prewedding');
     
@@ -251,14 +257,31 @@ export const VisualPanel: React.FC<VisualPanelProps> = ({ productName, onGenerat
       }
     } else {
       // product mode
+      let sizeDirective = "";
+      if (sizePreset !== 'none' && subjectMode === 'product') {
+        if (sizePreset === 'cosmetic') {
+          sizeDirective = `The physical scale of ${productName} is exactly 12 cm in height and 4 cm in diameter (a small handheld bottle/item). In all scenes and views, its size and proportions must strictly look small and delicate, fitting easily in a human hand or alongside small items. Do not make it look larger than 12 cm.`;
+        } else if (sizePreset === 'tumbler') {
+          sizeDirective = `The physical scale of ${productName} is exactly 15 cm in height and 8 cm in diameter (standard medium handheld cup/tumbler). It must be proportioned accurately relative to a human palm, a table surface, or typical drinkware.`;
+        } else if (sizePreset === 'shoe') {
+          sizeDirective = `The physical scale of ${productName} is exactly 28 cm in length, 10 cm in width, and 12 cm in height (standard shoe/sneaker size). Its length and volume must look accurate compared to a human foot, floor tiles, or standard footwear.`;
+        } else if (sizePreset === 'bag') {
+          sizeDirective = `The physical scale of ${productName} is exactly 42 cm in height, 30 cm in width, and 15 cm in thickness (standard medium backpack/bag). It must look large enough to fit on a human back or be held with both hands, but not oversized.`;
+        } else if (sizePreset === 'custom') {
+          sizeDirective = `The physical scale of ${productName} is strictly ${customHeight ? `${customHeight} cm height` : ''}${customWidth ? ` x ${customWidth} cm width` : ''}${customLength ? ` x ${customLength} cm length` : ''}. All proportions, sizes, and volume in the scene must be generated relative to these precise dimensions in centimeters to match its original real-life counterpart.`;
+        }
+      }
+
       if (multiAngle) {
         if (useProductFlow) {
           finalPrompt = `Create a structured 4-panel grid photo collage demonstrating ${productName} in a professional commercial format. The 4 panels MUST strictly follow this precise sequential presentation:\n\n`;
-          finalPrompt += `1. Panel 1 (Gambar Produk): Use a ${angle1}. Showcase the entire ${productName} clearly as the main hero product. Clean solid background with soft even lighting.\n`;
-          finalPrompt += `2. Panel 2 (Penggunaan Produk): Use a ${angle2}. Demonstrate the ${productName} in active use. ${modelEnable ? `A model is actively using the product naturally` : `Close-up action shot showing the product being used`} in a suitable ${background} environment.\n`;
-          finalPrompt += `3. Panel 3 (Cara Penggunaan): Use a ${angle3}. Step-by-step visual presentation on how to operate or apply the ${productName}. Detail-focused shot displaying usage instructions or hand interaction with the product.\n`;
-          finalPrompt += `4. Panel 4 (Angle Produk Lainnya): Use a ${angle4}. Showcase an alternative aesthetic angle or secondary detailed perspective of ${productName} with premium lighting to highlight its quality.\n\n`;
+          finalPrompt += `1. Panel 1 (Gambar Produk): Use a ${angle1}. Fokus penuh menampilkan seluruh produk utama secara jelas. (Full focus showcasing the entire main product clearly as a hero shot with correct original proportions).\n`;
+          finalPrompt += `2. Panel 2 (Penggunaan Produk): Use a ${angle2}. Menampilkan produk yang sedang digunakan secara aktif atau natural. (${modelEnable ? `A model is actively and naturally using the product` : `The product is shown in authentic active use`} in a suitable ${background} setting, ensuring the product's scale matches the hands/body size perfectly).\n`;
+          finalPrompt += `3. Panel 3 (Cara Penggunaan): Use a ${angle3}. Memberikan panduan visual langkah demi langkah atau interaksi tangan langsung dengan produk. (Providing a step-by-step visual guide or detailed close-up hand interaction directly with the product, showing how it is used/applied while keeping the product's size and design identical to other panels).\n`;
+          finalPrompt += `4. Panel 4 (Angle Produk): Use a ${angle4}. Menampilkan produk yang sama sudut estetika alternatif atau perspektif sekunder berkualitas tinggi. (Showcasing the same product with an alternative aesthetic angle or high-quality premium secondary perspective).\n\n`;
           if (modelEnable) finalPrompt += `Model details for relevant panels: ${modelAge} ${modelEthnicity} ${modelGender} model.\n`;
+          if (sizeDirective) finalPrompt += `SIZE & SCALE REQUIREMENT: ${sizeDirective}\n\n`;
+          finalPrompt += `CRITICAL FOR VISUAL CONSISTENCY: Maintain strict uniformity in the product's physical design, size scale, materials, branding, and colors across all 4 panels of the collage. The product MUST look identical and consistent in size relative to its surroundings in every panel, only changing in camera angle, distance, or active usage state.\n`;
           finalPrompt += `General aesthetic: Style is ${style}, Vibe is ${vibe}, Color palette is ${color}. Highly detailed, 8k resolution, photorealistic commercial advertising presentation.`;
         } else {
           finalPrompt = `Create a 4-panel grid photo collage of ${productName} featuring 4 completely different compositions:\n\n`;
@@ -267,11 +290,13 @@ export const VisualPanel: React.FC<VisualPanelProps> = ({ productName, onGenerat
           finalPrompt += `3. Panel 3: Use a ${angle3}. Product placed on a ${background}, accompanied by props like ${propsVal ? propsVal : 'minimalist aesthetic elements'}. Natural window sunlight lighting. ${modelEnable ? `Model interacting with the product in a lifestyle setting.` : ''}\n`;
           finalPrompt += `4. Panel 4: Use a ${angle4}. Dramatic lighting with harsh shadows to provide a premium and elegant feel. ${modelEnable ? `Creative framing emphasizing the product on the model.` : ''}\n\n`;
           if (modelEnable) finalPrompt += `Model details: ${modelAge} ${modelEthnicity} ${modelGender} model.\n`;
+          if (sizeDirective) finalPrompt += `SIZE & SCALE REQUIREMENT: ${sizeDirective}\n\n`;
           finalPrompt += `General aesthetic: Style is ${style}, Vibe is ${vibe}, Color palette is ${color}. Highly detailed, 8k resolution, photorealistic commercial photography masterpiece.`;
         }
       } else {
         finalPrompt = `Professional product photography of ${productName}. Camera Angle: ${angle}. `;
         finalPrompt += modelContext;
+        if (sizeDirective) finalPrompt += `Physical dimensions and size scale: ${sizeDirective} `;
         finalPrompt += `Style: ${style}. Vibe: ${vibe}. Setting: Placed on a ${background}. Lighting: Illuminated by ${lighting}. Color Palette: ${color}. `;
         if (propsVal) finalPrompt += `Additional elements: Featuring ${propsVal}. `;
         finalPrompt += `Highly detailed, 8k resolution, photorealistic, commercial photography masterpiece, unreal engine 5 render style.`;
@@ -482,6 +507,187 @@ export const VisualPanel: React.FC<VisualPanelProps> = ({ productName, onGenerat
         </div>
       )}
 
+      {/* Menu Dimensi & Ukuran Produk dalam cm */}
+      {subjectMode === 'product' && (
+        <div className="p-4 border border-slate-200 bg-slate-50/50 rounded-xl space-y-3 shadow-2xs">
+          <div className="flex items-center justify-between border-b border-slate-200/60 pb-2">
+            <span className="text-xs font-bold text-slate-700 flex items-center gap-1.5">
+              <Icons.Ruler className="w-4 h-4 text-indigo-500" />
+              Skala & Dimensi Produk (cm)
+            </span>
+            <span className="text-[10px] font-bold text-indigo-600 bg-indigo-50 px-2 py-0.5 rounded-full">
+              {sizePreset === 'none' ? 'Otomatis' : sizePreset === 'cosmetic' ? 'Kecil' : sizePreset === 'tumbler' ? 'Sedang' : sizePreset === 'shoe' ? 'Alas Kaki' : sizePreset === 'bag' ? 'Besar' : 'Kustom'}
+            </span>
+          </div>
+
+          <p className="text-[10px] text-slate-500 leading-normal">
+            Pilih atau sesuaikan dimensi asli dalam centimeter (cm) agar model AI merender produk dengan ukuran proporsional yang mirip dengan aslinya saat digunakan.
+          </p>
+
+          {/* Grid of Presets with drawn illustrations */}
+          <div className="grid grid-cols-5 gap-2">
+            {/* Preset 1: Auto */}
+            <div
+              onClick={() => setSizePreset('none')}
+              className={`cursor-pointer rounded-lg p-1.5 border-2 text-center transition-all bg-white flex flex-col justify-between min-h-[96px] ${
+                sizePreset === 'none' ? 'border-indigo-500 bg-indigo-50/20' : 'border-slate-200 hover:border-slate-300'
+              }`}
+            >
+              <div className="flex-1 flex items-center justify-center">
+                <svg viewBox="0 0 64 64" className="w-10 h-10 text-slate-400" fill="none" stroke="currentColor" strokeWidth="2">
+                  <circle cx="32" cy="32" r="18" strokeDasharray="3 3" />
+                  <text x="21" y="36" fill="#94a3b8" fontSize="11" fontWeight="bold">Auto</text>
+                </svg>
+              </div>
+              <span className="text-[9px] font-bold text-slate-600 mt-1 block truncate">Bawaan</span>
+            </div>
+
+            {/* Preset 2: Cosmetic */}
+            <div
+              onClick={() => setSizePreset('cosmetic')}
+              className={`cursor-pointer rounded-lg p-1.5 border-2 text-center transition-all bg-white flex flex-col justify-between min-h-[96px] ${
+                sizePreset === 'cosmetic' ? 'border-indigo-500 bg-indigo-50/20' : 'border-slate-200 hover:border-slate-300'
+              }`}
+            >
+              <div className="flex-1 flex items-center justify-center">
+                <svg viewBox="0 0 64 64" className="w-10 h-10 text-indigo-500" fill="none" stroke="currentColor" strokeWidth="2">
+                  <path d="M26 18h12v32H26z" strokeLinecap="round" strokeLinejoin="round" />
+                  <path d="M30 12h4v6h-4z" />
+                  <path d="M28 8h8v4H28z" fill="currentColor" fillOpacity="0.1" />
+                  <path d="M44 18v32M41 18h6M41 50h6" stroke="#94a3b8" strokeWidth="1" />
+                  <text x="46" y="34" fill="#64748b" fontSize="6.5" fontWeight="bold">12c</text>
+                  <path d="M26 54h12M26 51v6M38 51v6" stroke="#94a3b8" strokeWidth="1" />
+                  <text x="29" y="60" fill="#64748b" fontSize="6.5" fontWeight="bold">4c</text>
+                </svg>
+              </div>
+              <span className="text-[9px] font-bold text-slate-600 mt-1 block truncate">Kosmetik</span>
+            </div>
+
+            {/* Preset 3: Tumbler */}
+            <div
+              onClick={() => setSizePreset('tumbler')}
+              className={`cursor-pointer rounded-lg p-1.5 border-2 text-center transition-all bg-white flex flex-col justify-between min-h-[96px] ${
+                sizePreset === 'tumbler' ? 'border-indigo-500 bg-indigo-50/20' : 'border-slate-200 hover:border-slate-300'
+              }`}
+            >
+              <div className="flex-1 flex items-center justify-center">
+                <svg viewBox="0 0 64 64" className="w-10 h-10 text-indigo-500" fill="none" stroke="currentColor" strokeWidth="2">
+                  <path d="M23 15h18l-3.5 32h-11z" strokeLinecap="round" strokeLinejoin="round" />
+                  <path d="M21 11h22v4H21z" fill="currentColor" fillOpacity="0.1" />
+                  <path d="M45 11v36M42 11h6M42 47h6" stroke="#94a3b8" strokeWidth="1" />
+                  <text x="47" y="29" fill="#64748b" fontSize="6.5" fontWeight="bold">15c</text>
+                  <path d="M24 51h16M24 48v6M40 48v6" stroke="#94a3b8" strokeWidth="1" />
+                  <text x="30" y="57" fill="#64748b" fontSize="6.5" fontWeight="bold">8c</text>
+                </svg>
+              </div>
+              <span className="text-[9px] font-bold text-slate-600 mt-1 block truncate">Tumbler</span>
+            </div>
+
+            {/* Preset 4: Shoe */}
+            <div
+              onClick={() => setSizePreset('shoe')}
+              className={`cursor-pointer rounded-lg p-1.5 border-2 text-center transition-all bg-white flex flex-col justify-between min-h-[96px] ${
+                sizePreset === 'shoe' ? 'border-indigo-500 bg-indigo-50/20' : 'border-slate-200 hover:border-slate-300'
+              }`}
+            >
+              <div className="flex-1 flex items-center justify-center">
+                <svg viewBox="0 0 64 64" className="w-10 h-10 text-indigo-500" fill="none" stroke="currentColor" strokeWidth="2">
+                  <path d="M12 36h40l2-14-9-7-11 10-9-3z" strokeLinecap="round" strokeLinejoin="round" />
+                  <path d="M12 36v3h40v-3" strokeLinecap="round" strokeLinejoin="round" fill="currentColor" fillOpacity="0.1" />
+                  <path d="M13 44h38M13 41v6M51 41v6" stroke="#94a3b8" strokeWidth="1" />
+                  <text x="27" y="50" fill="#64748b" fontSize="6.5" fontWeight="bold">28c</text>
+                </svg>
+              </div>
+              <span className="text-[9px] font-bold text-slate-600 mt-1 block truncate">Sepatu</span>
+            </div>
+
+            {/* Preset 5: Bag */}
+            <div
+              onClick={() => setSizePreset('bag')}
+              className={`cursor-pointer rounded-lg p-1.5 border-2 text-center transition-all bg-white flex flex-col justify-between min-h-[96px] ${
+                sizePreset === 'bag' ? 'border-indigo-500 bg-indigo-50/20' : 'border-slate-200 hover:border-slate-300'
+              }`}
+            >
+              <div className="flex-1 flex items-center justify-center">
+                <svg viewBox="0 0 64 64" className="w-10 h-10 text-indigo-500" fill="none" stroke="currentColor" strokeWidth="2">
+                  <path d="M21 22c0-5 3-9 11-9s11 4 11 9v24H21z" strokeLinecap="round" strokeLinejoin="round" />
+                  <path d="M23 33h18v11H23z" fill="currentColor" fillOpacity="0.1" />
+                  <path d="M28 13c0-2.5 1.5-3.5 4-3.5s4 1 4 3.5" />
+                  <path d="M47 13v33M44 13h6M44 46h6" stroke="#94a3b8" strokeWidth="1" />
+                  <text x="49" y="30" fill="#64748b" fontSize="6.5" fontWeight="bold">42c</text>
+                </svg>
+              </div>
+              <span className="text-[9px] font-bold text-slate-600 mt-1 block truncate">Ransel</span>
+            </div>
+
+            {/* Preset 6: Custom */}
+            <div
+              onClick={() => setSizePreset('custom')}
+              className={`col-span-5 cursor-pointer rounded-lg p-2 border-2 text-center transition-all bg-white flex items-center justify-between gap-3 ${
+                sizePreset === 'custom' ? 'border-indigo-500 bg-indigo-50/20' : 'border-slate-200 hover:border-slate-300'
+              }`}
+            >
+              <div className="flex items-center gap-2">
+                <svg viewBox="0 0 64 64" className="w-8 h-8 text-indigo-600 shrink-0" fill="none" stroke="currentColor" strokeWidth="2">
+                  <path d="M12 24h40v16H12z" strokeLinecap="round" strokeLinejoin="round" />
+                  <path d="M18 24v5M24 24v3M30 24v5M36 24v3M42 24v5M48 24v3" strokeWidth="1" />
+                </svg>
+                <div className="text-left">
+                  <span className="text-[10px] font-bold text-slate-800 block">Kustom Ukuran Sendiri</span>
+                  <span className="text-[9px] text-slate-400 block">Tentukan tinggi, lebar & panjang dalam cm</span>
+                </div>
+              </div>
+              <Icons.ChevronRight className={`w-4 h-4 text-slate-400 transition-transform ${sizePreset === 'custom' ? 'rotate-90 text-indigo-500' : ''}`} />
+            </div>
+          </div>
+
+          {/* Expanded custom input fields if custom selected */}
+          {sizePreset === 'custom' && (
+            <div className="grid grid-cols-3 gap-2 bg-slate-100/50 p-2.5 rounded-lg border border-slate-200/50">
+              <div>
+                <label className="text-[9px] font-bold text-slate-500 uppercase tracking-wide block mb-1">Tinggi (cm)</label>
+                <div className="relative">
+                  <input
+                    type="number"
+                    value={customHeight}
+                    onChange={(e) => setCustomHeight(e.target.value)}
+                    placeholder="15"
+                    className="w-full pl-2 pr-6 py-1 bg-white border border-slate-300 rounded text-xs text-slate-800 outline-none font-semibold focus:border-indigo-400"
+                  />
+                  <span className="absolute right-1.5 top-1.5 text-[9px] text-slate-400 font-bold">cm</span>
+                </div>
+              </div>
+              <div>
+                <label className="text-[9px] font-bold text-slate-500 uppercase tracking-wide block mb-1">Lebar (cm)</label>
+                <div className="relative">
+                  <input
+                    type="number"
+                    value={customWidth}
+                    onChange={(e) => setCustomWidth(e.target.value)}
+                    placeholder="8"
+                    className="w-full pl-2 pr-6 py-1 bg-white border border-slate-300 rounded text-xs text-slate-800 outline-none font-semibold focus:border-indigo-400"
+                  />
+                  <span className="absolute right-1.5 top-1.5 text-[9px] text-slate-400 font-bold">cm</span>
+                </div>
+              </div>
+              <div>
+                <label className="text-[9px] font-bold text-slate-500 uppercase tracking-wide block mb-1">Panjang (cm)</label>
+                <div className="relative">
+                  <input
+                    type="number"
+                    value={customLength}
+                    onChange={(e) => setCustomLength(e.target.value)}
+                    placeholder="Opsional"
+                    className="w-full pl-2 pr-6 py-1 bg-white border border-slate-300 rounded text-xs text-slate-800 outline-none font-semibold focus:border-indigo-400"
+                  />
+                  <span className="absolute right-1.5 top-1.5 text-[9px] text-slate-400 font-bold">cm</span>
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+
       {/* Additional Props */}
       <div>
         <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest block mb-1">Properti Tambahan (Opsional)</label>
@@ -528,20 +734,32 @@ export const VisualPanel: React.FC<VisualPanelProps> = ({ productName, onGenerat
             </div>
 
             {multiAngle && subjectMode === 'product' && (
-              <div className="ml-8 mt-1 border-t border-blue-200/50 pt-2 flex items-center gap-2">
-                <input
-                  type="checkbox"
-                  id="useProductFlow"
-                  checked={useProductFlow}
-                  onChange={(e) => setUseProductFlow(e.target.checked)}
-                  className="w-4.5 h-4.5 text-blue-600 bg-white border-slate-300 rounded cursor-pointer accent-blue-600"
-                />
-                <label htmlFor="useProductFlow" className="cursor-pointer select-none flex-1">
-                  <span className="text-[11px] font-bold text-blue-800 flex items-center gap-1">
-                    <Icons.PlayCircle className="w-3.5 h-3.5 text-blue-600" />
-                    Alur Presentasi (Gambar, Penggunaan, Cara Pakai, Angle Lain)
+              <div className="ml-8 mt-1 border-t border-blue-200/50 pt-2 space-y-2">
+                <div className="flex items-center gap-2">
+                  <input
+                    type="checkbox"
+                    id="useProductFlow"
+                    checked={useProductFlow}
+                    onChange={(e) => setUseProductFlow(e.target.checked)}
+                    className="w-4.5 h-4.5 text-blue-600 bg-white border-slate-300 rounded cursor-pointer accent-blue-600"
+                  />
+                  <label htmlFor="useProductFlow" className="cursor-pointer select-none flex-1">
+                    <span className="text-[11px] font-bold text-blue-800 flex items-center gap-1">
+                      <Icons.PlayCircle className="w-3.5 h-3.5 text-blue-600" />
+                      Alur Presentasi (Gambar, Penggunaan, Cara Pakai, Angle Lain)
+                    </span>
+                  </label>
+                </div>
+                
+                <div className="bg-amber-50/70 border border-amber-100/80 p-2.5 rounded-lg text-[10px] text-amber-900 leading-relaxed space-y-1">
+                  <span className="font-bold flex items-center gap-1 text-amber-800">
+                    <Icons.AlertCircle className="w-3.5 h-3.5 text-amber-600" />
+                    Tips Konsistensi Bentuk & Ukuran:
                   </span>
-                </label>
+                  <p>
+                    Tulis nama & deskripsi produk secara spesifik (misal: <i>"Botol minum termos stainless steel silinder warna hitam matte kapasitas 500ml"</i> dibanding hanya <i>"botol"</i>). Ini memaksa AI menjaga kemiripan bentuk, proporsi, dan ukuran produk di setiap panel.
+                  </p>
+                </div>
               </div>
             )}
           </div>
@@ -554,24 +772,44 @@ export const VisualPanel: React.FC<VisualPanelProps> = ({ productName, onGenerat
                   {useProductFlow && subjectMode === 'product' ? 'Panel 1: Gambar Produk' : 'Panel 1 (Kiri Atas)'}
                 </label>
                 <Dropdown label="Angle 1" options={VISUAL_ANGLES} selectedValue={angle1} onSelect={setAngle1} accentColor="blue" />
+                {useProductFlow && subjectMode === 'product' && (
+                  <p className="text-[9px] text-slate-500 leading-tight mt-1">
+                    Fokus penuh menampilkan seluruh produk utama secara jelas.
+                  </p>
+                )}
               </div>
               <div>
                 <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest block mb-1">
                   {useProductFlow && subjectMode === 'product' ? 'Panel 2: Penggunaan Produk' : 'Panel 2 (Kanan Atas)'}
                 </label>
                 <Dropdown label="Angle 2" options={VISUAL_ANGLES} selectedValue={angle2} onSelect={setAngle2} accentColor="blue" />
+                {useProductFlow && subjectMode === 'product' && (
+                  <p className="text-[9px] text-slate-500 leading-tight mt-1">
+                    Menampilkan produk yang sedang digunakan secara aktif atau natural.
+                  </p>
+                )}
               </div>
               <div>
                 <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest block mb-1">
                   {useProductFlow && subjectMode === 'product' ? 'Panel 3: Cara Penggunaan' : 'Panel 3 (Kiri Bawah)'}
                 </label>
                 <Dropdown label="Angle 3" options={VISUAL_ANGLES} selectedValue={angle3} onSelect={setAngle3} accentColor="blue" />
+                {useProductFlow && subjectMode === 'product' && (
+                  <p className="text-[9px] text-slate-500 leading-tight mt-1">
+                    Memberikan panduan visual langkah demi langkah atau interaksi tangan.
+                  </p>
+                )}
               </div>
               <div>
                 <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest block mb-1">
                   {useProductFlow && subjectMode === 'product' ? 'Panel 4: Angle Lainnya' : 'Panel 4 (Kanan Bawah)'}
                 </label>
                 <Dropdown label="Angle 4" options={VISUAL_ANGLES} selectedValue={angle4} onSelect={setAngle4} accentColor="blue" />
+                {useProductFlow && subjectMode === 'product' && (
+                  <p className="text-[9px] text-slate-500 leading-tight mt-1">
+                    Menampilkan produk yang sama sudut estetika alternatif berkualitas tinggi.
+                  </p>
+                )}
               </div>
             </div>
           )}
