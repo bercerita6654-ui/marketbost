@@ -159,6 +159,7 @@ export const VisualPanel: React.FC<VisualPanelProps> = ({ productName, onGenerat
 
   // 4 Angles Grid Collage
   const [multiAngle, setMultiAngle] = useState(false);
+  const [useProductFlow, setUseProductFlow] = useState(false);
   const [angle1, setAngle1] = useState(VISUAL_ANGLES[1].value); // Default Panel 1: Front Angle
   const [angle2, setAngle2] = useState(VISUAL_ANGLES[3].value); // Default Panel 2: Close-Up
   const [angle3, setAngle3] = useState(VISUAL_ANGLES[0].value); // Default Panel 3: Eye-Level
@@ -251,13 +252,23 @@ export const VisualPanel: React.FC<VisualPanelProps> = ({ productName, onGenerat
     } else {
       // product mode
       if (multiAngle) {
-        finalPrompt = `Create a 4-panel grid photo collage of ${productName} featuring 4 completely different compositions:\n\n`;
-        finalPrompt += `1. Panel 1: Use a ${angle1}. Clean solid background, even soft lighting with no harsh shadows, full focus on the entire product. ${modelEnable ? `Model is posing naturally.` : ''}\n`;
-        finalPrompt += `2. Panel 2: Use a ${angle2}. Highlighting the texture and fine details, shallow depth of field with a beautiful bokeh background. ${modelEnable ? `Focusing closely on the model's ${modelPlacement}.` : ''}\n`;
-        finalPrompt += `3. Panel 3: Use a ${angle3}. Product placed on a ${background}, accompanied by props like ${propsVal ? propsVal : 'minimalist aesthetic elements'}. Natural window sunlight lighting. ${modelEnable ? `Model interacting with the product in a lifestyle setting.` : ''}\n`;
-        finalPrompt += `4. Panel 4: Use a ${angle4}. Dramatic lighting with harsh shadows to provide a premium and elegant feel. ${modelEnable ? `Creative framing emphasizing the product on the model.` : ''}\n\n`;
-        if (modelEnable) finalPrompt += `Model details: ${modelAge} ${modelEthnicity} ${modelGender} model.\n`;
-        finalPrompt += `General aesthetic: Style is ${style}, Vibe is ${vibe}, Color palette is ${color}. Highly detailed, 8k resolution, photorealistic commercial photography masterpiece.`;
+        if (useProductFlow) {
+          finalPrompt = `Create a structured 4-panel grid photo collage demonstrating ${productName} in a professional commercial format. The 4 panels MUST strictly follow this precise sequential presentation:\n\n`;
+          finalPrompt += `1. Panel 1 (Gambar Produk): Use a ${angle1}. Showcase the entire ${productName} clearly as the main hero product. Clean solid background with soft even lighting.\n`;
+          finalPrompt += `2. Panel 2 (Penggunaan Produk): Use a ${angle2}. Demonstrate the ${productName} in active use. ${modelEnable ? `A model is actively using the product naturally` : `Close-up action shot showing the product being used`} in a suitable ${background} environment.\n`;
+          finalPrompt += `3. Panel 3 (Cara Penggunaan): Use a ${angle3}. Step-by-step visual presentation on how to operate or apply the ${productName}. Detail-focused shot displaying usage instructions or hand interaction with the product.\n`;
+          finalPrompt += `4. Panel 4 (Angle Produk Lainnya): Use a ${angle4}. Showcase an alternative aesthetic angle or secondary detailed perspective of ${productName} with premium lighting to highlight its quality.\n\n`;
+          if (modelEnable) finalPrompt += `Model details for relevant panels: ${modelAge} ${modelEthnicity} ${modelGender} model.\n`;
+          finalPrompt += `General aesthetic: Style is ${style}, Vibe is ${vibe}, Color palette is ${color}. Highly detailed, 8k resolution, photorealistic commercial advertising presentation.`;
+        } else {
+          finalPrompt = `Create a 4-panel grid photo collage of ${productName} featuring 4 completely different compositions:\n\n`;
+          finalPrompt += `1. Panel 1: Use a ${angle1}. Clean solid background, even soft lighting with no harsh shadows, full focus on the entire product. ${modelEnable ? `Model is posing naturally.` : ''}\n`;
+          finalPrompt += `2. Panel 2: Use a ${angle2}. Highlighting the texture and fine details, shallow depth of field with a beautiful bokeh background. ${modelEnable ? `Focusing closely on the model's ${modelPlacement}.` : ''}\n`;
+          finalPrompt += `3. Panel 3: Use a ${angle3}. Product placed on a ${background}, accompanied by props like ${propsVal ? propsVal : 'minimalist aesthetic elements'}. Natural window sunlight lighting. ${modelEnable ? `Model interacting with the product in a lifestyle setting.` : ''}\n`;
+          finalPrompt += `4. Panel 4: Use a ${angle4}. Dramatic lighting with harsh shadows to provide a premium and elegant feel. ${modelEnable ? `Creative framing emphasizing the product on the model.` : ''}\n\n`;
+          if (modelEnable) finalPrompt += `Model details: ${modelAge} ${modelEthnicity} ${modelGender} model.\n`;
+          finalPrompt += `General aesthetic: Style is ${style}, Vibe is ${vibe}, Color palette is ${color}. Highly detailed, 8k resolution, photorealistic commercial photography masterpiece.`;
+        }
       } else {
         finalPrompt = `Professional product photography of ${productName}. Camera Angle: ${angle}. `;
         finalPrompt += modelContext;
@@ -500,38 +511,66 @@ export const VisualPanel: React.FC<VisualPanelProps> = ({ productName, onGenerat
       {/* Multi Angle Toggle (Not available for poster mode usually, but in original script, it has conditional checks) */}
       {subjectMode !== 'poster' && (
         <>
-          <div className="flex items-center p-3 bg-blue-50 border border-blue-100 rounded-xl transition-all">
-            <input
-              type="checkbox"
-              id="multiAngle"
-              checked={multiAngle}
-              onChange={(e) => setMultiAngle(e.target.checked)}
-              className="w-5 h-5 text-blue-600 bg-white border-slate-300 rounded cursor-pointer accent-blue-600"
-            />
-            <label htmlFor="multiAngle" className="ml-3 cursor-pointer select-none">
-              <span className="text-sm font-bold text-blue-900 flex items-center">
-                Generate 4 Angle (Grid Collage)
-              </span>
-            </label>
+          <div className="flex flex-col gap-2 p-3 bg-blue-50 border border-blue-100 rounded-xl transition-all">
+            <div className="flex items-center">
+              <input
+                type="checkbox"
+                id="multiAngle"
+                checked={multiAngle}
+                onChange={(e) => setMultiAngle(e.target.checked)}
+                className="w-5 h-5 text-blue-600 bg-white border-slate-300 rounded cursor-pointer accent-blue-600"
+              />
+              <label htmlFor="multiAngle" className="ml-3 cursor-pointer select-none flex-1">
+                <span className="text-sm font-bold text-blue-900 flex items-center">
+                  Generate 4 Angle (Grid Collage)
+                </span>
+              </label>
+            </div>
+
+            {multiAngle && subjectMode === 'product' && (
+              <div className="ml-8 mt-1 border-t border-blue-200/50 pt-2 flex items-center gap-2">
+                <input
+                  type="checkbox"
+                  id="useProductFlow"
+                  checked={useProductFlow}
+                  onChange={(e) => setUseProductFlow(e.target.checked)}
+                  className="w-4.5 h-4.5 text-blue-600 bg-white border-slate-300 rounded cursor-pointer accent-blue-600"
+                />
+                <label htmlFor="useProductFlow" className="cursor-pointer select-none flex-1">
+                  <span className="text-[11px] font-bold text-blue-800 flex items-center gap-1">
+                    <Icons.PlayCircle className="w-3.5 h-3.5 text-blue-600" />
+                    Alur Presentasi (Gambar, Penggunaan, Cara Pakai, Angle Lain)
+                  </span>
+                </label>
+              </div>
+            )}
           </div>
 
           {multiAngle && (
             <div className="grid grid-cols-2 gap-3 p-4 bg-blue-50/30 border border-blue-100 rounded-xl">
               <p className="text-[10px] font-bold text-blue-600 uppercase tracking-widest block col-span-2 border-b border-blue-100 pb-2">Pilih Sudut Kamera (Angle) Grid</p>
               <div>
-                <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest block mb-1">Panel 1 (Kiri Atas)</label>
+                <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest block mb-1">
+                  {useProductFlow && subjectMode === 'product' ? 'Panel 1: Gambar Produk' : 'Panel 1 (Kiri Atas)'}
+                </label>
                 <Dropdown label="Angle 1" options={VISUAL_ANGLES} selectedValue={angle1} onSelect={setAngle1} accentColor="blue" />
               </div>
               <div>
-                <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest block mb-1">Panel 2 (Kanan Atas)</label>
+                <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest block mb-1">
+                  {useProductFlow && subjectMode === 'product' ? 'Panel 2: Penggunaan Produk' : 'Panel 2 (Kanan Atas)'}
+                </label>
                 <Dropdown label="Angle 2" options={VISUAL_ANGLES} selectedValue={angle2} onSelect={setAngle2} accentColor="blue" />
               </div>
               <div>
-                <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest block mb-1">Panel 3 (Kiri Bawah)</label>
+                <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest block mb-1">
+                  {useProductFlow && subjectMode === 'product' ? 'Panel 3: Cara Penggunaan' : 'Panel 3 (Kiri Bawah)'}
+                </label>
                 <Dropdown label="Angle 3" options={VISUAL_ANGLES} selectedValue={angle3} onSelect={setAngle3} accentColor="blue" />
               </div>
               <div>
-                <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest block mb-1">Panel 4 (Kanan Bawah)</label>
+                <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest block mb-1">
+                  {useProductFlow && subjectMode === 'product' ? 'Panel 4: Angle Lainnya' : 'Panel 4 (Kanan Bawah)'}
+                </label>
                 <Dropdown label="Angle 4" options={VISUAL_ANGLES} selectedValue={angle4} onSelect={setAngle4} accentColor="blue" />
               </div>
             </div>
