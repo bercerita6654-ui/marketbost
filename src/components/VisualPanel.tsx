@@ -174,6 +174,10 @@ export const VisualPanel: React.FC<VisualPanelProps> = ({ productName, onGenerat
   const [customWidth, setCustomWidth] = useState('8');
   const [customLength, setCustomLength] = useState('');
 
+  // Product Packaging & Quantity Options for Visual Image
+  const [imageLabelPreset, setImageLabelPreset] = useState<'none' | '1_pcs' | '1_set' | '1_roll' | '1_box' | 'custom'>('none');
+  const [customImageLabel, setCustomImageLabel] = useState('1 pcs');
+
   const handleGenerate = () => {
     const isCouple = propsVal.toLowerCase().includes('couple') || propsVal.toLowerCase().includes('prewedding') || productName.toLowerCase().includes('couple') || productName.toLowerCase().includes('prewedding');
     
@@ -272,6 +276,21 @@ export const VisualPanel: React.FC<VisualPanelProps> = ({ productName, onGenerat
         }
       }
 
+      let quantityDirective = "";
+      if (imageLabelPreset !== 'none' && subjectMode === 'product') {
+        if (imageLabelPreset === '1_pcs') {
+          quantityDirective = `The visual image must strictly showcase ${productName} as a single standalone unit (1 pcs), with no duplicates or secondary packages in the shot. It is presented as exactly 1 individual item.`;
+        } else if (imageLabelPreset === '1_set') {
+          quantityDirective = `The visual image must strictly showcase ${productName} as a complete 1 set (bundle/paket), displaying multiple matching units beautifully arranged together as a collective set/package.`;
+        } else if (imageLabelPreset === '1_roll') {
+          quantityDirective = `The visual image must strictly showcase ${productName} in a roll format (1 roll/gulungan), beautifully displayed as a rolled-up cylinder or wound spool.`;
+        } else if (imageLabelPreset === '1_box') {
+          quantityDirective = `The visual image must strictly showcase ${productName} as a boxed package (1 box/dus), displaying the product inside or elegantly placed next to its premium cardboard display box container.`;
+        } else if (imageLabelPreset === 'custom') {
+          quantityDirective = `The visual image must strictly showcase ${productName} in the quantity/format of ${customImageLabel}.`;
+        }
+      }
+
       if (multiAngle) {
         if (useProductFlow) {
           finalPrompt = `Create a structured 4-panel grid photo collage demonstrating ${productName} in a professional commercial format. The 4 panels MUST strictly follow this precise sequential presentation:\n\n`;
@@ -281,6 +300,7 @@ export const VisualPanel: React.FC<VisualPanelProps> = ({ productName, onGenerat
           finalPrompt += `4. Panel 4 (Angle Produk): Use a ${angle4}. Menampilkan produk yang sama sudut estetika alternatif atau perspektif sekunder berkualitas tinggi. (Showcasing the same product with an alternative aesthetic angle or high-quality premium secondary perspective).\n\n`;
           if (modelEnable) finalPrompt += `Model details for relevant panels: ${modelAge} ${modelEthnicity} ${modelGender} model.\n`;
           if (sizeDirective) finalPrompt += `SIZE & SCALE REQUIREMENT: ${sizeDirective}\n\n`;
+          if (quantityDirective) finalPrompt += `PACKAGING & QUANTITY REQUIREMENT: ${quantityDirective}\n\n`;
           finalPrompt += `CRITICAL FOR VISUAL CONSISTENCY: Maintain strict uniformity in the product's physical design, size scale, materials, branding, and colors across all 4 panels of the collage. The product MUST look identical and consistent in size relative to its surroundings in every panel, only changing in camera angle, distance, or active usage state.\n`;
           finalPrompt += `General aesthetic: Style is ${style}, Vibe is ${vibe}, Color palette is ${color}. Highly detailed, 8k resolution, photorealistic commercial advertising presentation.`;
         } else {
@@ -291,12 +311,14 @@ export const VisualPanel: React.FC<VisualPanelProps> = ({ productName, onGenerat
           finalPrompt += `4. Panel 4: Use a ${angle4}. Dramatic lighting with harsh shadows to provide a premium and elegant feel. ${modelEnable ? `Creative framing emphasizing the product on the model.` : ''}\n\n`;
           if (modelEnable) finalPrompt += `Model details: ${modelAge} ${modelEthnicity} ${modelGender} model.\n`;
           if (sizeDirective) finalPrompt += `SIZE & SCALE REQUIREMENT: ${sizeDirective}\n\n`;
+          if (quantityDirective) finalPrompt += `PACKAGING & QUANTITY REQUIREMENT: ${quantityDirective}\n\n`;
           finalPrompt += `General aesthetic: Style is ${style}, Vibe is ${vibe}, Color palette is ${color}. Highly detailed, 8k resolution, photorealistic commercial photography masterpiece.`;
         }
       } else {
         finalPrompt = `Professional product photography of ${productName}. Camera Angle: ${angle}. `;
         finalPrompt += modelContext;
         if (sizeDirective) finalPrompt += `Physical dimensions and size scale: ${sizeDirective} `;
+        if (quantityDirective) finalPrompt += `Packaging and quantity style: ${quantityDirective} `;
         finalPrompt += `Style: ${style}. Vibe: ${vibe}. Setting: Placed on a ${background}. Lighting: Illuminated by ${lighting}. Color Palette: ${color}. `;
         if (propsVal) finalPrompt += `Additional elements: Featuring ${propsVal}. `;
         finalPrompt += `Highly detailed, 8k resolution, photorealistic, commercial photography masterpiece, unreal engine 5 render style.`;
@@ -683,6 +705,177 @@ export const VisualPanel: React.FC<VisualPanelProps> = ({ productName, onGenerat
                   <span className="absolute right-1.5 top-1.5 text-[9px] text-slate-400 font-bold">cm</span>
                 </div>
               </div>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Menu Opsi Kuantitas / Kemasan Gambar */}
+      {subjectMode === 'product' && (
+        <div className="p-4 border border-slate-200 bg-slate-50/50 rounded-xl space-y-3 shadow-2xs">
+          <div className="flex items-center justify-between border-b border-slate-200/60 pb-2">
+            <span className="text-xs font-bold text-slate-700 flex items-center gap-1.5">
+              <Icons.Box className="w-4 h-4 text-indigo-500" />
+              Opsi Kemasan & Kuantitas Gambar
+            </span>
+            <span className="text-[10px] font-bold text-indigo-600 bg-indigo-50 px-2 py-0.5 rounded-full">
+              {imageLabelPreset === 'none' ? 'Bawaan' : imageLabelPreset === '1_pcs' ? '1 Pcs' : imageLabelPreset === '1_set' ? '1 Set' : imageLabelPreset === '1_roll' ? '1 Roll' : imageLabelPreset === '1_box' ? '1 Box' : 'Kustom'}
+            </span>
+          </div>
+
+          <p className="text-[10px] text-slate-500 leading-normal">
+            Pilih bentuk kemasan atau jumlah unit produk yang ingin ditampilkan pada hasil gambar AI agar sesuai dengan bentuk aslinya.
+          </p>
+
+          {/* Grid of Presets with illustrated thumbnails */}
+          <div className="grid grid-cols-5 gap-2">
+            {/* Preset 1: Auto/None */}
+            <div
+              onClick={() => {
+                setImageLabelPreset('none');
+              }}
+              className={`cursor-pointer rounded-lg p-1.5 border-2 text-center transition-all bg-white flex flex-col justify-between min-h-[96px] ${
+                imageLabelPreset === 'none' ? 'border-indigo-500 bg-indigo-50/20' : 'border-slate-200 hover:border-slate-300'
+              }`}
+            >
+              <div className="flex-1 flex items-center justify-center">
+                <svg viewBox="0 0 64 64" className="w-10 h-10 text-slate-400" fill="none" stroke="currentColor" strokeWidth="2">
+                  <circle cx="32" cy="32" r="14" strokeDasharray="3 3" />
+                  <path d="M32 24v12M32 40h.01" strokeLinecap="round" strokeLinejoin="round" />
+                </svg>
+              </div>
+              <span className="text-[9px] font-bold text-slate-600 mt-1 block truncate">Bawaan</span>
+            </div>
+
+            {/* Preset 2: 1 Pcs */}
+            <div
+              onClick={() => {
+                setImageLabelPreset('1_pcs');
+                setCustomImageLabel('1 pcs');
+              }}
+              className={`cursor-pointer rounded-lg p-1.5 border-2 text-center transition-all bg-white flex flex-col justify-between min-h-[96px] ${
+                imageLabelPreset === '1_pcs' ? 'border-indigo-500 bg-indigo-50/20' : 'border-slate-200 hover:border-slate-300'
+              }`}
+            >
+              <div className="flex-1 flex items-center justify-center">
+                <svg viewBox="0 0 64 64" className="w-10 h-10 text-indigo-500" fill="none" stroke="currentColor" strokeWidth="2">
+                  <path d="M28 16h8v4h-8z" fill="currentColor" fillOpacity="0.1" />
+                  <rect x="24" y="20" width="16" height="30" rx="2" strokeLinecap="round" strokeLinejoin="round" />
+                  <path d="M24 30h16" strokeDasharray="2 2" />
+                  <circle cx="32" cy="38" r="5" fill="currentColor" fillOpacity="0.1" />
+                  <text x="30" y="40" fill="currentColor" fontSize="7" fontWeight="extrabold">1</text>
+                </svg>
+              </div>
+              <span className="text-[9px] font-bold text-slate-600 mt-1 block truncate">1 Pcs</span>
+            </div>
+
+            {/* Preset 3: 1 Set */}
+            <div
+              onClick={() => {
+                setImageLabelPreset('1_set');
+                setCustomImageLabel('1 set');
+              }}
+              className={`cursor-pointer rounded-lg p-1.5 border-2 text-center transition-all bg-white flex flex-col justify-between min-h-[96px] ${
+                imageLabelPreset === '1_set' ? 'border-indigo-500 bg-indigo-50/20' : 'border-slate-200 hover:border-slate-300'
+              }`}
+            >
+              <div className="flex-1 flex items-center justify-center">
+                <svg viewBox="0 0 64 64" className="w-10 h-10 text-indigo-500" fill="none" stroke="currentColor" strokeWidth="2">
+                  <rect x="18" y="24" width="14" height="24" rx="1.5" stroke="#94a3b8" />
+                  <path d="M22 20h6v4h-6z" stroke="#94a3b8" />
+                  <rect x="32" y="26" width="14" height="22" rx="1.5" stroke="#94a3b8" />
+                  <path d="M36 22h6v4h-6z" stroke="#94a3b8" />
+                  <rect x="24" y="18" width="16" height="30" rx="2" fill="white" stroke="currentColor" />
+                  <path d="M28 14h8v4h-8z" fill="currentColor" fillOpacity="0.1" />
+                  <path d="M16 42h32" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+                  <text x="24" y="36" fill="currentColor" fontSize="6.5" fontWeight="extrabold">SET</text>
+                </svg>
+              </div>
+              <span className="text-[9px] font-bold text-slate-600 mt-1 block truncate">1 Set</span>
+            </div>
+
+            {/* Preset 4: 1 Roll */}
+            <div
+              onClick={() => {
+                setImageLabelPreset('1_roll');
+                setCustomImageLabel('1 roll');
+              }}
+              className={`cursor-pointer rounded-lg p-1.5 border-2 text-center transition-all bg-white flex flex-col justify-between min-h-[96px] ${
+                imageLabelPreset === '1_roll' ? 'border-indigo-500 bg-indigo-50/20' : 'border-slate-200 hover:border-slate-300'
+              }`}
+            >
+              <div className="flex-1 flex items-center justify-center">
+                <svg viewBox="0 0 64 64" className="w-10 h-10 text-indigo-500" fill="none" stroke="currentColor" strokeWidth="2">
+                  <circle cx="32" cy="32" r="8" fill="currentColor" fillOpacity="0.1" />
+                  <circle cx="32" cy="32" r="20" strokeLinecap="round" strokeLinejoin="round" />
+                  <circle cx="32" cy="32" r="16" strokeDasharray="4 2" stroke="#94a3b8" />
+                  <circle cx="32" cy="32" r="12" stroke="#94a3b8" />
+                  <path d="M32 52h14c1.1 0 2-.9 2-2v-4" strokeLinecap="round" />
+                  <text x="29" y="34" fill="currentColor" fontSize="6.5" fontWeight="extrabold">ROLL</text>
+                </svg>
+              </div>
+              <span className="text-[9px] font-bold text-slate-600 mt-1 block truncate">1 Roll</span>
+            </div>
+
+            {/* Preset 5: 1 Box */}
+            <div
+              onClick={() => {
+                setImageLabelPreset('1_box');
+                setCustomImageLabel('1 box');
+              }}
+              className={`cursor-pointer rounded-lg p-1.5 border-2 text-center transition-all bg-white flex flex-col justify-between min-h-[96px] ${
+                imageLabelPreset === '1_box' ? 'border-indigo-500 bg-indigo-50/20' : 'border-slate-200 hover:border-slate-300'
+              }`}
+            >
+              <div className="flex-1 flex items-center justify-center">
+                <svg viewBox="0 0 64 64" className="w-10 h-10 text-indigo-500" fill="none" stroke="currentColor" strokeWidth="2">
+                  <path d="M32 14 L50 22 L32 30 L14 22 Z" fill="currentColor" fillOpacity="0.1" strokeLinejoin="round" />
+                  <path d="M14 22 L14 44 L32 52 L32 30 Z" strokeLinejoin="round" />
+                  <path d="M32 30 L32 52 L50 44 L50 22 Z" strokeLinejoin="round" />
+                  <path d="M32 14 L32 30" stroke="#94a3b8" strokeWidth="1.5" />
+                  <path d="M14 22 L32 30" stroke="#94a3b8" strokeWidth="1" />
+                  <path d="M50 22 L32 30" stroke="#94a3b8" strokeWidth="1" />
+                  <text x="24" y="44" fill="currentColor" fontSize="6.5" fontWeight="extrabold">BOX</text>
+                </svg>
+              </div>
+              <span className="text-[9px] font-bold text-slate-600 mt-1 block truncate">1 Box</span>
+            </div>
+
+            {/* Preset 6: Custom */}
+            <div
+              onClick={() => setImageLabelPreset('custom')}
+              className={`col-span-5 cursor-pointer rounded-lg p-2 border-2 text-center transition-all bg-white flex items-center justify-between gap-3 ${
+                imageLabelPreset === 'custom' ? 'border-indigo-500 bg-indigo-50/20' : 'border-slate-200 hover:border-slate-300'
+              }`}
+            >
+              <div className="flex items-center gap-2">
+                <svg viewBox="0 0 64 64" className="w-8 h-8 text-indigo-600 shrink-0" fill="none" stroke="currentColor" strokeWidth="2">
+                  <path d="M12 24h40v16H12z" strokeLinecap="round" strokeLinejoin="round" />
+                  <path d="M18 24v5M24 24v3M30 24v5M36 24v3M42 24v5M48 24v3" strokeWidth="1" />
+                </svg>
+                <div className="text-left">
+                  <span className="text-[10px] font-bold text-slate-800 block">Kustom Opsi Sendiri</span>
+                  <span className="text-[9px] text-slate-400 block">Ketik label kemasan / jumlah sendiri secara bebas</span>
+                </div>
+              </div>
+              <Icons.ChevronRight className={`w-4 h-4 text-slate-400 transition-transform ${imageLabelPreset === 'custom' ? 'rotate-90 text-indigo-500' : ''}`} />
+            </div>
+          </div>
+
+          {/* Custom label input text */}
+          {imageLabelPreset === 'custom' && (
+            <div className="bg-slate-100/50 p-2.5 rounded-lg border border-slate-200/50 space-y-1.5">
+              <label className="text-[9px] font-bold text-slate-500 uppercase tracking-wide block">Label Kemasan / Jumlah</label>
+              <input
+                type="text"
+                value={customImageLabel}
+                onChange={(e) => setCustomImageLabel(e.target.value)}
+                placeholder="Contoh: 1 set isi 3 botol, 2 rolls, 1 pack isi 10 pcs"
+                className="w-full px-2.5 py-1.5 bg-white border border-slate-300 rounded text-xs text-slate-800 outline-none font-semibold focus:border-indigo-400"
+              />
+              <p className="text-[9px] text-slate-400">
+                Tuliskan kemasan spesifik, jumlah pcs, atau bundling yang ingin ditampilkan AI di dalam gambar.
+              </p>
             </div>
           )}
         </div>

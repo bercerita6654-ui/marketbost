@@ -145,7 +145,7 @@ SANGAT COCOK UNTUK:
 DETAIL SPESIFIKASI:
 • Merk   : ${brandVal}
 • Tipe   : ${typeVal}
-• Harga  : ${unitVal}${packVal ? `\n• Kemasan: ${packVal}` : ''}
+• Harga  : Harga Tertera (${unitVal})${packVal ? `\n• Kemasan: ${packVal}` : ''}
 • Ukuran : ${sizeVal}
 
 CATATAN TOKO:

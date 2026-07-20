@@ -162,6 +162,13 @@ export const GridPanel: React.FC<GridPanelProps> = ({
   const [videoSelectedPanelKeys, setVideoSelectedPanelKeys] = useState<string[]>([]);
   const [autoCenterEnabled, setAutoCenterEnabled] = useState<boolean>(false);
 
+  // Grid Label Badge (Quantity/Packaging) Overlay States
+  const [gridLabelPreset, setGridLabelPreset] = useState<'none' | '1_pcs' | '1_set' | '1_roll' | '1_box' | 'custom'>('none');
+  const [customGridLabel, setCustomGridLabel] = useState('1 pcs');
+  const [gridLabelPosition, setGridLabelPosition] = useState<'top-left' | 'top-right' | 'bottom-left' | 'bottom-right'>('top-right');
+  const [gridLabelColor, setGridLabelColor] = useState<'indigo' | 'slate' | 'amber' | 'rose' | 'white'>('indigo');
+  const [gridLabelScope, setGridLabelScope] = useState<'all' | 'first'>('all');
+
   // Global PNG Watermark States
   const [watermarkImg, setWatermarkImg] = useState<HTMLImageElement | null>(null);
   const [watermarkOpacity, setWatermarkOpacity] = useState<number>(0.5);
@@ -329,6 +336,71 @@ export const GridPanel: React.FC<GridPanelProps> = ({
     }
     
     ctx.drawImage(watermarkImg, x, y, w, h);
+    ctx.restore();
+  };
+
+  const drawGridLabelBadge = (ctx: CanvasRenderingContext2D, text: string, canvasWidth: number, canvasHeight: number, position: string, theme: string) => {
+    ctx.save();
+    ctx.font = 'bold 36px Arial, sans-serif';
+    const textMetrics = ctx.measureText(text);
+    const textWidth = textMetrics.width;
+    const badgeHeight = 72;
+    const badgeWidth = textWidth + 56; // padding horizontal
+    const radius = 36; // rounded-full
+
+    let x = 60;
+    let y = 60;
+
+    if (position === 'top-right') {
+      x = canvasWidth - badgeWidth - 60;
+    } else if (position === 'bottom-left') {
+      y = canvasHeight - badgeHeight - 60;
+    } else if (position === 'bottom-right') {
+      x = canvasWidth - badgeWidth - 60;
+      y = canvasHeight - badgeHeight - 60;
+    }
+
+    // Draw Shadow
+    ctx.shadowColor = 'rgba(0, 0, 0, 0.22)';
+    ctx.shadowBlur = 18;
+    ctx.shadowOffsetX = 0;
+    ctx.shadowOffsetY = 6;
+
+    // Colors
+    let bgColor = '#6366f1'; // indigo
+    let textColor = '#ffffff';
+    if (theme === 'slate') {
+      bgColor = '#1e293b';
+    } else if (theme === 'amber') {
+      bgColor = '#fbbf24';
+      textColor = '#1e293b';
+    } else if (theme === 'rose') {
+      bgColor = '#f43f5e';
+    } else if (theme === 'white') {
+      bgColor = '#ffffff';
+      textColor = '#1e293b';
+    }
+
+    ctx.fillStyle = bgColor;
+    ctx.beginPath();
+    if (typeof (ctx as any).roundRect === 'function') {
+      (ctx as any).roundRect(x, y, badgeWidth, badgeHeight, radius);
+    } else {
+      ctx.rect(x, y, badgeWidth, badgeHeight);
+    }
+    ctx.fill();
+
+    // Reset shadow for text
+    ctx.shadowColor = 'transparent';
+    ctx.shadowBlur = 0;
+    ctx.shadowOffsetX = 0;
+    ctx.shadowOffsetY = 0;
+
+    // Text
+    ctx.fillStyle = textColor;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(text, x + badgeWidth / 2, y + badgeHeight / 2 + 2); // vertical adjust
     ctx.restore();
   };
 
@@ -583,7 +655,7 @@ export const GridPanel: React.FC<GridPanelProps> = ({
     e.target.value = '';
   };
 
-  // Redraw canvases when grid pieces change
+  // Redraw canvases when grid pieces or overlays change
   useEffect(() => {
     pieces.forEach((piece, idx) => {
       drawPieceCanvas(idx);
@@ -591,7 +663,25 @@ export const GridPanel: React.FC<GridPanelProps> = ({
     if (gridAspectRatio === '9:16') {
       drawPreviewCanvas();
     }
-  }, [pieces, gridAspectRatio, logoCompany, logoBrand, igSticker, draggingSticker, igWhiteImg, igBlackImg, watermarkImg, watermarkOpacity, watermarkScale, watermarkPosition]);
+  }, [
+    pieces,
+    gridAspectRatio,
+    logoCompany,
+    logoBrand,
+    igSticker,
+    draggingSticker,
+    igWhiteImg,
+    igBlackImg,
+    watermarkImg,
+    watermarkOpacity,
+    watermarkScale,
+    watermarkPosition,
+    gridLabelPreset,
+    customGridLabel,
+    gridLabelPosition,
+    gridLabelColor,
+    gridLabelScope
+  ]);
 
   const drawPieceCanvas = (idx: number) => {
     const canvas = canvasRefs.current[idx];
@@ -619,6 +709,14 @@ export const GridPanel: React.FC<GridPanelProps> = ({
 
       // Apply global watermark on interactive canvas pieces
       drawWatermarkOnCanvas(ctx, targetWidth, targetHeight);
+
+      // Apply Grid Label badge overlay
+      if (gridLabelPreset !== 'none') {
+        if (gridLabelScope === 'all' || idx === 0) {
+          const labelText = gridLabelPreset === 'custom' ? customGridLabel : gridLabelPreset.replace('_', ' ').toUpperCase();
+          drawGridLabelBadge(ctx, labelText, targetWidth, targetHeight, gridLabelPosition, gridLabelColor);
+        }
+      }
     }
   };
 
@@ -702,6 +800,12 @@ export const GridPanel: React.FC<GridPanelProps> = ({
     drawOverlay('company');
     drawOverlay('brand');
     drawOverlay('ig');
+
+    // Draw Grid Label badge overlay
+    if (gridLabelPreset !== 'none') {
+      const labelText = gridLabelPreset === 'custom' ? customGridLabel : gridLabelPreset.replace('_', ' ').toUpperCase();
+      drawGridLabelBadge(ctx, labelText, 1080, 1920, gridLabelPosition, gridLabelColor);
+    }
 
     // Guidelines Ruler labels
     ctx.save();
@@ -989,6 +1093,15 @@ export const GridPanel: React.FC<GridPanelProps> = ({
 
     // Apply global watermark to each sliced panel in batch cut
     drawWatermarkOnCanvas(targetCtx, targetWidth, targetHeight);
+
+    // Apply Grid Label badge overlay
+    if (gridLabelPreset !== 'none') {
+      const idx = rowIdx * cols + colIdx;
+      if (gridLabelScope === 'all' || idx === 0) {
+        const labelText = gridLabelPreset === 'custom' ? customGridLabel : gridLabelPreset.replace('_', ' ').toUpperCase();
+        drawGridLabelBadge(targetCtx, labelText, targetWidth, targetHeight, gridLabelPosition, gridLabelColor);
+      }
+    }
 
     return targetCanvas.toDataURL(formatType, 0.9);
   };
@@ -1430,6 +1543,14 @@ export const GridPanel: React.FC<GridPanelProps> = ({
 
     // Apply global watermark to all output panel files
     drawWatermarkOnCanvas(ctx, targetWidth, targetHeight);
+
+    // Apply Grid Label badge overlay
+    if (gridLabelPreset !== 'none') {
+      if (gridLabelScope === 'all' || idx === 0) {
+        const labelText = gridLabelPreset === 'custom' ? customGridLabel : gridLabelPreset.replace('_', ' ').toUpperCase();
+        drawGridLabelBadge(ctx, labelText, targetWidth, targetHeight, gridLabelPosition, gridLabelColor);
+      }
+    }
 
     return canvas.toDataURL(formatType, 0.9);
   };
@@ -2146,6 +2267,258 @@ export const GridPanel: React.FC<GridPanelProps> = ({
               </div>
             )}
           </div>
+        </div>
+
+        {/* Menu Opsi Kuantitas / Kemasan Gambar */}
+        <div className="bg-slate-50 border border-slate-200 rounded-2xl p-4 space-y-3 shadow-3xs">
+          <div className="flex items-center justify-between border-b border-slate-200/60 pb-2">
+            <h3 className="text-xs font-extrabold text-slate-800 flex items-center gap-1.5">
+              <Icons.Box className="w-4 h-4 text-indigo-500" /> Opsi Label Kuantitas & Kemasan
+            </h3>
+            <span className="text-[10px] font-bold text-indigo-600 bg-indigo-50 px-2 py-0.5 rounded-full">
+              {gridLabelPreset === 'none' ? 'Bawaan' : gridLabelPreset === '1_pcs' ? '1 Pcs' : gridLabelPreset === '1_set' ? '1 Set' : gridLabelPreset === '1_roll' ? '1 Roll' : gridLabelPreset === '1_box' ? '1 Box' : 'Kustom'}
+            </span>
+          </div>
+
+          <p className="text-[10px] text-slate-500 leading-normal">
+            Tambahkan label/badge penanda kemasan atau jumlah unit (misal: 1 Pcs, 1 Set, 1 Roll) di sudut gambar potongan grid Anda secara langsung.
+          </p>
+
+          {/* Grid of Presets with illustrated thumbnails */}
+          <div className="grid grid-cols-5 gap-2">
+            {/* Preset 1: Auto/None */}
+            <div
+              onClick={() => {
+                setGridLabelPreset('none');
+              }}
+              className={`cursor-pointer rounded-lg p-1.5 border-2 text-center transition-all bg-white flex flex-col justify-between min-h-[96px] ${
+                gridLabelPreset === 'none' ? 'border-indigo-500 bg-indigo-50/20' : 'border-slate-200 hover:border-slate-300'
+              }`}
+            >
+              <div className="flex-1 flex items-center justify-center">
+                <svg viewBox="0 0 64 64" className="w-10 h-10 text-slate-400" fill="none" stroke="currentColor" strokeWidth="2">
+                  <circle cx="32" cy="32" r="14" strokeDasharray="3 3" />
+                  <path d="M32 24v12M32 40h.01" strokeLinecap="round" strokeLinejoin="round" />
+                </svg>
+              </div>
+              <span className="text-[9px] font-bold text-slate-600 mt-1 block truncate">Bawaan</span>
+            </div>
+
+            {/* Preset 2: 1 Pcs */}
+            <div
+              onClick={() => {
+                setGridLabelPreset('1_pcs');
+                setCustomGridLabel('1 Pcs');
+              }}
+              className={`cursor-pointer rounded-lg p-1.5 border-2 text-center transition-all bg-white flex flex-col justify-between min-h-[96px] ${
+                gridLabelPreset === '1_pcs' ? 'border-indigo-500 bg-indigo-50/20' : 'border-slate-200 hover:border-slate-300'
+              }`}
+            >
+              <div className="flex-1 flex items-center justify-center">
+                <svg viewBox="0 0 64 64" className="w-10 h-10 text-indigo-500" fill="none" stroke="currentColor" strokeWidth="2">
+                  <rect x="24" y="20" width="16" height="30" rx="2" strokeLinecap="round" strokeLinejoin="round" />
+                  <path d="M24 30h16" strokeDasharray="2 2" />
+                  <circle cx="32" cy="38" r="5" fill="currentColor" fillOpacity="0.1" />
+                  <text x="30" y="40" fill="currentColor" fontSize="7" fontWeight="extrabold">1</text>
+                </svg>
+              </div>
+              <span className="text-[9px] font-bold text-slate-600 mt-1 block truncate">1 Pcs</span>
+            </div>
+
+            {/* Preset 3: 1 Set */}
+            <div
+              onClick={() => {
+                setGridLabelPreset('1_set');
+                setCustomGridLabel('1 Set');
+              }}
+              className={`cursor-pointer rounded-lg p-1.5 border-2 text-center transition-all bg-white flex flex-col justify-between min-h-[96px] ${
+                gridLabelPreset === '1_set' ? 'border-indigo-500 bg-indigo-50/20' : 'border-slate-200 hover:border-slate-300'
+              }`}
+            >
+              <div className="flex-1 flex items-center justify-center">
+                <svg viewBox="0 0 64 64" className="w-10 h-10 text-indigo-500" fill="none" stroke="currentColor" strokeWidth="2">
+                  <rect x="18" y="24" width="14" height="24" rx="1.5" stroke="#94a3b8" />
+                  <path d="M22 20h6v4h-6z" stroke="#94a3b8" />
+                  <rect x="32" y="26" width="14" height="22" rx="1.5" stroke="#94a3b8" />
+                  <path d="M36 22h6v4h-6z" stroke="#94a3b8" />
+                  <rect x="24" y="18" width="16" height="30" rx="2" fill="white" stroke="currentColor" />
+                  <path d="M28 14h8v4h-8z" fill="currentColor" fillOpacity="0.1" />
+                  <path d="M16 42h32" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+                  <text x="24" y="36" fill="currentColor" fontSize="6.5" fontWeight="extrabold">SET</text>
+                </svg>
+              </div>
+              <span className="text-[9px] font-bold text-slate-600 mt-1 block truncate">1 Set</span>
+            </div>
+
+            {/* Preset 4: 1 Roll */}
+            <div
+              onClick={() => {
+                setGridLabelPreset('1_roll');
+                setCustomGridLabel('1 Roll');
+              }}
+              className={`cursor-pointer rounded-lg p-1.5 border-2 text-center transition-all bg-white flex flex-col justify-between min-h-[96px] ${
+                gridLabelPreset === '1_roll' ? 'border-indigo-500 bg-indigo-50/20' : 'border-slate-200 hover:border-slate-300'
+              }`}
+            >
+              <div className="flex-1 flex items-center justify-center">
+                <svg viewBox="0 0 64 64" className="w-10 h-10 text-indigo-500" fill="none" stroke="currentColor" strokeWidth="2">
+                  <circle cx="32" cy="32" r="8" fill="currentColor" fillOpacity="0.1" />
+                  <circle cx="32" cy="32" r="20" strokeLinecap="round" strokeLinejoin="round" />
+                  <circle cx="32" cy="32" r="16" strokeDasharray="4 2" stroke="#94a3b8" />
+                  <circle cx="32" cy="32" r="12" stroke="#94a3b8" />
+                  <path d="M32 52h14c1.1 0 2-.9 2-2v-4" strokeLinecap="round" />
+                  <text x="29" y="34" fill="currentColor" fontSize="6.5" fontWeight="extrabold">ROLL</text>
+                </svg>
+              </div>
+              <span className="text-[9px] font-bold text-slate-600 mt-1 block truncate">1 Roll</span>
+            </div>
+
+            {/* Preset 5: 1 Box */}
+            <div
+              onClick={() => {
+                setGridLabelPreset('1_box');
+                setCustomGridLabel('1 Box');
+              }}
+              className={`cursor-pointer rounded-lg p-1.5 border-2 text-center transition-all bg-white flex flex-col justify-between min-h-[96px] ${
+                gridLabelPreset === '1_box' ? 'border-indigo-500 bg-indigo-50/20' : 'border-slate-200 hover:border-slate-300'
+              }`}
+            >
+              <div className="flex-1 flex items-center justify-center">
+                <svg viewBox="0 0 64 64" className="w-10 h-10 text-indigo-500" fill="none" stroke="currentColor" strokeWidth="2">
+                  <path d="M32 14 L50 22 L32 30 L14 22 Z" fill="currentColor" fillOpacity="0.1" strokeLinejoin="round" />
+                  <path d="M14 22 L14 44 L32 52 L32 30 Z" strokeLinejoin="round" />
+                  <path d="M32 30 L32 52 L50 44 L50 22 Z" strokeLinejoin="round" />
+                  <text x="24" y="44" fill="currentColor" fontSize="6.5" fontWeight="extrabold">BOX</text>
+                </svg>
+              </div>
+              <span className="text-[9px] font-bold text-slate-600 mt-1 block truncate">1 Box</span>
+            </div>
+
+            {/* Preset 6: Custom */}
+            <div
+              onClick={() => setGridLabelPreset('custom')}
+              className={`col-span-5 cursor-pointer rounded-lg p-2 border-2 text-center transition-all bg-white flex items-center justify-between gap-3 ${
+                gridLabelPreset === 'custom' ? 'border-indigo-500 bg-indigo-50/20' : 'border-slate-200 hover:border-slate-300'
+              }`}
+            >
+              <div className="flex items-center gap-2">
+                <svg viewBox="0 0 64 64" className="w-8 h-8 text-indigo-600 shrink-0" fill="none" stroke="currentColor" strokeWidth="2">
+                  <path d="M12 24h40v16H12z" strokeLinecap="round" strokeLinejoin="round" />
+                  <path d="M18 24v5M24 24v3M30 24v5M36 24v3M42 24v5M48 24v3" strokeWidth="1" />
+                </svg>
+                <div className="text-left">
+                  <span className="text-[10px] font-bold text-slate-800 block">Kustom Label Sendiri</span>
+                  <span className="text-[9px] text-slate-400 block">Ketik label kemasan atau kuantitas secara bebas</span>
+                </div>
+              </div>
+              <Icons.ChevronRight className={`w-4 h-4 text-slate-400 transition-transform ${gridLabelPreset === 'custom' ? 'rotate-90 text-indigo-500' : ''}`} />
+            </div>
+          </div>
+
+          {gridLabelPreset !== 'none' && (
+            <div className="bg-white border border-slate-150 rounded-xl p-3 space-y-3 shadow-3xs">
+              {/* Custom input if custom */}
+              {gridLabelPreset === 'custom' && (
+                <div className="space-y-1">
+                  <label className="text-[9px] font-bold text-slate-500 uppercase tracking-wide block">Teks Label Kustom</label>
+                  <input
+                    type="text"
+                    value={customGridLabel}
+                    onChange={(e) => setCustomGridLabel(e.target.value)}
+                    placeholder="Contoh: 1 set isi 3 pcs, 2 rolls, 10 pcs"
+                    className="w-full px-2.5 py-1.5 bg-slate-50 border border-slate-300 rounded text-xs text-slate-800 outline-none font-semibold focus:border-indigo-400 focus:bg-white transition-all"
+                  />
+                </div>
+              )}
+
+              {/* Color Themes */}
+              <div>
+                <span className="text-[9px] font-bold text-slate-500 uppercase block mb-1.5">Warna Badge Label</span>
+                <div className="grid grid-cols-5 gap-1.5">
+                  {[
+                    { key: 'indigo', label: 'Indigo', bg: 'bg-indigo-600' },
+                    { key: 'slate', label: 'Slate', bg: 'bg-slate-800' },
+                    { key: 'amber', label: 'Amber', bg: 'bg-amber-400' },
+                    { key: 'rose', label: 'Rose', bg: 'bg-rose-500' },
+                    { key: 'white', label: 'White', bg: 'bg-white border border-slate-200' },
+                  ].map((color) => {
+                    const isActive = gridLabelColor === color.key;
+                    return (
+                      <button
+                        key={color.key}
+                        type="button"
+                        onClick={() => setGridLabelColor(color.key as any)}
+                        className={`flex items-center justify-center gap-1 py-1 text-[9px] font-bold rounded-lg border transition-all cursor-pointer ${
+                          isActive
+                            ? 'bg-indigo-50 text-indigo-700 border-indigo-400 shadow-3xs ring-1 ring-indigo-400/20'
+                            : 'bg-slate-50 text-slate-600 border-slate-200 hover:bg-slate-100 hover:border-slate-300'
+                        }`}
+                      >
+                        <span className={`w-2.5 h-2.5 rounded-full ${color.bg}`} />
+                        <span>{color.label}</span>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* Position Corner */}
+              <div>
+                <span className="text-[9px] font-bold text-slate-500 uppercase block mb-1.5">Sudut Posisi Badge</span>
+                <div className="grid grid-cols-4 gap-1.5">
+                  {[
+                    { key: 'top-left', label: 'Kiri Atas' },
+                    { key: 'top-right', label: 'Kanan Atas' },
+                    { key: 'bottom-left', label: 'Kiri Bawah' },
+                    { key: 'bottom-right', label: 'Kanan Bawah' },
+                  ].map((pos) => {
+                    const isActive = gridLabelPosition === pos.key;
+                    return (
+                      <button
+                        key={pos.key}
+                        type="button"
+                        onClick={() => setGridLabelPosition(pos.key as any)}
+                        className={`py-1 text-[9px] font-bold rounded-lg border transition-all text-center cursor-pointer ${
+                          isActive
+                            ? 'bg-indigo-600 text-white border-indigo-600 shadow-3xs'
+                            : 'bg-slate-50 text-slate-600 border-slate-200 hover:bg-slate-100 hover:border-slate-300'
+                        }`}
+                      >
+                        {pos.label}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* Scope (All vs First Slice) */}
+              <div>
+                <span className="text-[9px] font-bold text-slate-500 uppercase block mb-1.5">Terapkan Pada Panel</span>
+                <div className="grid grid-cols-2 gap-2">
+                  {[
+                    { key: 'all', label: 'Semua Potongan Grid' },
+                    { key: 'first', label: 'Hanya Potongan Pertama (Index 0)' },
+                  ].map((scope) => {
+                    const isActive = gridLabelScope === scope.key;
+                    return (
+                      <button
+                        key={scope.key}
+                        type="button"
+                        onClick={() => setGridLabelScope(scope.key as any)}
+                        className={`py-1.5 text-[9px] font-bold rounded-lg border transition-all text-center cursor-pointer ${
+                          isActive
+                            ? 'bg-indigo-600 text-white border-indigo-600 shadow-3xs'
+                            : 'bg-slate-50 text-slate-600 border-slate-200 hover:bg-slate-100'
+                        }`}
+                      >
+                        {scope.label}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            </div>
+          )}
         </div>
 
         {/* Optional stickers/watermark section for 9:16 layouts */}
