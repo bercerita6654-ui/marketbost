@@ -1181,7 +1181,10 @@ export const GridPanel: React.FC<GridPanelProps> = ({
 
       setSlicingMessage('Mengompresi potongan gambar ke berkas ZIP...');
       onRecordingStart('Membuat file ZIP hasil potong...');
-      const zipContent = await zip.generateAsync({ type: 'blob' });
+      const zipContent = await zip.generateAsync({ type: 'blob' }, (metadata) => {
+        const percent = Math.round(metadata.percent);
+        onRecordingProgress(percent);
+      });
       const url = URL.createObjectURL(zipContent);
       const a = document.createElement('a');
       a.href = url;
@@ -1686,7 +1689,10 @@ export const GridPanel: React.FC<GridPanelProps> = ({
 
       setSlicingMessage("Mengompresi potongan gambar ke berkas ZIP...");
       onRecordingStart('Membuat file ZIP hasil potong...');
-      const zipContent = await zip.generateAsync({ type: 'blob' });
+      const zipContent = await zip.generateAsync({ type: 'blob' }, (metadata) => {
+        const percent = Math.round(metadata.percent);
+        onRecordingProgress(percent);
+      });
       const url = URL.createObjectURL(zipContent);
       const a = document.createElement('a');
       a.href = url;
@@ -1786,17 +1792,19 @@ export const GridPanel: React.FC<GridPanelProps> = ({
     // Random transition types per image slide
     const transitions = loadedImages.map(() => Math.floor(Math.random() * 4));
 
-    let startTime: number | null = null;
-
     return new Promise<{ blob: Blob; ext: string }>((resolveOverall, rejectOverall) => {
-      const drawFrame = (timestamp: number) => {
-        if (!startTime) startTime = timestamp;
-        const elapsed = timestamp - startTime;
+      let currentFrame = 0;
+      const fps = 30;
+      const frameDuration = 1000 / fps; // ~33.33ms
+      const totalFrames = Math.ceil((totalDuration + 200) / frameDuration);
 
+      const renderFrame = () => {
+        const elapsed = currentFrame * frameDuration;
         const progressPct = Math.min(100, Math.floor((elapsed / (totalDuration + 200)) * 100));
         onRecordingProgress(progressPct);
 
-        if (elapsed >= totalDuration + 200) {
+        if (currentFrame >= totalFrames) {
+          cleanup();
           recorder.stop();
           recordingPromise.then((blob) => {
             resolveOverall({ blob, ext });
@@ -1853,10 +1861,61 @@ export const GridPanel: React.FC<GridPanelProps> = ({
           }
         }
 
-        requestAnimationFrame(drawFrame);
+        currentFrame++;
       };
 
-      requestAnimationFrame(drawFrame);
+      let timerId: any = null;
+      let timerWorker: Worker | null = null;
+      let workerUrl = '';
+
+      const cleanup = () => {
+        if (timerWorker) {
+          timerWorker.postMessage({ action: 'stop' });
+          timerWorker.terminate();
+          timerWorker = null;
+        }
+        if (workerUrl) {
+          URL.revokeObjectURL(workerUrl);
+          workerUrl = '';
+        }
+        if (timerId) {
+          clearInterval(timerId);
+          timerId = null;
+        }
+      };
+
+      try {
+        // Create inline web worker for reliable background timing (avoid minimized throttling)
+        const workerCode = `
+          let timerId = null;
+          self.onmessage = function(e) {
+            if (e.data.action === 'start') {
+              const interval = e.data.interval || 33;
+              timerId = setInterval(() => {
+                self.postMessage('tick');
+              }, interval);
+            } else if (e.data.action === 'stop') {
+              if (timerId) {
+                clearInterval(timerId);
+                timerId = null;
+              }
+            }
+          };
+        `;
+        const workerBlob = new Blob([workerCode], { type: 'application/javascript' });
+        workerUrl = URL.createObjectURL(workerBlob);
+        timerWorker = new Worker(workerUrl);
+        timerWorker.onmessage = () => {
+          renderFrame();
+        };
+        timerWorker.postMessage({ action: 'start', interval: Math.round(frameDuration) });
+      } catch (workerErr) {
+        console.warn("Web Worker creation failed. Falling back to normal background interval timer:", workerErr);
+        // Fallback to standard setInterval (will still work, although minimized tabs are throttled to 1s)
+        timerId = setInterval(() => {
+          renderFrame();
+        }, Math.round(frameDuration));
+      }
     });
   };
 

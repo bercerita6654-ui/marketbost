@@ -558,10 +558,13 @@ export default function App() {
                   <div>
                     <h3 className="text-lg font-black text-white">{recordingStatus}</h3>
                     <p className="text-sm text-slate-400 mt-1 max-w-sm">
-                      Proses render video slideshow sedang berlangsung: <span className="font-extrabold text-rose-400 font-mono">{recordingProgress}%</span>.
+                      Proses sedang berjalan: <span className="font-extrabold text-rose-400 font-mono">{recordingProgress}%</span>.
+                      {recordingStatus.toLowerCase().includes('video')
+                        ? ' Sedang merender dan merekam video slideshow...'
+                        : ' Sedang memproses dan mengompresi berkas potongan gambar ke ZIP...'}
                     </p>
-                    <p className="text-xs text-red-500 bg-red-950/30 px-3 py-1 rounded border border-red-900/40 inline-block mt-3 font-semibold">
-                      MOHON TETAP DI WORKSPACE INI HINGGA PROSES SELESAI
+                    <p className="text-xs text-rose-500/80 bg-rose-950/20 px-3 py-1.5 rounded-full border border-rose-900/30 inline-block mt-4 font-bold tracking-wide uppercase">
+                      Proses tetap berjalan meski browser Anda di-minimize
                     </p>
                   </div>
                 </div>
