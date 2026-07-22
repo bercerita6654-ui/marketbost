@@ -558,11 +558,27 @@ export default function App() {
                   <div>
                     <h3 className="text-lg font-black text-white">{recordingStatus}</h3>
                     <p className="text-sm text-slate-400 mt-1 max-w-sm">
-                      Proses sedang berjalan: <span className="font-extrabold text-rose-400 font-mono">{recordingProgress}%</span>.
                       {recordingStatus.toLowerCase().includes('video')
-                        ? ' Sedang merender dan merekam video slideshow...'
-                        : ' Sedang memproses dan mengompresi berkas potongan gambar ke ZIP...'}
+                        ? 'Sedang merender dan merekam video slideshow...'
+                        : 'Sedang memproses dan mengompresi berkas potongan gambar ke ZIP...'}
                     </p>
+
+                    {/* Highly Polished Progress Bar */}
+                    <div className="mt-5 max-w-xs w-72 mx-auto space-y-2">
+                      <div className="flex justify-between text-[11px] font-mono font-bold tracking-wide uppercase">
+                        <span className="text-slate-400">Progres Proses</span>
+                        <span className="text-rose-400 font-black">{recordingProgress}%</span>
+                      </div>
+                      <div className="w-full bg-slate-900/90 rounded-full h-4 p-0.5 border border-slate-800 shadow-inner overflow-hidden">
+                        <div 
+                          className="bg-gradient-to-r from-rose-500 via-pink-500 to-indigo-500 h-full rounded-full transition-all duration-300 ease-out relative shadow-md"
+                          style={{ width: `${recordingProgress}%` }}
+                        >
+                          {/* Shimmer overlay */}
+                          <div className="absolute inset-0 bg-white/10 bg-gradient-to-r from-transparent via-white/25 to-transparent animate-pulse" style={{ backgroundSize: '200% 100%' }} />
+                        </div>
+                      </div>
+                    </div>
                     <p className="text-xs text-rose-500/80 bg-rose-950/20 px-3 py-1.5 rounded-full border border-rose-900/30 inline-block mt-4 font-bold tracking-wide uppercase">
                       Proses tetap berjalan meski browser Anda di-minimize
                     </p>

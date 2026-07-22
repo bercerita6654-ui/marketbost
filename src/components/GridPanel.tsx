@@ -154,6 +154,10 @@ export const GridPanel: React.FC<GridPanelProps> = ({
   const [renameModalOpen, setRenameModalOpen] = useState<boolean>(false);
   const [renameModalType, setRenameModalType] = useState<'batch' | 'slices'>('batch');
   const [tempZipName, setTempZipName] = useState<string>('MarketBoost_Grid');
+  const [previewModalOpen, setPreviewModalOpen] = useState<boolean>(false);
+  const [previewCanvasUrls, setPreviewCanvasUrls] = useState<string[]>([]);
+  const [previewSeamlessMode, setPreviewSeamlessMode] = useState<boolean>(true);
+  const [previewDeviceMock, setPreviewDeviceMock] = useState<'none' | 'mobile'>('none');
   const [draggedImgIdx, setDraggedImgIdx] = useState<number | null>(null);
   const [dragOverImgIdx, setDragOverImgIdx] = useState<number | null>(null);
   const [previewImage, setPreviewImage] = useState<MasterImage | null>(null);
@@ -1711,6 +1715,16 @@ export const GridPanel: React.FC<GridPanelProps> = ({
     }
   };
 
+  const openPreviewModal = () => {
+    const urls: (string | null)[] = [];
+    for (let i = 0; i < cols * rows; i++) {
+      const url = getPieceDataUrl(i);
+      urls.push(url);
+    }
+    setPreviewCanvasUrls(urls.map(u => u || ''));
+    setPreviewModalOpen(true);
+  };
+
   const openDownloadZipRenamePopup = () => {
     const validPieces = pieces.map((p, idx) => ({ url: getPieceDataUrl(idx), idx })).filter((x) => x.url !== null);
     if (validPieces.length === 0) {
@@ -2862,6 +2876,14 @@ export const GridPanel: React.FC<GridPanelProps> = ({
             <div className="flex flex-wrap gap-2 w-full sm:w-auto">
               <button
                 type="button"
+                onClick={openPreviewModal}
+                className="flex-1 sm:flex-none bg-emerald-600 hover:bg-emerald-500 hover:scale-102 text-white px-4 py-2 rounded-xl font-bold text-xs transition-all flex items-center justify-center gap-1.5 shadow-md shadow-emerald-600/15 cursor-pointer active:scale-98"
+              >
+                <Icons.Eye className="w-3.5 h-3.5" />
+                <span>Preview Mode</span>
+              </button>
+              <button
+                type="button"
                 onClick={handleDownloadCollage}
                 className="flex-1 sm:flex-none bg-indigo-600 hover:bg-indigo-500 hover:scale-102 text-white px-4 py-2 rounded-xl font-bold text-xs transition-all flex items-center justify-center gap-1.5 shadow-md shadow-indigo-600/15 cursor-pointer active:scale-98"
               >
@@ -3443,6 +3465,314 @@ export const GridPanel: React.FC<GridPanelProps> = ({
             >
               <Icons.ChevronRight className="w-5 h-5" />
             </button>
+          </div>
+        </div>
+      )}
+
+      {/* Full-Screen Preview Mode Modal */}
+      {previewModalOpen && (
+        <div className="fixed inset-0 bg-slate-950/98 backdrop-blur-xl z-[130] flex flex-col lg:flex-row text-white overflow-hidden animate-in fade-in duration-200">
+          
+          {/* LEFT SIDE PANEL: Controls, Metadata and Download Actions */}
+          <div className="w-full lg:w-[420px] bg-slate-900 border-b lg:border-b-0 lg:border-r border-slate-800 flex flex-col h-[45vh] lg:h-full shrink-0 overflow-y-auto">
+            {/* Header */}
+            <div className="p-6 border-b border-slate-800 bg-slate-950/30 flex justify-between items-center shrink-0">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 bg-emerald-500/10 text-emerald-400 rounded-xl flex items-center justify-center border border-emerald-500/20 shadow-inner">
+                  <Icons.Eye className="w-5 h-5" />
+                </div>
+                <div>
+                  <h3 className="font-extrabold text-sm tracking-tight text-white uppercase">Preview Mode</h3>
+                  <p className="text-[10px] font-mono text-slate-400">Komposisi Kolase Akhir {cols}x{rows}</p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setPreviewModalOpen(false)}
+                className="p-2 hover:bg-slate-800 rounded-xl text-slate-400 hover:text-white transition-all cursor-pointer hover:scale-105"
+                title="Tutup Pratinjau"
+              >
+                <Icons.X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {/* Controls */}
+            <div className="p-6 space-y-6 flex-1">
+              {/* Layout Info */}
+              <div className="bg-slate-950 border border-slate-800/80 rounded-2xl p-4 space-y-2.5">
+                <span className="text-[9px] font-bold text-emerald-400 uppercase tracking-wider block font-mono">Spesifikasi Output</span>
+                <div className="grid grid-cols-2 gap-3 text-xs font-mono">
+                  <div className="bg-slate-900/60 p-2.5 rounded-xl border border-slate-800/50">
+                    <span className="text-[9px] text-slate-500 block">Formasi Potong</span>
+                    <span className="font-bold text-white text-xs">{cols} Kolom × {rows} Baris</span>
+                  </div>
+                  <div className="bg-slate-900/60 p-2.5 rounded-xl border border-slate-800/50">
+                    <span className="text-[9px] text-slate-500 block">Total File</span>
+                    <span className="font-bold text-white text-xs">{cols * rows} Potongan</span>
+                  </div>
+                </div>
+              </div>
+
+              {/* View/Display Settings */}
+              <div className="space-y-4">
+                <h4 className="text-xs font-extrabold text-slate-300 uppercase tracking-wider flex items-center gap-2">
+                  <Icons.Sliders className="w-4 h-4 text-emerald-400" /> Opsi Tampilan Pratinjau
+                </h4>
+
+                {/* Seamless mode */}
+                <div className="flex items-center justify-between bg-slate-950/40 p-3 rounded-xl border border-slate-800/60">
+                  <div className="space-y-0.5">
+                    <span className="text-xs font-bold text-slate-200 block">Tampilan Seamless (Tanpa Jarak)</span>
+                    <span className="text-[10px] text-slate-500 block">Lihat sebagai satu gambar utuh tanpa garis pembatas</span>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setPreviewSeamlessMode(!previewSeamlessMode)}
+                    className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors duration-200 outline-none ${
+                      previewSeamlessMode ? 'bg-emerald-500' : 'bg-slate-800'
+                    }`}
+                  >
+                    <span
+                      className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform duration-200 ${
+                        previewSeamlessMode ? 'translate-x-6' : 'translate-x-1'
+                      }`}
+                    />
+                  </button>
+                </div>
+
+                {/* Device simulated layout selector */}
+                <div className="space-y-2">
+                  <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Mode Simulasi Gadget</label>
+                  <div className="grid grid-cols-2 gap-2">
+                    <button
+                      type="button"
+                      onClick={() => setPreviewDeviceMock('none')}
+                      className={`py-2 text-xs font-bold rounded-xl border transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
+                        previewDeviceMock === 'none'
+                          ? 'bg-emerald-600 border-emerald-600 text-white shadow-md'
+                          : 'bg-slate-850 border-slate-800 text-slate-400 hover:bg-slate-800 hover:text-white'
+                      }`}
+                    >
+                      <Icons.Layout className="w-4 h-4" />
+                      <span>Kolase Datar</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setPreviewDeviceMock('mobile')}
+                      className={`py-2 text-xs font-bold rounded-xl border transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
+                        previewDeviceMock === 'mobile'
+                          ? 'bg-emerald-600 border-emerald-600 text-white shadow-md'
+                          : 'bg-slate-850 border-slate-800 text-slate-400 hover:bg-slate-800 hover:text-white'
+                      }`}
+                    >
+                      <Icons.Smartphone className="w-4 h-4" />
+                      <span>Instagram Feed</span>
+                    </button>
+                  </div>
+                </div>
+              </div>
+
+              {/* Action Downloads inside Modal */}
+              <div className="space-y-3 pt-6 border-t border-slate-800/80">
+                <h4 className="text-xs font-extrabold text-slate-300 uppercase tracking-wider">
+                  Ekspor Hasil Sekarang
+                </h4>
+                
+                <button
+                  type="button"
+                  onClick={() => {
+                    setPreviewModalOpen(false);
+                    openDownloadZipRenamePopup();
+                  }}
+                  className="w-full py-3 bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl font-bold text-xs transition-all flex items-center justify-center gap-2 shadow-lg shadow-indigo-600/20 active:scale-98 cursor-pointer"
+                >
+                  <Icons.Download className="w-4 h-4" />
+                  <span>Download Semua Potongan (ZIP)</span>
+                </button>
+
+                <div className="grid grid-cols-2 gap-2">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setPreviewModalOpen(false);
+                      handleDownloadCollage();
+                    }}
+                    className="py-2.5 bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 rounded-xl font-bold text-xs transition-all flex items-center justify-center gap-1.5 cursor-pointer active:scale-98"
+                  >
+                    <Icons.Layout className="w-3.5 h-3.5" />
+                    <span>Download Kolase</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setPreviewModalOpen(false);
+                      handleDownloadVideo();
+                    }}
+                    className="py-2.5 bg-rose-600 hover:bg-rose-500 text-white rounded-xl font-bold text-xs transition-all flex items-center justify-center gap-1.5 shadow-md shadow-rose-600/15 cursor-pointer active:scale-98"
+                  >
+                    <Icons.Video className="w-3.5 h-3.5" />
+                    <span>Buat Video</span>
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            {/* Footer with branding */}
+            <div className="p-4 border-t border-slate-800 text-center text-[10px] text-slate-500 font-mono shrink-0">
+              MarketBoost Precision Grid Slicer • Preview Engine
+            </div>
+          </div>
+
+          {/* RIGHT SIDE PANEL: Responsive Stage */}
+          <div className="flex-1 bg-slate-950 flex flex-col items-center justify-center p-6 lg:p-12 overflow-y-auto relative">
+            {/* Ambient Background decoration */}
+            <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-emerald-500/10 rounded-full blur-3xl -z-10 pointer-events-none" />
+            <div className="absolute bottom-1/4 right-1/4 w-96 h-96 bg-indigo-500/10 rounded-full blur-3xl -z-10 pointer-events-none" />
+
+            {/* Stage Container */}
+            <div className="w-full max-w-2xl flex justify-center items-center">
+              {previewDeviceMock === 'mobile' ? (
+                /* INSTAGRAM DEVICE SIMULATION */
+                <div className="w-full max-w-[360px] bg-slate-900 border-[12px] border-slate-800 rounded-[48px] shadow-2xl overflow-hidden aspect-[9/19] flex flex-col border-b-[16px]">
+                  {/* Speaker & camera notch */}
+                  <div className="h-6 bg-slate-900 flex justify-center items-center shrink-0">
+                    <div className="w-16 h-4 bg-slate-800 rounded-full flex items-center justify-end px-3">
+                      <div className="w-2 h-2 bg-slate-950 rounded-full" />
+                    </div>
+                  </div>
+
+                  {/* Mock Instagram Header */}
+                  <div className="px-4 py-3 border-b border-slate-800 bg-slate-950 flex items-center justify-between shrink-0">
+                    <div className="flex items-center gap-2">
+                      <div className="w-8 h-8 rounded-full bg-gradient-to-tr from-yellow-500 via-red-500 to-purple-600 p-0.5 shadow-sm">
+                        <div className="w-full h-full bg-slate-900 rounded-full flex items-center justify-center text-[10px] font-black font-sans text-white">
+                          IG
+                        </div>
+                      </div>
+                      <div>
+                        <span className="text-[11px] font-black tracking-tight text-white block">@{igUsername || 'username'}</span>
+                        <span className="text-[9px] text-slate-500 block leading-none">Sponsored • {cols}x{rows} Collage Grid</span>
+                      </div>
+                    </div>
+                    <button type="button" className="text-slate-400 hover:text-white transition-colors">
+                      <Icons.X className="w-4 h-4 rotate-45" />
+                    </button>
+                  </div>
+
+                  {/* Device Scrollable Body */}
+                  <div className="flex-1 overflow-y-auto scrollbar-none bg-slate-950 flex flex-col">
+                    {/* Simulated Stats bar */}
+                    <div className="grid grid-cols-4 p-4 text-center border-b border-slate-900 shrink-0">
+                      <div>
+                        <span className="text-[12px] font-extrabold text-white block">12</span>
+                        <span className="text-[8px] text-slate-500 block">Posts</span>
+                      </div>
+                      <div>
+                        <span className="text-[12px] font-extrabold text-white block">4.8K</span>
+                        <span className="text-[8px] text-slate-500 block">Followers</span>
+                      </div>
+                      <div>
+                        <span className="text-[12px] font-extrabold text-white block">350</span>
+                        <span className="text-[8px] text-slate-500 block">Following</span>
+                      </div>
+                      <div className="flex items-center justify-center">
+                        <button type="button" className="bg-blue-600 text-[9px] font-extrabold text-white px-2 py-1 rounded">
+                          Follow
+                        </button>
+                      </div>
+                    </div>
+
+                    {/* Collage Grid itself inside feed */}
+                    <div className="p-2 flex-1 flex items-center justify-center">
+                      <div 
+                        className="grid w-full bg-slate-900 border border-slate-800/40 p-1 rounded-lg overflow-hidden"
+                        style={{ 
+                          gridTemplateColumns: `repeat(${cols}, minmax(0, 1fr))`,
+                          gap: previewSeamlessMode ? '0px' : '3px'
+                        }}
+                      >
+                        {previewCanvasUrls.map((url, idx) => (
+                          <div 
+                            key={idx} 
+                            className={`relative overflow-hidden bg-slate-900 aspect-square ${
+                              gridAspectRatio === '3:4' ? 'aspect-[3/4]' : (gridAspectRatio === '9:16' ? 'aspect-[9/16]' : 'aspect-square')
+                            }`}
+                          >
+                            {url ? (
+                              <img src={url} alt={`Preview Slice ${idx}`} className="w-full h-full object-cover select-none" />
+                            ) : (
+                              <div className="w-full h-full border border-dashed border-slate-800 flex items-center justify-center text-slate-600 text-[9px] font-mono">
+                                Slot {idx + 1}
+                              </div>
+                            )}
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+
+                    {/* Simulated likes/comments section to make it super cute and realistic */}
+                    <div className="p-3 bg-slate-950/80 border-t border-slate-900 mt-auto shrink-0 text-left">
+                      <div className="flex gap-2 text-slate-300 mb-1">
+                        <Icons.Heart className="w-4 h-4 text-red-500 fill-red-500" />
+                        <Icons.MessageCircle className="w-4 h-4" />
+                        <Icons.Send className="w-4 h-4" />
+                      </div>
+                      <span className="text-[9px] text-slate-300 font-bold">Liked by 1,294 others</span>
+                      <p className="text-[9px] text-slate-400 leading-snug mt-1">
+                        <span className="font-extrabold text-white">@{igUsername || 'username'}</span> Look at this seamless grid sliced with MarketBoost. Absolute perfection!
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              ) : (
+                /* FLAT COLLAGE PREVIEW */
+                <div className="w-full flex flex-col items-center">
+                  <div className="flex items-center gap-2 mb-4 bg-slate-900 px-4 py-1.5 rounded-full border border-slate-800/80">
+                    <span className="w-2.5 h-2.5 bg-emerald-500 rounded-full animate-pulse" />
+                    <span className="text-xs font-mono font-bold text-slate-300">Pratinjau Hasil Ekspor Potongan</span>
+                  </div>
+
+                  <div 
+                    className="grid w-full bg-slate-900/60 p-4 rounded-3xl border border-slate-800/80 shadow-2xl"
+                    style={{ 
+                      gridTemplateColumns: `repeat(${cols}, minmax(0, 1fr))`,
+                      gap: previewSeamlessMode ? '0px' : '8px'
+                    }}
+                  >
+                    {previewCanvasUrls.map((url, idx) => (
+                      <div 
+                        key={idx} 
+                        className={`relative overflow-hidden bg-slate-950 rounded-lg shadow-md border border-slate-800/40 ${
+                          gridAspectRatio === '3:4' ? 'aspect-[3/4]' : (gridAspectRatio === '9:16' ? 'aspect-[9/16]' : 'aspect-square')
+                        }`}
+                      >
+                        {url ? (
+                          <img src={url} alt={`Preview Slice ${idx}`} className="w-full h-full object-cover select-none" />
+                        ) : (
+                          <div className="w-full h-full border-2 border-dashed border-slate-800/60 flex flex-col items-center justify-center text-slate-600 p-2 text-center">
+                            <Icons.Image className="w-5 h-5 mb-1 opacity-20" />
+                            <span className="text-[9px] font-mono font-bold uppercase tracking-wider block">Panel {idx + 1}</span>
+                            <span className="text-[8px] text-slate-500 block mt-0.5">Kosong</span>
+                          </div>
+                        )}
+                        
+                        {/* Number Indicator in non-seamless mode to visualize sequence */}
+                        {!previewSeamlessMode && (
+                          <div className="absolute bottom-2 right-2 bg-slate-950/80 backdrop-blur-xs text-[9px] font-mono font-extrabold text-indigo-400 px-1.5 py-0.5 rounded border border-indigo-500/30">
+                            #{idx + 1}
+                          </div>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+
+                  <p className="text-[11px] text-slate-500 text-center max-w-md mt-4 leading-normal font-mono">
+                    Urutan penomoran ekspor dimulai dari kiri ke kanan, dari baris atas ke bawah sesuai urutan indeks di atas.
+                  </p>
+                </div>
+              )}
+            </div>
           </div>
         </div>
       )}
