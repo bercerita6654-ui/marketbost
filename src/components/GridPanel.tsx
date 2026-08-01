@@ -254,21 +254,41 @@ export const GridPanel: React.FC<GridPanelProps> = ({
               });
             };
 
-            const b1 = await tryFormat();
-            let bestBlob = b1;
-            const maxBytes = 145 * 1024; // 145 KB max
+            let bestBlob = await tryFormat();
+            const maxBytes = 145 * 1024; // 145 KB max strictly
 
-            // If PNG is larger than 145KB, we can reduce colors or scale down slightly or use JPEG fallback if needed, but let's try PNG first or palette reduction if supported.
-            // Actually, HTML5 canvas toBlob image/png doesn't accept quality. To ensure it fits 145KB if PNG is large, we can also support color reduction or fallback/compression, or draw with lighter palette.
-            // Let's create a compressed PNG or use quality-adjusted JPEG if PNG strictly exceeds 145KB, or keep PNG as requested.
-            // Let's make sure the file extension is .png and mime type is image/png.
-            
+            if (bestBlob.size > maxBytes) {
+              const imgData = ctx.getImageData(0, 0, 1000, 1000);
+              const data = imgData.data;
+
+              for (const step of [32, 16, 8, 4]) {
+                // Restore original canvas image first
+                ctx.fillStyle = '#FFFFFF';
+                ctx.fillRect(0, 0, 1000, 1000);
+                ctx.drawImage(img, x, y, w, h);
+                const currentData = ctx.getImageData(0, 0, 1000, 1000);
+                const currPixels = currentData.data;
+
+                for (let j = 0; j < currPixels.length; j += 4) {
+                  currPixels[j] = Math.round(currPixels[j] / step) * step;
+                  currPixels[j+1] = Math.round(currPixels[j+1] / step) * step;
+                  currPixels[j+2] = Math.round(currPixels[j+2] / step) * step;
+                }
+                ctx.putImageData(currentData, 0, 0);
+                const candidate = await tryFormat();
+                bestBlob = candidate;
+                if (bestBlob.size <= maxBytes) {
+                  break;
+                }
+              }
+            }
+
             const compUrl = URL.createObjectURL(bestBlob);
             resolve({
               blob: bestBlob,
               url: compUrl,
               sizeKb: Math.round(bestBlob.size / 1024),
-              quality: 100
+              quality: Math.round((bestBlob.size / maxBytes) * 100)
             });
           };
           img.onerror = reject;
