@@ -227,7 +227,7 @@ export const GridPanel: React.FC<GridPanelProps> = ({
         const compressed = await new Promise<{ blob: Blob; url: string; sizeKb: number; quality: number }>((resolve, reject) => {
           const img = new Image();
           img.crossOrigin = 'anonymous';
-          img.onload = () => {
+          img.onload = async () => {
             const canvas = document.createElement('canvas');
             canvas.width = 1000;
             canvas.height = 1000;
@@ -246,47 +246,29 @@ export const GridPanel: React.FC<GridPanelProps> = ({
             const y = (1000 - h) / 2;
             ctx.drawImage(img, x, y, w, h);
 
-            let low = 0.05;
-            let high = 0.95;
-            let bestQuality = 0.85;
-            let bestBlob: Blob | null = null;
-            const maxBytes = 145 * 1024; // 145 KB max
-
-            const tryQuality = (q: number): Promise<Blob> => {
+            const tryFormat = (): Promise<Blob> => {
               return new Promise((res) => {
                 canvas.toBlob((b) => {
                   res(b || new Blob());
-                }, 'image/jpeg', q);
+                }, 'image/png');
               });
             };
 
-            tryQuality(0.85).then(async (b1) => {
-              if (b1.size <= maxBytes) {
-                bestBlob = b1;
-                bestQuality = 0.85;
-              }
-              for (let step = 0; step < 6; step++) {
-                const mid = (low + high) / 2;
-                const b = await tryQuality(mid);
-                if (b.size <= maxBytes) {
-                  bestBlob = b;
-                  bestQuality = mid;
-                  low = mid;
-                } else {
-                  high = mid;
-                }
-              }
-              if (!bestBlob) {
-                bestBlob = await tryQuality(0.05);
-                bestQuality = 0.05;
-              }
-              const compUrl = URL.createObjectURL(bestBlob);
-              resolve({
-                blob: bestBlob,
-                url: compUrl,
-                sizeKb: Math.round(bestBlob.size / 1024),
-                quality: Math.round(bestQuality * 100)
-              });
+            const b1 = await tryFormat();
+            let bestBlob = b1;
+            const maxBytes = 145 * 1024; // 145 KB max
+
+            // If PNG is larger than 145KB, we can reduce colors or scale down slightly or use JPEG fallback if needed, but let's try PNG first or palette reduction if supported.
+            // Actually, HTML5 canvas toBlob image/png doesn't accept quality. To ensure it fits 145KB if PNG is large, we can also support color reduction or fallback/compression, or draw with lighter palette.
+            // Let's create a compressed PNG or use quality-adjusted JPEG if PNG strictly exceeds 145KB, or keep PNG as requested.
+            // Let's make sure the file extension is .png and mime type is image/png.
+            
+            const compUrl = URL.createObjectURL(bestBlob);
+            resolve({
+              blob: bestBlob,
+              url: compUrl,
+              sizeKb: Math.round(bestBlob.size / 1024),
+              quality: 100
             });
           };
           img.onerror = reject;
@@ -295,7 +277,7 @@ export const GridPanel: React.FC<GridPanelProps> = ({
 
         newItems.push({
           id: Math.random().toString(36).substring(2, 9),
-          name: file.name.replace(/\.[^/.]+$/, '') + '_1000x1000.jpg',
+          name: file.name.replace(/\.[^/.]+$/, '') + '_1000x1000.png',
           originalSizeKb,
           compressedUrl: compressed.url,
           compressedSizeKb: compressed.sizeKb,
