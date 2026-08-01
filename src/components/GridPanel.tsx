@@ -258,11 +258,7 @@ export const GridPanel: React.FC<GridPanelProps> = ({
             const maxBytes = 145 * 1024; // 145 KB max strictly
 
             if (bestBlob.size > maxBytes) {
-              const imgData = ctx.getImageData(0, 0, 1000, 1000);
-              const data = imgData.data;
-
-              for (const step of [32, 16, 8, 4]) {
-                // Restore original canvas image first
+              for (const step of [16, 32, 64, 96, 128]) {
                 ctx.fillStyle = '#FFFFFF';
                 ctx.fillRect(0, 0, 1000, 1000);
                 ctx.drawImage(img, x, y, w, h);
@@ -270,15 +266,41 @@ export const GridPanel: React.FC<GridPanelProps> = ({
                 const currPixels = currentData.data;
 
                 for (let j = 0; j < currPixels.length; j += 4) {
-                  currPixels[j] = Math.round(currPixels[j] / step) * step;
-                  currPixels[j+1] = Math.round(currPixels[j+1] / step) * step;
-                  currPixels[j+2] = Math.round(currPixels[j+2] / step) * step;
+                  currPixels[j] = Math.floor(currPixels[j] / step) * step;
+                  currPixels[j+1] = Math.floor(currPixels[j+1] / step) * step;
+                  currPixels[j+2] = Math.floor(currPixels[j+2] / step) * step;
                 }
                 ctx.putImageData(currentData, 0, 0);
                 const candidate = await tryFormat();
                 bestBlob = candidate;
                 if (bestBlob.size <= maxBytes) {
                   break;
+                }
+              }
+            }
+
+            // Absolute fallback if still above 145KB: scale down canvas slightly or use indexed color approximation
+            if (bestBlob.size > maxBytes) {
+              const smallCanvas = document.createElement('canvas');
+              smallCanvas.width = 1000;
+              smallCanvas.height = 1000;
+              const sCtx = smallCanvas.getContext('2d');
+              if (sCtx) {
+                sCtx.fillStyle = '#FFFFFF';
+                sCtx.fillRect(0, 0, 1000, 1000);
+                // Draw image slightly smaller or with downscale
+                const reducedScale = scale * 0.85;
+                const rw = img.width * reducedScale;
+                const rh = img.height * reducedScale;
+                const rx = (1000 - rw) / 2;
+                const ry = (1000 - rh) / 2;
+                sCtx.drawImage(img, rx, ry, rw, rh);
+                
+                const finalBlob = await new Promise<Blob>((res) => {
+                  smallCanvas.toBlob((b) => res(b || new Blob()), 'image/png');
+                });
+                if (finalBlob.size < bestBlob.size) {
+                  bestBlob = finalBlob;
                 }
               }
             }
