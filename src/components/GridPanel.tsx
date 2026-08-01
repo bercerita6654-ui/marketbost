@@ -236,6 +236,8 @@ export const GridPanel: React.FC<GridPanelProps> = ({
               reject(new Error('Canvas context error'));
               return;
             }
+            ctx.imageSmoothingEnabled = true;
+            ctx.imageSmoothingQuality = 'high';
             ctx.fillStyle = '#FFFFFF';
             ctx.fillRect(0, 0, 1000, 1000);
 
@@ -254,55 +256,45 @@ export const GridPanel: React.FC<GridPanelProps> = ({
               });
             };
 
-            let bestBlob = await tryFormat();
-            const maxBytes = 145 * 1024; // 145 KB max strictly
+            const maxBytes = 148 * 1024; // 148 KB max strictly
+            let bestBlob: Blob = await tryFormat();
 
-            if (bestBlob.size > maxBytes) {
-              for (const step of [16, 32, 64, 96, 128]) {
-                ctx.fillStyle = '#FFFFFF';
-                ctx.fillRect(0, 0, 1000, 1000);
-                ctx.drawImage(img, x, y, w, h);
-                const currentData = ctx.getImageData(0, 0, 1000, 1000);
-                const currPixels = currentData.data;
+            // To maintain 100% color accuracy and sharpness without color posterization/distortion,
+            // we scale down the image slightly if needed while keeping 1000x1000px canvas & PNG format.
+            const scales = [1.0, 0.95, 0.90, 0.85, 0.80, 0.75, 0.70, 0.65];
+            for (const sFactor of scales) {
+              ctx.imageSmoothingEnabled = true;
+              ctx.imageSmoothingQuality = 'high';
+              ctx.fillStyle = '#FFFFFF';
+              ctx.fillRect(0, 0, 1000, 1000);
 
-                for (let j = 0; j < currPixels.length; j += 4) {
-                  currPixels[j] = Math.floor(currPixels[j] / step) * step;
-                  currPixels[j+1] = Math.floor(currPixels[j+1] / step) * step;
-                  currPixels[j+2] = Math.floor(currPixels[j+2] / step) * step;
-                }
-                ctx.putImageData(currentData, 0, 0);
-                const candidate = await tryFormat();
-                bestBlob = candidate;
-                if (bestBlob.size <= maxBytes) {
-                  break;
-                }
+              const currentScale = Math.min(1000 / img.width, 1000 / img.height) * sFactor;
+              const cw = img.width * currentScale;
+              const ch = img.height * currentScale;
+              const cx = (1000 - cw) / 2;
+              const cy = (1000 - ch) / 2;
+              ctx.drawImage(img, cx, cy, cw, ch);
+
+              const candidate = await tryFormat();
+              bestBlob = candidate;
+              if (bestBlob.size <= maxBytes) {
+                break;
               }
             }
 
-            // Absolute fallback if still above 145KB: scale down canvas slightly or use indexed color approximation
+            // If still above 148KB at 0.65 scale, do one final pass with 0.60
             if (bestBlob.size > maxBytes) {
-              const smallCanvas = document.createElement('canvas');
-              smallCanvas.width = 1000;
-              smallCanvas.height = 1000;
-              const sCtx = smallCanvas.getContext('2d');
-              if (sCtx) {
-                sCtx.fillStyle = '#FFFFFF';
-                sCtx.fillRect(0, 0, 1000, 1000);
-                // Draw image slightly smaller or with downscale
-                const reducedScale = scale * 0.85;
-                const rw = img.width * reducedScale;
-                const rh = img.height * reducedScale;
-                const rx = (1000 - rw) / 2;
-                const ry = (1000 - rh) / 2;
-                sCtx.drawImage(img, rx, ry, rw, rh);
-                
-                const finalBlob = await new Promise<Blob>((res) => {
-                  smallCanvas.toBlob((b) => res(b || new Blob()), 'image/png');
-                });
-                if (finalBlob.size < bestBlob.size) {
-                  bestBlob = finalBlob;
-                }
-              }
+              ctx.imageSmoothingEnabled = true;
+              ctx.imageSmoothingQuality = 'high';
+              ctx.fillStyle = '#FFFFFF';
+              ctx.fillRect(0, 0, 1000, 1000);
+              const currentScale = Math.min(1000 / img.width, 1000 / img.height) * 0.60;
+              const cw = img.width * currentScale;
+              const ch = img.height * currentScale;
+              const cx = (1000 - cw) / 2;
+              const cy = (1000 - ch) / 2;
+              ctx.drawImage(img, cx, cy, cw, ch);
+              bestBlob = await tryFormat();
             }
 
             const compUrl = URL.createObjectURL(bestBlob);

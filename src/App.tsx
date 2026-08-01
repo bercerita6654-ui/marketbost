@@ -6,6 +6,7 @@ import { VisualPanel } from './components/VisualPanel';
 import { CaptionPanel } from './components/CaptionPanel';
 import { SeoPanel } from './components/SeoPanel';
 import { GridPanel } from './components/GridPanel';
+import { BatchPanel } from './components/BatchPanel';
 import * as Icons from 'lucide-react';
 
 export default function App() {
@@ -334,6 +335,20 @@ export default function App() {
             </div>
           </button>
 
+          <button
+            type="button"
+            onClick={() => setActiveTab('batch')}
+            title="Batch Processing"
+            className={`p-2.5 rounded transition-all cursor-pointer outline-none relative group ${
+              activeTab === 'batch' ? 'bg-emerald-600 text-white shadow-lg shadow-emerald-500/25' : 'text-gray-400 hover:text-white hover:bg-gray-800/40'
+            }`}
+          >
+            <Icons.Layers className="w-5 h-5" />
+            <div className="absolute left-16 top-1/2 -translate-y-1/2 bg-slate-900 text-white text-[10px] px-2 py-1 rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap pointer-events-none z-50 shadow-md">
+              Batch Processing
+            </div>
+          </button>
+
           <div className="mt-auto p-2 text-gray-500 hover:text-gray-300 cursor-pointer">
             <Icons.Settings className="w-5 h-5" />
           </div>
@@ -373,7 +388,12 @@ export default function App() {
           {/* Two-column master grid */}
           <div className="flex-1 flex overflow-hidden relative">
             
-            {activeTab === 'grid' ? (
+            {activeTab === 'batch' ? (
+              <BatchPanel
+                activeTab={activeTab}
+                setActiveTab={setActiveTab}
+              />
+            ) : activeTab === 'grid' ? (
               <GridPanel
                 companyLogos={companyLogos}
                 brandLogos={brandLogos}

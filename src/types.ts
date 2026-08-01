@@ -52,7 +52,7 @@ export interface IgSticker {
   dragOffsetY?: number;
 }
 
-export type ActiveTab = 'visual' | 'caption' | 'seo' | 'grid';
+export type ActiveTab = 'visual' | 'caption' | 'seo' | 'grid' | 'batch';
 
 export interface CopiedPrompt {
   id: string;
