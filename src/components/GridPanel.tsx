@@ -198,6 +198,138 @@ export const GridPanel: React.FC<GridPanelProps> = ({
   const [renameExtension, setRenameExtension] = useState<string>('.jpg'); // '.png' | '.jpg'
   const [isRenamerOpen, setIsRenamerOpen] = useState<boolean>(true);
 
+  // 1000x1000px Max 145KB Compressor States
+  interface CompressedItem {
+    id: string;
+    name: string;
+    originalSizeKb: number;
+    compressedUrl: string;
+    compressedSizeKb: number;
+    quality: number;
+    blob: Blob;
+  }
+  const [compressorItems, setCompressorItems] = useState<CompressedItem[]>([]);
+  const [isCompressing, setIsCompressing] = useState<boolean>(false);
+
+  const handleCompressImages = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files;
+    if (!files || files.length === 0) return;
+
+    setIsCompressing(true);
+    const newItems: CompressedItem[] = [];
+
+    for (let i = 0; i < files.length; i++) {
+      const file = files[i];
+      const originalSizeKb = Math.round(file.size / 1024);
+      const url = URL.createObjectURL(file);
+
+      try {
+        const compressed = await new Promise<{ blob: Blob; url: string; sizeKb: number; quality: number }>((resolve, reject) => {
+          const img = new Image();
+          img.crossOrigin = 'anonymous';
+          img.onload = () => {
+            const canvas = document.createElement('canvas');
+            canvas.width = 1000;
+            canvas.height = 1000;
+            const ctx = canvas.getContext('2d');
+            if (!ctx) {
+              reject(new Error('Canvas context error'));
+              return;
+            }
+            ctx.fillStyle = '#FFFFFF';
+            ctx.fillRect(0, 0, 1000, 1000);
+
+            const scale = Math.min(1000 / img.width, 1000 / img.height);
+            const w = img.width * scale;
+            const h = img.height * scale;
+            const x = (1000 - w) / 2;
+            const y = (1000 - h) / 2;
+            ctx.drawImage(img, x, y, w, h);
+
+            let low = 0.05;
+            let high = 0.95;
+            let bestQuality = 0.85;
+            let bestBlob: Blob | null = null;
+            const maxBytes = 145 * 1024; // 145 KB max
+
+            const tryQuality = (q: number): Promise<Blob> => {
+              return new Promise((res) => {
+                canvas.toBlob((b) => {
+                  res(b || new Blob());
+                }, 'image/jpeg', q);
+              });
+            };
+
+            tryQuality(0.85).then(async (b1) => {
+              if (b1.size <= maxBytes) {
+                bestBlob = b1;
+                bestQuality = 0.85;
+              }
+              for (let step = 0; step < 6; step++) {
+                const mid = (low + high) / 2;
+                const b = await tryQuality(mid);
+                if (b.size <= maxBytes) {
+                  bestBlob = b;
+                  bestQuality = mid;
+                  low = mid;
+                } else {
+                  high = mid;
+                }
+              }
+              if (!bestBlob) {
+                bestBlob = await tryQuality(0.05);
+                bestQuality = 0.05;
+              }
+              const compUrl = URL.createObjectURL(bestBlob);
+              resolve({
+                blob: bestBlob,
+                url: compUrl,
+                sizeKb: Math.round(bestBlob.size / 1024),
+                quality: Math.round(bestQuality * 100)
+              });
+            });
+          };
+          img.onerror = reject;
+          img.src = url;
+        });
+
+        newItems.push({
+          id: Math.random().toString(36).substring(2, 9),
+          name: file.name.replace(/\.[^/.]+$/, '') + '_1000x1000.jpg',
+          originalSizeKb,
+          compressedUrl: compressed.url,
+          compressedSizeKb: compressed.sizeKb,
+          quality: compressed.quality,
+          blob: compressed.blob
+        });
+      } catch (err) {
+        console.error("Gagal kompresi gambar:", err);
+      }
+    }
+
+    setCompressorItems((prev) => [...prev, ...newItems]);
+    setIsCompressing(false);
+    e.target.value = '';
+  };
+
+  const handleDownloadCompressedZip = async () => {
+    if (compressorItems.length === 0) return;
+    const zip = new JSZip();
+    const folder = zip.folder("MarketBoost_1000x1000_145KB");
+    compressorItems.forEach((item, idx) => {
+      folder?.file(item.name || `image_${idx + 1}.jpg`, item.blob);
+    });
+    const content = await zip.generateAsync({ type: 'blob' });
+    const url = URL.createObjectURL(content);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'MarketBoost_Compressed_1000x1000_145KB.zip';
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  };
+
   // Helper to generate custom sequenced name for a slice
   const getPieceFilename = (idx: number): string => {
     const prefix = renamePrefix.trim() || 'Product';
@@ -2790,6 +2922,111 @@ export const GridPanel: React.FC<GridPanelProps> = ({
               <span>Memproses pemulihan workspace...</span>
             </div>
           )}
+        </div>
+
+        {/* Image Compressor Menu (1000x1000px, Max 145 KB) */}
+        <div className="bg-emerald-50/40 border border-emerald-100 rounded-2xl p-4 space-y-3 shadow-3xs">
+          <div className="flex items-center justify-between border-b border-emerald-100 pb-2">
+            <h3 className="text-xs font-extrabold text-emerald-950 flex items-center gap-1.5">
+              <Icons.Minimize2 className="w-4 h-4 text-emerald-600" /> Kompresor 1000x1000 &lt; 145 KB
+            </h3>
+            <span className="text-[9px] font-bold text-emerald-700 bg-emerald-100 px-2 py-0.5 rounded-full font-mono">
+              Auto Fit
+            </span>
+          </div>
+
+          <p className="text-[10px] text-emerald-900/80 font-medium leading-relaxed">
+            Kompres dan sesuaikan ukuran gambar produk ke resolusi presisi <strong>1000×1000 px</strong> dengan target ukuran maksimal <strong>&lt; 145 KB</strong> (Ideal untuk Shopee, Tokopedia, dll).
+          </p>
+
+          <div className="space-y-3">
+            {/* Upload Button */}
+            <label className="cursor-pointer border-2 border-dashed border-emerald-300 hover:border-emerald-500 bg-white hover:bg-emerald-50/40 transition-all rounded-xl p-3 flex flex-col items-center justify-center gap-1 text-center group">
+              <Icons.UploadCloud className="w-5 h-5 text-emerald-600 group-hover:scale-110 transition-transform" />
+              <div>
+                <span className="text-[11px] font-bold text-slate-700 block">Pilih Gambar untuk Dikompres</span>
+                <span className="text-[9px] text-slate-400 font-semibold block mt-0.5">Mendukung multi-upload (JPG, PNG)</span>
+              </div>
+              <input
+                type="file"
+                accept="image/*"
+                multiple
+                onChange={handleCompressImages}
+                className="hidden"
+              />
+            </label>
+
+            {isCompressing && (
+              <div className="flex items-center justify-center gap-2 p-2 bg-white border border-emerald-200 rounded-xl text-emerald-700 font-bold text-[10px] animate-pulse">
+                <Icons.Loader2 className="w-4 h-4 animate-spin text-emerald-600" />
+                <span>Memproses kompresi & resize 1000x1000px...</span>
+              </div>
+            )}
+
+            {/* List of Compressed Items */}
+            {compressorItems.length > 0 && (
+              <div className="space-y-2 max-h-56 overflow-y-auto pr-1">
+                <div className="flex justify-between items-center text-[10px] font-bold text-slate-500 px-1">
+                  <span>Hasil ({compressorItems.length})</span>
+                  <button
+                    type="button"
+                    onClick={() => setCompressorItems([])}
+                    className="text-rose-500 hover:underline cursor-pointer"
+                  >
+                    Hapus Semua
+                  </button>
+                </div>
+
+                {compressorItems.map((item) => (
+                  <div key={item.id} className="bg-white border border-emerald-100 p-2 rounded-xl flex items-center justify-between gap-2 shadow-3xs">
+                    <div className="flex items-center gap-2 min-w-0">
+                      <div className="w-9 h-9 rounded-lg border border-slate-200 bg-slate-50 overflow-hidden flex items-center justify-center shrink-0">
+                        <img src={item.compressedUrl} alt={item.name} className="w-full h-full object-cover" />
+                      </div>
+                      <div className="min-w-0">
+                        <span className="text-[10px] font-bold text-slate-700 truncate block" title={item.name}>
+                          {item.name}
+                        </span>
+                        <div className="flex items-center gap-1.5 text-[9px] font-mono">
+                          <span className="text-slate-400 line-through">{item.originalSizeKb} KB</span>
+                          <span className="text-emerald-600 font-extrabold">{item.compressedSizeKb} KB</span>
+                          <span className="bg-emerald-100 text-emerald-800 px-1 rounded text-[8px]">{item.quality}% Q</span>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="flex items-center gap-1 shrink-0">
+                      <a
+                        href={item.compressedUrl}
+                        download={item.name}
+                        className="p-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg transition-all shadow-xs cursor-pointer flex items-center justify-center"
+                        title="Download file ini"
+                      >
+                        <Icons.Download className="w-3.5 h-3.5" />
+                      </a>
+                      <button
+                        type="button"
+                        onClick={() => setCompressorItems(prev => prev.filter(p => p.id !== item.id))}
+                        className="p-1.5 hover:bg-rose-50 text-rose-500 rounded-lg transition-all cursor-pointer"
+                        title="Hapus"
+                      >
+                        <Icons.X className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
+                  </div>
+                ))}
+
+                <button
+                  type="button"
+                  onClick={handleDownloadCompressedZip}
+                  className="w-full py-2 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl font-bold text-[11px] transition-all flex items-center justify-center gap-1.5 shadow-md shadow-emerald-600/15 cursor-pointer"
+                >
+                  <Icons.FolderArchive className="w-3.5 h-3.5" />
+                  <span>Download Semua (ZIP)</span>
+                </button>
+              </div>
+            )}
+          </div>
         </div>
       </div>
 
