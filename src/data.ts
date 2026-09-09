@@ -135,3 +135,89 @@ export const POSTER_TEMPLATES = [
     previewText: 'Less is More.\nEssentials.'
   }
 ];
+
+export const BROADCAST_TEMPLATES = [
+  {
+    id: 'cart_reminder' as const,
+    label: 'Pengingat Produk dalam Keranjang',
+    subtitle: 'Ingatkan Pembeli untuk membeli produk di keranjangnya',
+    description: 'Pesan persuasif ramah & santun untuk mendorong pembeli yang sudah memasukkan produk ke keranjang belanja agar segera checkout sebelum stok habis.',
+    icon: 'ShoppingCart',
+    tag: 'Tingkatkan Checkout',
+    badgeColor: 'bg-amber-50 text-amber-700 border-amber-200',
+    defaultActionText: 'Checkout Sekarang'
+  },
+  {
+    id: 'new_arrival' as const,
+    label: 'Update Produk Terbaru',
+    subtitle: 'Update produk terbaru ke Pembeli',
+    description: 'Kabari pelanggan & followers setia tentang rilis produk teranyar di toko Anda dengan highlight fitur unggulan serta promo launching.',
+    icon: 'Sparkles',
+    tag: 'Rilisan Baru',
+    badgeColor: 'bg-blue-50 text-blue-700 border-blue-200',
+    defaultActionText: 'Lihat Produk Baru'
+  },
+  {
+    id: 'promo' as const,
+    label: 'Promosi untuk Pembeli',
+    subtitle: 'Kirim info promo yang sedang berjalan atau yang akan datang',
+    description: 'Sebarkan kabar diskon heboh, voucher cashback, flash sale, atau penawaran spesial terbatas agar pembeli berbondong-bondong memborong.',
+    icon: 'BadgePercent',
+    tag: 'Promo & Diskon',
+    badgeColor: 'bg-emerald-50 text-emerald-700 border-emerald-200',
+    defaultActionText: 'Klaim Promo Toko'
+  }
+];
+
+export const BROADCAST_THEMES = [
+  {
+    id: 'double_date' as const,
+    label: 'Event Tanggal Kembar (9.9 / 10.10 / 11.11 / 12.12)',
+    badge: '9.9 Super Sale',
+    icon: 'CalendarDays',
+    defaultEventName: 'Mega Shopping Day 9.9'
+  },
+  {
+    id: 'payday' as const,
+    label: 'Promo Gajian (Payday Sale)',
+    badge: 'Payday Sale',
+    icon: 'Wallet',
+    defaultEventName: 'Spesial Gajian Mantap'
+  },
+  {
+    id: 'flash_sale' as const,
+    label: 'Flash Sale Kilat',
+    badge: 'Flash Sale',
+    icon: 'Zap',
+    defaultEventName: 'Flash Sale Kilat 24 Jam'
+  },
+  {
+    id: 'weekend' as const,
+    label: 'Spesial Akhir Pekan (Weekend Sale)',
+    badge: 'Weekend Sale',
+    icon: 'Sun',
+    defaultEventName: 'Weekend Shopping Fest'
+  },
+  {
+    id: 'clearance' as const,
+    label: 'Cuci Gudang / Clearance Sale',
+    badge: 'Cuci Gudang',
+    icon: 'Tag',
+    defaultEventName: 'Cuci Gudang Diskon Terbesar'
+  },
+  {
+    id: 'store_anniversary' as const,
+    label: 'Ulang Tahun Toko (Anniversary)',
+    badge: 'Milad Toko',
+    icon: 'Gift',
+    defaultEventName: 'Spesial Ulang Tahun Toko Kami'
+  },
+  {
+    id: 'custom' as const,
+    label: 'Tema Kustom Bebas (Tulis Sendiri)',
+    badge: 'Custom',
+    icon: 'Edit3',
+    defaultEventName: 'Promo Spesial Toko'
+  }
+];
+

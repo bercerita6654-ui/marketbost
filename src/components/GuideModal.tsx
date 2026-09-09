@@ -51,8 +51,21 @@ export const GuideModal: React.FC<GuideModalProps> = ({ isOpen, onClose, onSelec
       ]
     },
     {
+      id: 'broadcast',
+      title: '4. Broadcast Chat',
+      tag: 'Shopee, Tokped, TikTok, WA',
+      color: 'purple',
+      icon: Icons.Radio,
+      description: 'Menyusun pesan siaran (broadcast) yang ringkas, rapi, dan memicu tingkat klik tinggi untuk pengingat keranjang, produk baru, dan promo event seperti 9.9.',
+      tips: [
+        'Pilih template: Pengingat Keranjang, Update Produk Terbaru, atau Promosi Toko.',
+        'Pilih tema seperti Event 9.9 / Gajian Sale dan masukkan kode voucher.',
+        'Kalimat dioptimalkan pendek & padat (200-400 karakter) dengan hook pop-up HP yang kuat.'
+      ]
+    },
+    {
       id: 'grid',
-      title: '4. 9-Grid Splitter',
+      title: '5. 9-Grid Splitter',
       tag: '1000x1000px & Video',
       color: 'indigo',
       icon: Icons.LayoutGrid,
@@ -65,7 +78,7 @@ export const GuideModal: React.FC<GuideModalProps> = ({ isOpen, onClose, onSelec
     },
     {
       id: 'batch',
-      title: '5. Batch Processing',
+      title: '6. Batch Processing',
       tag: 'Multi-Image ZIP',
       color: 'teal',
       icon: Icons.Layers,

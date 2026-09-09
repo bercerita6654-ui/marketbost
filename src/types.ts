@@ -52,13 +52,35 @@ export interface IgSticker {
   dragOffsetY?: number;
 }
 
-export type ActiveTab = 'visual' | 'caption' | 'seo' | 'grid' | 'batch';
+export type ActiveTab = 'visual' | 'caption' | 'seo' | 'broadcast' | 'grid' | 'batch';
 
 export interface CopiedPrompt {
   id: string;
   text: string;
-  type: 'visual' | 'caption' | 'seo';
+  type: 'visual' | 'caption' | 'seo' | 'broadcast';
   timestamp: string;
   customName?: string;
 }
+
+export type BroadcastTemplateId = 'cart_reminder' | 'new_arrival' | 'promo';
+
+export interface BroadcastTemplate {
+  id: BroadcastTemplateId;
+  label: string;
+  subtitle: string;
+  description: string;
+  icon: string;
+  tag: string;
+}
+
+export type BroadcastThemeId = 'double_date' | 'payday' | 'flash_sale' | 'weekend' | 'clearance' | 'store_anniversary' | 'custom';
+
+export interface BroadcastTheme {
+  id: BroadcastThemeId;
+  label: string;
+  icon: string;
+  badge: string;
+  defaultEventName: string;
+}
+
 

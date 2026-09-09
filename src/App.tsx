@@ -5,6 +5,7 @@ import { fetchCSVDatabase, copyToClipboard } from './utils';
 import { VisualPanel } from './components/VisualPanel';
 import { CaptionPanel } from './components/CaptionPanel';
 import { SeoPanel } from './components/SeoPanel';
+import { BroadcastPanel } from './components/BroadcastPanel';
 import { GridPanel } from './components/GridPanel';
 import { BatchPanel } from './components/BatchPanel';
 import { GuideModal } from './components/GuideModal';
@@ -59,6 +60,13 @@ export default function App() {
       return '';
     }
   });
+  const [broadcastPrompt, setBroadcastPrompt] = useState<string>(() => {
+    try {
+      return localStorage.getItem('marketboost_autosave_broadcast') || '';
+    } catch {
+      return '';
+    }
+  });
 
   // Auto-save prompts, product name, and keywords on change
   useEffect(() => {
@@ -101,6 +109,14 @@ export default function App() {
     }
   }, [seoPrompt]);
 
+  useEffect(() => {
+    try {
+      localStorage.setItem('marketboost_autosave_broadcast', broadcastPrompt);
+    } catch (e) {
+      console.error('Failed to auto-save broadcast prompt', e);
+    }
+  }, [broadcastPrompt]);
+
   // Loading/Video Recording overlay
   const [recordingStatus, setRecordingStatus] = useState<string | null>(null);
   const [recordingProgress, setRecordingProgress] = useState<number>(0);
@@ -113,6 +129,7 @@ export default function App() {
   const [visualCopied, setVisualCopied] = useState(false);
   const [captionCopied, setCaptionCopied] = useState(false);
   const [seoCopied, setSeoCopied] = useState(false);
+  const [broadcastCopied, setBroadcastCopied] = useState(false);
 
   // Time & Latency indicators for Terminal Style
   const [systemTime, setSystemTime] = useState('');
@@ -190,7 +207,7 @@ export default function App() {
   };
 
   // Copy helper
-  const handleCopyText = async (text: string, type: 'visual' | 'caption' | 'seo') => {
+  const handleCopyText = async (text: string, type: 'visual' | 'caption' | 'seo' | 'broadcast') => {
     const success = await copyToClipboard(text);
     if (success) {
       const newItem: CopiedPrompt = {
@@ -214,6 +231,9 @@ export default function App() {
       } else if (type === 'seo') {
         setSeoCopied(true);
         setTimeout(() => setSeoCopied(false), 2000);
+      } else if (type === 'broadcast') {
+        setBroadcastCopied(true);
+        setTimeout(() => setBroadcastCopied(false), 2000);
       }
     }
   };
@@ -247,6 +267,7 @@ export default function App() {
     { id: 'visual', label: 'Visual AI Prompt', sub: 'Midjourney & Flux', icon: Icons.Sparkles, color: 'text-blue-400', activeColor: 'bg-blue-600 text-white shadow-lg shadow-blue-500/25' },
     { id: 'caption', label: 'Caption Sosmed', sub: 'Instagram & TikTok', icon: Icons.MessageSquareText, color: 'text-pink-400', activeColor: 'bg-pink-600 text-white shadow-lg shadow-pink-500/25' },
     { id: 'seo', label: 'SEO Copywriter', sub: 'Shopee & Tokopedia', icon: Icons.ShoppingBag, color: 'text-emerald-400', activeColor: 'bg-emerald-600 text-white shadow-lg shadow-emerald-500/25' },
+    { id: 'broadcast', label: 'Broadcast Chat', sub: 'Keranjang, Promo & Baru', icon: Icons.Radio, color: 'text-purple-400', activeColor: 'bg-purple-600 text-white shadow-lg shadow-purple-500/25' },
     { id: 'grid', label: '9-Grid Splitter', sub: '1000px, Kolase & Video', icon: Icons.LayoutGrid, color: 'text-indigo-400', activeColor: 'bg-indigo-600 text-white shadow-lg shadow-indigo-500/25' },
     { id: 'batch', label: 'Batch Processor', sub: 'Multi-Foto Max 148KB', icon: Icons.Layers, color: 'text-amber-400', activeColor: 'bg-amber-600 text-white shadow-lg shadow-amber-500/25' }
   ];
@@ -273,6 +294,7 @@ export default function App() {
               {activeTab === 'visual' && 'Generator Prompt Visual Fotorealistik Midjourney & Flux'}
               {activeTab === 'caption' && 'Generator Caption Persuasif dengan Hook & CTA Penjualan'}
               {activeTab === 'seo' && 'Generator Judul 100-125 Karakter & Deskripsi Tokopedia/Shopee'}
+              {activeTab === 'broadcast' && 'Pesan Siaran Pengingat Keranjang, Produk Baru & Promo 9.9'}
               {activeTab === 'grid' && 'Pemotong 9 Grid Feed 1:1, Kolase Banner, & Video Slideshow'}
               {activeTab === 'batch' && 'Kompresi & Optimasi Multi-Gambar Otomatis Maks 148KB'}
             </p>
@@ -528,6 +550,12 @@ export default function App() {
                         onGenerate={setSeoPrompt}
                       />
                     )}
+                    {activeTab === 'broadcast' && (
+                      <BroadcastPanel
+                        productName={productName}
+                        onGenerate={setBroadcastPrompt}
+                      />
+                    )}
                   </div>
                 </aside>
 
@@ -574,6 +602,19 @@ export default function App() {
                       >
                         <Icons.ShoppingBag className="w-3.5 h-3.5" />
                         <span>Prompt SEO</span>
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={() => setActiveTab('broadcast')}
+                        className={`flex items-center space-x-1.5 px-3 py-1.5 rounded-xl text-xs font-bold transition-all outline-none cursor-pointer ${
+                          activeTab === 'broadcast'
+                            ? 'bg-purple-500/20 text-purple-400 border border-purple-500/40 shadow-sm'
+                            : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/60'
+                        }`}
+                      >
+                        <Icons.Radio className="w-3.5 h-3.5" />
+                        <span>Prompt Broadcast</span>
                       </button>
 
                       <button
@@ -663,6 +704,26 @@ export default function App() {
                           className="flex items-center gap-1.5 px-3 py-1.5 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white rounded-lg text-xs font-bold transition-all shadow-md shadow-emerald-500/20 cursor-pointer active:scale-95"
                         >
                           {seoCopied ? (
+                            <>
+                              <Icons.CheckCircle className="w-3.5 h-3.5 text-white" />
+                              <span>Tersalin!</span>
+                            </>
+                          ) : (
+                            <>
+                              <Icons.Copy className="w-3.5 h-3.5" />
+                              <span>Salin Prompt</span>
+                            </>
+                          )}
+                        </button>
+                      )}
+
+                      {activeTab === 'broadcast' && broadcastPrompt && (
+                        <button
+                          type="button"
+                          onClick={() => handleCopyText(broadcastPrompt, 'broadcast')}
+                          className="flex items-center gap-1.5 px-3 py-1.5 bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white rounded-lg text-xs font-bold transition-all shadow-md shadow-purple-500/20 cursor-pointer active:scale-95"
+                        >
+                          {broadcastCopied ? (
                             <>
                               <Icons.CheckCircle className="w-3.5 h-3.5 text-white" />
                               <span>Tersalin!</span>
@@ -907,6 +968,71 @@ export default function App() {
                     </div>
                   )}
 
+                  {/* TAB CONTENT: Broadcast Chat Copywriting Prompt Textarea */}
+                  {activeTab === 'broadcast' && (
+                    <div className="flex-1 flex flex-col">
+                      {broadcastPrompt ? (
+                        <div className="flex-1 flex flex-col space-y-2">
+                          <div className="flex items-center justify-between">
+                            <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider flex items-center gap-1.5">
+                              <Icons.Radio className="w-3.5 h-3.5 text-purple-400" />
+                              Prompt Broadcast Chat Hasil Racikan Studio
+                            </span>
+                            <button
+                              type="button"
+                              onClick={() => setBroadcastPrompt('')}
+                              className="text-[11px] text-slate-500 hover:text-rose-400 transition-colors flex items-center gap-1 cursor-pointer"
+                            >
+                              <Icons.Trash2 className="w-3 h-3" />
+                              <span>Bersihkan</span>
+                            </button>
+                          </div>
+
+                          <textarea
+                            value={broadcastPrompt}
+                            onChange={(e) => setBroadcastPrompt(e.target.value)}
+                            className="w-full flex-1 min-h-[350px] bg-slate-900/80 text-slate-100 border border-slate-800 rounded-xl p-4 focus:outline-none font-mono text-[12px] leading-relaxed resize-none shadow-inner focus:border-purple-500/50"
+                          />
+
+                          <div className="flex flex-wrap justify-between items-center text-[10px] text-slate-400 font-mono mt-1 bg-slate-950/50 px-3 py-2 rounded-xl border border-slate-800/60 gap-2">
+                            <div className="flex gap-4">
+                              <span>Characters: <strong className="text-purple-400 font-bold">{broadcastPrompt.length}</strong></span>
+                              <span>Words: <strong className="text-purple-400 font-bold">{broadcastPrompt.trim() ? broadcastPrompt.trim().split(/\s+/).length : 0}</strong></span>
+                            </div>
+                            <div className="flex items-center gap-2">
+                              <span className="text-[9px] text-purple-300 bg-purple-950/60 px-2 py-0.5 rounded border border-purple-800/50 font-bold">
+                                3 Variasi Pesan Siaran (Ringkas & CTR Tinggi)
+                              </span>
+                            </div>
+                          </div>
+                        </div>
+                      ) : (
+                        <div className="flex-1 flex flex-col items-center justify-center text-slate-500 space-y-4 py-12">
+                          <div className="p-4 rounded-2xl bg-purple-500/10 border border-purple-500/20 text-purple-400">
+                            <Icons.Radio className="w-12 h-12 animate-pulse" />
+                          </div>
+                          <div className="text-center max-w-sm">
+                            <h4 className="text-base font-bold text-slate-200">Belum Ada Prompt Broadcast Chat</h4>
+                            <p className="text-xs text-slate-400 mt-1 leading-relaxed">
+                              Pilih template (Pengingat Keranjang, Update Produk Baru, atau Promo), tentukan tema seperti <strong>Event 9.9</strong>, lalu klik <strong>Generate Prompt Broadcast Chat</strong>.
+                            </p>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                const sampleName = productName.trim() || 'Sepatu sneakers kulit putih pria';
+                                setBroadcastPrompt(`📢 REKOMENDASI 3 VARIASI PESAN BROADCAST CHAT (EVENT 9.9 SUPER SHOPPING DAY)\nKategori: Pengingat Keranjang Belanja (Abandoned Cart) | Platform: SHOPEE & TOKOPEDIA\n═════════════════════════════════════════════════════\n\n🎯 VARIASI 1: PENDEK, PADAT & LANGSUNG PADA INTI (Punchy & Direct)\n\nAda yang ketinggalan di keranjangmu nih! 🛒\n\nKhusus event 9.9 hari ini, nikmati DISKON EKSTRA 25% + GRATIS ONGKIR XTRA untuk produk favoritmu: "${sampleName}".\n\n⚡ Masukkan Kode: HEMAT99 saat checkout.\nSisa 15 kuota lagi sebelum promo berakhir malam ini pukul 23:59 WIB!\n\n👉 Amankan sekarang sebelum kehabisan:\n[Tombol CTA: Buka Keranjang Sekarang]\n\n─────────────────────────────────────────────────────\n\n❤️ VARIASI 2: RAMAH & PERSONAL (Friendly & Engaging)\n\nHalo kak! Masih naksir sama "${sampleName}" yang ada di keranjang belanjamu? 😊\n\nKabar baik! Sekarang lagi berlangsung Promo 9.9 Super Shopping Day di toko kami. Kamu bisa checkout dengan Diskon Tambahan 25% + Potongan Ongkir langsung!\n\nYuk checkout sekarang selagi warna & ukuran impianmu masih ready ya kak ✨\n\n[Tombol CTA: Ambil Diskon & Checkout]\n\n─────────────────────────────────────────────────────\n\n⚡ VARIASI 3: URGENSI TINGGI & KUOTA MENIPIS (FOMO Booster)\n\n⚠️ PERINGATAN PROMO 9.9 SEGERA BERAKHIR!\n\nStok "${sampleName}" di keranjangmu tinggal tersisa 3 pcs lagi kak!\n\nGunakan Voucher: HEMAT99 untuk hemat hingga 25% sekarang juga. Kesempatan hanya sampai 23:59 WIB hari ini!\n\n🔥 Jangan sampai keduluan pembeli lain ya!\n[Tombol CTA: Checkout Sekarang Juga]`);
+                              }}
+                              className="mt-4 px-4 py-2 bg-purple-600 hover:bg-purple-500 text-white rounded-xl text-xs font-bold transition-all shadow-md shadow-purple-500/25 inline-flex items-center gap-1.5 cursor-pointer"
+                            >
+                              <Icons.Sparkles className="w-3.5 h-3.5" />
+                              <span>Muat Contoh Prompt Broadcast</span>
+                            </button>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  )}
+
                 </main>
               </>
             )}
@@ -986,8 +1112,15 @@ export default function App() {
                 recentCopies.map((item) => {
                   const isVisual = item.type === 'visual';
                   const isCaption = item.type === 'caption';
-                  const badgeBg = isVisual ? 'bg-blue-500/15 text-blue-400 border-blue-500/30' : isCaption ? 'bg-pink-500/15 text-pink-400 border-pink-500/30' : 'bg-emerald-500/15 text-emerald-400 border-emerald-500/30';
-                  const badgeLabel = isVisual ? 'Visual AI' : isCaption ? 'Caption' : 'SEO Copy';
+                  const isSeo = item.type === 'seo';
+                  const badgeBg = isVisual
+                    ? 'bg-blue-500/15 text-blue-400 border-blue-500/30'
+                    : isCaption
+                    ? 'bg-pink-500/15 text-pink-400 border-pink-500/30'
+                    : isSeo
+                    ? 'bg-emerald-500/15 text-emerald-400 border-emerald-500/30'
+                    : 'bg-purple-500/15 text-purple-400 border-purple-500/30';
+                  const badgeLabel = isVisual ? 'Visual AI' : isCaption ? 'Caption' : isSeo ? 'SEO Copy' : 'Broadcast';
 
                   return (
                     <div key={item.id} className="bg-slate-950/60 border border-slate-800/80 rounded-xl p-3.5 space-y-3 shadow-xs hover:border-slate-700 transition-all duration-200 relative group">
