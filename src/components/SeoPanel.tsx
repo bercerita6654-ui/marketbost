@@ -412,40 +412,6 @@ USP / Keunggulan Unik: ${uspVal}`;
         </div>
       </div>
 
-      {/* Generated Product Name Formula Preview */}
-      <div className="bg-gradient-to-br from-indigo-50 to-emerald-50 border border-emerald-100 rounded-xl p-3.5 space-y-2 shadow-2xs">
-        <div className="flex justify-between items-center">
-          <span className="text-[9px] font-extrabold text-emerald-600 uppercase tracking-widest flex items-center gap-1">
-            <Icons.Layers className="w-3.5 h-3.5 text-emerald-500" />
-            Formula Hasil Nama Produk
-          </span>
-          <button
-            type="button"
-            onClick={async () => {
-              if (formulaResult) {
-                try {
-                  await navigator.clipboard.writeText(formulaResult);
-                  alert('Nama produk berhasil disalin!');
-                } catch (err) {
-                  // Fallback
-                }
-              }
-            }}
-            className="text-[10px] text-indigo-600 hover:text-indigo-800 font-bold flex items-center gap-0.5 outline-none"
-            title="Salin hasil nama produk"
-          >
-            <Icons.Copy className="w-3 h-3" />
-            <span>Salin</span>
-          </button>
-        </div>
-        <div className="text-xs font-extrabold text-slate-800 bg-white/80 p-2.5 rounded-lg border border-emerald-100 font-mono break-words shadow-3xs leading-relaxed">
-          {formulaResult || 'Belum ada nama produk...'}
-        </div>
-        <p className="text-[9px] text-slate-400 font-medium">
-          Format: <span className="text-slate-500 font-bold">[Kategori/Jenis]</span> + <span className="text-slate-500 font-bold">[Merek]</span> + <span className="text-slate-500 font-bold">[Tipe/Model/Fitur]</span> + <span className="text-slate-500 font-bold">[Warna/Ukuran]</span>
-        </p>
-      </div>
-
       <button
         type="button"
         onClick={handleGenerate}
