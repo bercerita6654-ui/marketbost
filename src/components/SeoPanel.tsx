@@ -140,7 +140,7 @@ GAYA BAHASA: ${audienceData.promptMod}
 
 TUGAS ANDA:
 1. Buat 3 variasi rekomendasi judul SEO friendly (100-125 karakter). Gunakan format nama produk utama: "${formulaResult}" sebagai basis utama dikombinasikan dengan kata kunci SEO secara alami. Wajib diawali tanda strip (-) di setiap judul dan pisahkan setiap judul dengan 1 baris kosong (ENTER).
-2. Buat deskripsi produk dalam SATU BLOK TEKS siap salin dengan garis pembatas (---------------------) di antara setiap pokok bahasan.
+2. Buat deskripsi produk dalam SATU BLOK TEKS siap salin dengan pemisah 1 baris kosong (ENTER) di antara setiap pokok bahasan (DILARANG menggunakan garis pembatas tanda hubung/strip seperti --- atau --------------------- agar format teks tetap normal dan tidak berubah ukuran saat disalin).
 
 IKUTI STRUKTUR FORMAT DI BAWAH INI SECARA PERSIS:
 
@@ -150,33 +150,33 @@ REKOMENDASI JUDUL SEO (100-125 Karakter):
 - (Judul 2 dengan panjang 100-125 karakter)
 
 - (Judul 3 dengan panjang 100-125 karakter)
----------------------
+
 DETAIL SPESIFIKASI:
 • Merk   : ${brandVal}
 • Tipe   : ${typeVal}
 • Harga  : Harga Tertera (${unitVal})${packVal ? `\n• Kemasan: ${packVal}` : ''}
 • Ukuran : ${sizeVal}
----------------------
+
 KEUNGGULAN UTAMA:
 • (Poin keunggulan 1 yang kuat dan jelas)
 • (Poin keunggulan 2)
 • (Poin keunggulan 3)
----------------------
+
 PENGALAMAN PEMAKAIAN:
 (Paragraf ringkas yang menjelaskan secara mengalir kenyamanan, rasa tenang, dan manfaat nyata yang dirasakan pembeli saat menggunakan produk ini)
----------------------
+
 SANGAT COCOK UNTUK:
 (Poin kebutuhan / penggunaan 1)
 (Poin kebutuhan / penggunaan 2)
----------------------
+
 CATATAN TOKO:
 • Produk yang kami jual dijamin Original & Baru.
 • Cover/kemasan/motif/warna dikirim sesuai stock yang tersedia.
 • Mohon sertakan video unboxing untuk klaim produk.
 
 ATURAN "ANTI-BERANTAKAN" (SANGAT PENTING):
-1. JANGAN gunakan format Markdown berlebihan (TIDAK BOLEH ADA simbol ** atau * atau # di dalam teks deskripsi).
-2. Gunakan garis pembatas --------------------- persis di antara setiap bagian seperti contoh struktur di atas.
+1. JANGAN gunakan format Markdown berlebihan (TIDAK BOLEH ADA simbol ** atau * atau # atau garis strip berderet --- di dalam teks deskripsi).
+2. WAJIB gunakan 1 baris kosong (ENTER) yang bersih sebelum setiap pokok bahasan baru.
 3. RATA KIRI MUTLAK: Jangan ada spasi (indentasi) di awal baris.
 4. AMAN DARI PELANGGARAN: Sangat penting! HINDARI penggunaan kata/kalimat yang dilarang atau dibatasi oleh algoritma Shopee, Tokopedia, dan TikTok Shop (seperti ajakan transaksi di luar platform, nomor HP/WA, kata-kata kasar, janji/klaim medis berlebihan, atau kata kunci terlarang lainnya).
 
