@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
-import { AudienceId, MarketplaceId } from '../types';
-import { AUDIENCES, MARKETPLACES } from '../data';
+import { AudienceId } from '../types';
+import { AUDIENCES } from '../data';
 import * as Icons from 'lucide-react';
 
 // Dynamic Icon Renderer
@@ -28,7 +28,6 @@ export const SeoPanel: React.FC<SeoPanelProps> = ({
   const [brand, setBrand] = useState('');
   const [type, setType] = useState('');
   const [size, setSize] = useState('');
-  const [marketplace, setMarketplace] = useState<MarketplaceId>('shopee');
   const [unit, setUnit] = useState('');
   const [pack, setPack] = useState('');
   const [usp, setUsp] = useState('');
@@ -55,7 +54,6 @@ export const SeoPanel: React.FC<SeoPanelProps> = ({
       setBrand('Premium Brand');
       setType('Elite Series');
       setSize('All Size');
-      setMarketplace('tokopedia');
       setUnit('1 Pcs');
       setPack('Kemasan Box Eksklusif');
       setUsp('Garansi Resmi 1 Tahun, Layanan Pelanggan 24/7, Material Premium Anti-Karat');
@@ -64,7 +62,6 @@ export const SeoPanel: React.FC<SeoPanelProps> = ({
       setBrand('Lokal Pride');
       setType('Daily Series');
       setSize('M, L, XL');
-      setMarketplace('shopee');
       setUnit('1 Pcs');
       setPack('Kemasan Ramah Lingkungan');
       setUsp('Bahan adem & nyaman dipakai seharian, cocok untuk segala aktivitas kasual, tidak mudah kusut');
@@ -73,7 +70,6 @@ export const SeoPanel: React.FC<SeoPanelProps> = ({
       setBrand('Viraal');
       setType('Limited Edition');
       setSize('Free Size');
-      setMarketplace('tiktok');
       setUnit('1 Pack');
       setPack('Beli 1 Gratis 1');
       setUsp('PROMO TERBATAS HARI INI! Bahan super elastis premium, tren masa kini, gratis ongkir se-Indonesia');
@@ -107,10 +103,8 @@ export const SeoPanel: React.FC<SeoPanelProps> = ({
     const uspVal = usp.trim() || '-';
 
     const audienceData = AUDIENCES.find(a => a.id === audience) || AUDIENCES[0];
-    const marketplaceData = MARKETPLACES.find(m => m.id === marketplace) || MARKETPLACES[0];
 
     const systemPrompt = `Anda adalah pakar SEO Marketplace Indonesia. Buat deskripsi produk yang SANGAT RAPI, PROFESIONAL, dan BERSIH (PLAIN TEXT).
-TARGET MARKETPLACE: ${marketplaceData.label}
 GAYA BAHASA: ${audienceData.promptMod}
 
 TUGAS ANDA:
@@ -245,27 +239,6 @@ USP / Keunggulan Unik: ${uspVal}`;
             placeholder="Size / Dimensi"
             className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg outline-none text-slate-800"
           />
-        </div>
-      </div>
-
-      {/* Marketplace Selector */}
-      <div>
-        <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest block mb-2">Marketplace Tujuan</label>
-        <div className="flex gap-2">
-          {MARKETPLACES.map((m) => (
-            <button
-              key={m.id}
-              type="button"
-              onClick={() => setMarketplace(m.id)}
-              className={`flex-1 py-1.5 text-xs font-bold rounded-lg border transition-all ${
-                marketplace === m.id
-                  ? 'bg-slate-800 text-white border-slate-800'
-                  : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50'
-              }`}
-            >
-              {m.label}
-            </button>
-          ))}
         </div>
       </div>
 

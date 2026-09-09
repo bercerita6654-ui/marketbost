@@ -7,15 +7,18 @@ import { CaptionPanel } from './components/CaptionPanel';
 import { SeoPanel } from './components/SeoPanel';
 import { GridPanel } from './components/GridPanel';
 import { BatchPanel } from './components/BatchPanel';
+import { GuideModal } from './components/GuideModal';
 import * as Icons from 'lucide-react';
 
 export default function App() {
   const [activeTab, setActiveTab] = useState<ActiveTab>('visual');
+  const [guideOpen, setGuideOpen] = useState(false);
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [productName, setProductName] = useState<string>(() => {
     try {
-      return localStorage.getItem('marketboost_autosave_productName') || 'this product';
+      return localStorage.getItem('marketboost_autosave_productName') || 'Sepatu sneakers kulit putih pria';
     } catch {
-      return 'this product';
+      return 'Sepatu sneakers kulit putih pria';
     }
   });
   
@@ -228,35 +231,97 @@ export default function App() {
     saveRecentCopies(updated);
   };
 
+  const samplePresets = [
+    { label: '👟 Sneakers Pria', name: 'Sepatu sneakers kulit putih pria casual', kw: ['sepatu sneakers', 'sneakers pria', 'sepatu kasual', 'alas kaki lokal'] },
+    { label: '✨ Serum Glowing', name: 'Serum wajah brightening vitamin C booster glow', kw: ['serum wajah', 'brightening serum', 'skincare glowing', 'anti aging'] },
+    { label: '👔 Kemeja Flanel', name: 'Kemeja flanel katun motif kotak lengan panjang', kw: ['kemeja flanel', 'kemeja pria', 'outfit kasual', 'atasan katun'] },
+    { label: '🎒 Tas Ransel', name: 'Tas ransel backpack waterproof laptop 15 inch', kw: ['tas ransel', 'backpack waterproof', 'tas laptop', 'tas kuliah'] }
+  ];
+
+  const handleApplyPreset = (preset: typeof samplePresets[0]) => {
+    setProductName(preset.name);
+    setKeywords(preset.kw);
+  };
+
+  const navItems: { id: ActiveTab; label: string; sub: string; icon: any; color: string; activeColor: string }[] = [
+    { id: 'visual', label: 'Visual AI Prompt', sub: 'Midjourney & Flux', icon: Icons.Sparkles, color: 'text-blue-400', activeColor: 'bg-blue-600 text-white shadow-lg shadow-blue-500/25' },
+    { id: 'caption', label: 'Caption Sosmed', sub: 'Instagram & TikTok', icon: Icons.MessageSquareText, color: 'text-pink-400', activeColor: 'bg-pink-600 text-white shadow-lg shadow-pink-500/25' },
+    { id: 'seo', label: 'SEO Copywriter', sub: 'Shopee & Tokopedia', icon: Icons.ShoppingBag, color: 'text-emerald-400', activeColor: 'bg-emerald-600 text-white shadow-lg shadow-emerald-500/25' },
+    { id: 'grid', label: '9-Grid Splitter', sub: '1000px, Kolase & Video', icon: Icons.LayoutGrid, color: 'text-indigo-400', activeColor: 'bg-indigo-600 text-white shadow-lg shadow-indigo-500/25' },
+    { id: 'batch', label: 'Batch Processor', sub: 'Multi-Foto Max 148KB', icon: Icons.Layers, color: 'text-amber-400', activeColor: 'bg-amber-600 text-white shadow-lg shadow-amber-500/25' }
+  ];
+
   return (
-    <div className="flex flex-col h-screen bg-[#f0f1f3] text-[#1a1a1b] font-sans overflow-hidden select-none">
+    <div className="flex flex-col h-screen bg-[#f8fafc] text-slate-800 font-sans overflow-hidden select-none">
       
-      {/* High-density top bar */}
-      <header className="h-12 bg-[#1e2329] border-b border-gray-800 flex items-center justify-between px-4 text-white shrink-0">
-        <div className="flex items-center gap-4">
-          <div className="bg-gradient-to-br from-blue-500 to-indigo-600 p-1.5 rounded flex items-center justify-center shadow-md">
+      {/* Top Application Header */}
+      <header className="h-14 bg-[#0f172a] border-b border-slate-800 flex items-center justify-between px-4 text-white shrink-0 shadow-sm z-30">
+        <div className="flex items-center gap-3">
+          <div className="bg-gradient-to-tr from-indigo-500 via-blue-500 to-teal-400 p-2 rounded-xl flex items-center justify-center shadow-md shadow-indigo-500/20">
             <Icons.Zap className="w-5 h-5 text-white" />
           </div>
           <div>
-            <h1 className="text-sm font-black tracking-tight text-white flex items-center gap-1.5">
-              MARKETBOOST <span className="text-blue-400 font-medium text-xs">AI Workspace</span>
-            </h1>
-            <p className="text-[10px] text-gray-400 -mt-0.5 hidden sm:block">Integrated Sales Booster Terminal</p>
+            <div className="flex items-center gap-2">
+              <h1 className="text-sm font-black tracking-tight text-white flex items-center gap-1.5">
+                MARKETBOOST <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-teal-400 font-extrabold text-xs">STUDIO AI</span>
+              </h1>
+              <span className="text-[9px] font-bold px-1.5 py-0.5 rounded bg-blue-500/20 text-blue-400 border border-blue-500/30">
+                v2.5 PRO
+              </span>
+            </div>
+            <p className="text-[10px] text-slate-400 -mt-0.5 hidden sm:block">
+              {activeTab === 'visual' && 'Generator Prompt Visual Fotorealistik Midjourney & Flux'}
+              {activeTab === 'caption' && 'Generator Caption Persuasif dengan Hook & CTA Penjualan'}
+              {activeTab === 'seo' && 'Generator Judul 100-125 Karakter & Deskripsi Tokopedia/Shopee'}
+              {activeTab === 'grid' && 'Pemotong 9 Grid Feed 1:1, Kolase Banner, & Video Slideshow'}
+              {activeTab === 'batch' && 'Kompresi & Optimasi Multi-Gambar Otomatis Maks 148KB'}
+            </p>
           </div>
-          <div className="h-4 w-[1px] bg-gray-700 hidden sm:block" />
-          <span className="text-[10px] text-gray-400 font-mono hidden sm:block">STATION: MB-PRO-IND-42</span>
         </div>
 
-        {/* User metrics or current status */}
-        <div className="flex items-center gap-3">
+        {/* Global Product Presets Quick Bar (Center) */}
+        <div className="hidden lg:flex items-center gap-2 bg-slate-900/90 border border-slate-800/80 rounded-xl px-3 py-1.5">
+          <div className="flex items-center gap-1.5 text-xs text-slate-400 font-bold">
+            <Icons.Sparkles className="w-3.5 h-3.5 text-amber-400" />
+            <span className="text-[11px] text-slate-400">Contoh Cepat:</span>
+          </div>
+          <div className="flex items-center gap-1.5">
+            {samplePresets.map((preset, idx) => (
+              <button
+                key={idx}
+                type="button"
+                onClick={() => handleApplyPreset(preset)}
+                className="px-2.5 py-1 rounded-lg text-[11px] font-medium bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white transition-all cursor-pointer border border-slate-700/50"
+                title={`Gunakan contoh "${preset.name}"`}
+              >
+                {preset.label}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* Action buttons on the right */}
+        <div className="flex items-center gap-2.5">
+          {/* Guide Modal Trigger */}
+          <button
+            type="button"
+            onClick={() => setGuideOpen(true)}
+            className="flex items-center gap-1.5 px-3 py-1.5 bg-slate-800/90 hover:bg-indigo-600 text-slate-200 hover:text-white rounded-xl text-xs font-bold transition-all outline-none border border-slate-700/80 cursor-pointer shadow-xs"
+            title="Panduan penggunaan fitur"
+          >
+            <Icons.BookOpen className="w-3.5 h-3.5 text-indigo-400 group-hover:text-white" />
+            <span className="hidden md:inline text-[11px]">Panduan</span>
+          </button>
+
+          {/* Recent Copies Drawer Trigger */}
           <button
             type="button"
             onClick={() => setHistoryDrawerOpen(true)}
-            className="flex items-center gap-1.5 px-2.5 py-1.5 bg-slate-800 hover:bg-slate-700 active:bg-slate-700 text-slate-200 hover:text-white rounded-lg text-xs font-bold transition-all outline-none border border-slate-700/60 cursor-pointer"
+            className="flex items-center gap-1.5 px-3 py-1.5 bg-slate-800/90 hover:bg-slate-700 text-slate-200 hover:text-white rounded-xl text-xs font-bold transition-all outline-none border border-slate-700/80 cursor-pointer shadow-xs relative"
             title="Lihat riwayat salinan"
           >
             <Icons.ClipboardList className="w-3.5 h-3.5 text-blue-400" />
-            <span className="hidden md:inline text-[11px]">Recent Copies</span>
+            <span className="hidden md:inline text-[11px]">Riwayat Salin</span>
             {recentCopies.length > 0 && (
               <span className="bg-rose-500 text-white text-[9px] px-1.5 py-0.5 rounded-full font-extrabold leading-none">
                 {recentCopies.length}
@@ -264,126 +329,117 @@ export default function App() {
             )}
           </button>
 
-          <span className="text-[10px] text-emerald-400 font-mono flex items-center gap-1 bg-emerald-950/50 px-2 py-1 rounded border border-emerald-900/50">
-            <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
-            ENGINE_STABLE
-          </span>
-          <div className="w-6 h-6 rounded-full bg-blue-600 flex items-center justify-center text-[10px] text-white font-bold uppercase shadow-sm">
-            AI
+          {/* Server / Engine Status indicator */}
+          <div className="hidden sm:flex items-center gap-1.5 text-[11px] text-emerald-400 font-medium bg-emerald-950/40 px-2.5 py-1 rounded-xl border border-emerald-800/40">
+            <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+            <span>Studio Siap</span>
           </div>
         </div>
       </header>
 
-      {/* Main interface: left navigation rail + dashboard body */}
+      {/* Main interface: Sidebar navigation + dashboard body */}
       <div className="flex-1 flex overflow-hidden">
         
-        {/* Left Navigation Rail (Dark mode, High Density Style) */}
-        <nav className="w-14 bg-[#1e2329] flex flex-col items-center py-4 gap-4 border-r border-gray-800 shrink-0">
-          <button
-            type="button"
-            onClick={() => setActiveTab('visual')}
-            title="Visual AI Prompt"
-            className={`p-2.5 rounded transition-all cursor-pointer outline-none relative group ${
-              activeTab === 'visual' ? 'bg-blue-600 text-white shadow-lg shadow-blue-500/25' : 'text-gray-400 hover:text-white hover:bg-gray-800/40'
-            }`}
-          >
-            <Icons.Image className="w-5 h-5" />
-            <div className="absolute left-16 top-1/2 -translate-y-1/2 bg-slate-900 text-white text-[10px] px-2 py-1 rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap pointer-events-none z-50 shadow-md">
-              Visual AI
+        {/* Left Navigation Sidebar */}
+        <nav className={`${sidebarCollapsed ? 'w-16' : 'w-60'} bg-[#0f172a] flex flex-col justify-between py-3 border-r border-slate-800 shrink-0 transition-all duration-300 select-none z-20`}>
+          
+          <div className="space-y-1 px-2">
+            {/* Collapse toggle */}
+            <div className="flex items-center justify-between px-2 py-1 mb-2 text-slate-400">
+              {!sidebarCollapsed && (
+                <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">
+                  Alat & Fitur
+                </span>
+              )}
+              <button
+                type="button"
+                onClick={() => setSidebarCollapsed(!sidebarCollapsed)}
+                className="p-1 hover:bg-slate-800 text-slate-400 hover:text-white rounded-lg transition-colors cursor-pointer ml-auto"
+                title={sidebarCollapsed ? 'Perluas Menu' : 'Persempit Menu'}
+              >
+                <Icons.PanelLeft className={`w-4 h-4 transition-transform ${sidebarCollapsed ? 'rotate-180' : ''}`} />
+              </button>
             </div>
-          </button>
 
-          <button
-            type="button"
-            onClick={() => setActiveTab('caption')}
-            title="Caption Sosmed"
-            className={`p-2.5 rounded transition-all cursor-pointer outline-none relative group ${
-              activeTab === 'caption' ? 'bg-pink-600 text-white shadow-lg shadow-pink-500/25' : 'text-gray-400 hover:text-white hover:bg-gray-800/40'
-            }`}
-          >
-            <Icons.MessageSquare className="w-5 h-5" />
-            <div className="absolute left-16 top-1/2 -translate-y-1/2 bg-slate-900 text-white text-[10px] px-2 py-1 rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap pointer-events-none z-50 shadow-md">
-              Caption Generator
-            </div>
-          </button>
+            {navItems.map((item, idx) => {
+              const IconComp = item.icon;
+              const isActive = activeTab === item.id;
+              return (
+                <button
+                  key={item.id}
+                  type="button"
+                  onClick={() => setActiveTab(item.id)}
+                  title={item.label + ' - ' + item.sub}
+                  className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all cursor-pointer outline-none relative group text-left ${
+                    isActive
+                      ? item.activeColor
+                      : 'text-slate-300 hover:text-white hover:bg-slate-800/60'
+                  }`}
+                >
+                  <div className={`p-1.5 rounded-lg shrink-0 ${isActive ? 'bg-white/20' : 'bg-slate-800/80 text-slate-300'}`}>
+                    <IconComp className="w-4 h-4" />
+                  </div>
+                  
+                  {!sidebarCollapsed && (
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center justify-between">
+                        <span className="text-xs font-bold truncate">{item.label}</span>
+                        <span className="text-[9px] font-mono opacity-60">0{idx + 1}</span>
+                      </div>
+                      <p className={`text-[10px] truncate ${isActive ? 'text-white/80' : 'text-slate-400'}`}>
+                        {item.sub}
+                      </p>
+                    </div>
+                  )}
 
-          <button
-            type="button"
-            onClick={() => setActiveTab('seo')}
-            title="SEO Copywriting"
-            className={`p-2.5 rounded transition-all cursor-pointer outline-none relative group ${
-              activeTab === 'seo' ? 'bg-emerald-600 text-white shadow-lg shadow-emerald-500/25' : 'text-gray-400 hover:text-white hover:bg-gray-800/40'
-            }`}
-          >
-            <Icons.ShoppingBag className="w-5 h-5" />
-            <div className="absolute left-16 top-1/2 -translate-y-1/2 bg-slate-900 text-white text-[10px] px-2 py-1 rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap pointer-events-none z-50 shadow-md">
-              SEO Copywriter
-            </div>
-          </button>
-
-          <button
-            type="button"
-            onClick={() => setActiveTab('grid')}
-            title="Grid Collage Maker"
-            className={`p-2.5 rounded transition-all cursor-pointer outline-none relative group ${
-              activeTab === 'grid' ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-500/25' : 'text-gray-400 hover:text-white hover:bg-gray-800/40'
-            }`}
-          >
-            <Icons.LayoutGrid className="w-5 h-5" />
-            <div className="absolute left-16 top-1/2 -translate-y-1/2 bg-slate-900 text-white text-[10px] px-2 py-1 rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap pointer-events-none z-50 shadow-md">
-              Grid Collage Maker
-            </div>
-          </button>
-
-          <button
-            type="button"
-            onClick={() => setActiveTab('batch')}
-            title="Batch Processing"
-            className={`p-2.5 rounded transition-all cursor-pointer outline-none relative group ${
-              activeTab === 'batch' ? 'bg-emerald-600 text-white shadow-lg shadow-emerald-500/25' : 'text-gray-400 hover:text-white hover:bg-gray-800/40'
-            }`}
-          >
-            <Icons.Layers className="w-5 h-5" />
-            <div className="absolute left-16 top-1/2 -translate-y-1/2 bg-slate-900 text-white text-[10px] px-2 py-1 rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap pointer-events-none z-50 shadow-md">
-              Batch Processing
-            </div>
-          </button>
-
-          <div className="mt-auto p-2 text-gray-500 hover:text-gray-300 cursor-pointer">
-            <Icons.Settings className="w-5 h-5" />
+                  {/* Tooltip in collapsed mode */}
+                  {sidebarCollapsed && (
+                    <div className="absolute left-16 top-1/2 -translate-y-1/2 bg-slate-900 text-white text-xs px-3 py-1.5 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap pointer-events-none z-50 shadow-xl border border-slate-700">
+                      <div className="font-bold">{item.label}</div>
+                      <div className="text-[10px] text-slate-400">{item.sub}</div>
+                    </div>
+                  )}
+                </button>
+              );
+            })}
           </div>
+
+          {/* Bottom Sidebar Info */}
+          {!sidebarCollapsed ? (
+            <div className="p-3 mx-2 bg-slate-900/80 border border-slate-800/80 rounded-xl space-y-2">
+              <div className="flex items-center gap-2 text-xs font-bold text-slate-300">
+                <Icons.ShieldCheck className="w-4 h-4 text-teal-400 shrink-0" />
+                <span>Format Standar 1:1</span>
+              </div>
+              <p className="text-[10px] text-slate-400 leading-relaxed">
+                Rasio 1000x1000px & batas download dioptimalkan &le; 148KB per gambar.
+              </p>
+              <button
+                type="button"
+                onClick={() => setGuideOpen(true)}
+                className="w-full py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white rounded-lg text-[11px] font-semibold transition-colors flex items-center justify-center gap-1 cursor-pointer"
+              >
+                <Icons.HelpCircle className="w-3 h-3 text-indigo-400" />
+                <span>Pelajari Tips</span>
+              </button>
+            </div>
+          ) : (
+            <div className="px-2">
+              <button
+                type="button"
+                onClick={() => setGuideOpen(true)}
+                className="w-full p-2.5 text-slate-400 hover:text-white hover:bg-slate-800 rounded-xl transition-colors flex justify-center cursor-pointer"
+                title="Buka Panduan"
+              >
+                <Icons.HelpCircle className="w-5 h-5 text-indigo-400" />
+              </button>
+            </div>
+          )}
+
         </nav>
 
         {/* Dynamic Workspace Container */}
         <div className="flex-1 flex flex-col overflow-hidden">
-          
-          {/* Quick Metrics Statistics Row */}
-          <div className="grid grid-cols-4 gap-[1px] bg-gray-300 border-b border-gray-300 shrink-0">
-            <div className="bg-white p-2.5 px-4 flex flex-col">
-              <span className="text-[9px] uppercase font-bold text-gray-400 tracking-wider">Active Workspace Tab</span>
-              <span className="text-xs font-bold text-gray-900 flex items-center gap-1 mt-0.5">
-                <span className={`w-1.5 h-1.5 rounded-full ${
-                  activeTab === 'visual' ? 'bg-blue-500' : activeTab === 'caption' ? 'bg-pink-500' : activeTab === 'seo' ? 'bg-emerald-500' : 'bg-indigo-500'
-                }`} />
-                {activeTab.toUpperCase()} ENGINE
-              </span>
-            </div>
-
-            <div className="bg-white p-2.5 px-4 flex flex-col">
-              <span className="text-[9px] uppercase font-bold text-gray-400 tracking-wider">Sync Keywords (Max 5)</span>
-              <span className="text-xs font-bold text-gray-900 mt-0.5 font-mono">{keywords.length} OF 5</span>
-            </div>
-
-            <div className="bg-white p-2.5 px-4 flex flex-col">
-              <span className="text-[9px] uppercase font-bold text-gray-400 tracking-wider">Target Products Loaded</span>
-              <span className="text-xs font-bold text-gray-900 mt-0.5 truncate">{productName.trim() ? productName : 'NONE (PENDING_INPUT)'}</span>
-            </div>
-
-            <div className="bg-white p-2.5 px-4 flex flex-col">
-              <span className="text-[9px] uppercase font-bold text-gray-400 tracking-wider">Active Databases</span>
-              <span className="text-xs font-bold text-emerald-600 mt-0.5 font-mono">OK ({companyLogos.length + brandLogos.length} ITEMS)</span>
-            </div>
-          </div>
 
           {/* Two-column master grid */}
           <div className="flex-1 flex overflow-hidden relative">
@@ -406,354 +462,484 @@ export default function App() {
             ) : (
               <>
                 {/* PANEL KIRI: Controls & Form */}
-                <aside className="w-[320px] bg-white border-r border-gray-200 flex flex-col overflow-y-auto shrink-0 p-4 space-y-4">
+                <aside className="w-[360px] lg:w-[380px] bg-white border-r border-slate-200 flex flex-col overflow-y-auto shrink-0 p-4 space-y-4 shadow-xs">
               
-              {/* Product Global Identifier input */}
-              <div className="bg-slate-50 border border-slate-200 rounded-xl p-3.5 space-y-1.5 shadow-2xs">
-                <div className="flex items-center justify-between text-[10px] font-bold text-slate-400 uppercase tracking-widest">
-                  <div className="flex items-center gap-1">
-                    <Icons.Package className="w-3.5 h-3.5 text-blue-500" />
-                    <span>Nama Utama Produk</span>
-                  </div>
-                  <span className="text-[9px] text-indigo-600 bg-indigo-50 px-1.5 py-0.5 rounded-md flex items-center gap-1 font-bold font-sans tracking-normal normal-case">
-                    <span className="w-1.5 h-1.5 rounded-full bg-indigo-500 animate-pulse" />
-                    Auto-Draft
-                  </span>
-                </div>
-                <input
-                  type="text"
-                  value={productName}
-                  onChange={(e) => setProductName(e.target.value)}
-                  placeholder="Contoh: Sepatu sneakers putih pria"
-                  className="w-full px-3 py-2 bg-white border border-slate-200 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none text-xs font-semibold text-slate-800 shadow-3xs"
-                />
-              </div>
-
-              {/* Dynamic Sub-form panel rendering depending on currently active left rail tab */}
-              <div className="flex-1">
-                {activeTab === 'visual' && (
-                  <VisualPanel
-                    productName={productName}
-                    onGenerate={setVisualPrompt}
-                  />
-                )}
-                {activeTab === 'caption' && (
-                  <CaptionPanel
-                    productName={productName}
-                    keywords={keywords}
-                    onAddKeyword={handleAddKeyword}
-                    onRemoveKeyword={handleRemoveKeyword}
-                    onGenerate={setCaptionPrompt}
-                  />
-                )}
-                {activeTab === 'seo' && (
-                  <SeoPanel
-                    productName={productName}
-                    keywords={keywords}
-                    onAddKeyword={handleAddKeyword}
-                    onRemoveKeyword={handleRemoveKeyword}
-                    onGenerate={setSeoPrompt}
-                  />
-                )}
-              </div>
-            </aside>
-
-            {/* PANEL KANAN: Real-time Snapshot Outputs / Workspace Result */}
-            <main className="flex-1 bg-slate-900 flex flex-col text-white p-5 overflow-y-auto relative min-w-[300px]">
-              
-              {/* Output Tab-Headers for easy viewing */}
-              <div className="flex justify-between items-center border-b border-slate-800 pb-3 mb-4">
-                <div className="flex gap-2">
-                  <button
-                    type="button"
-                    onClick={() => setActiveTab('visual')}
-                    className={`flex items-center space-x-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-all outline-none ${
-                      activeTab === 'visual' ? 'bg-blue-500/20 text-blue-400 border border-blue-500/35' : 'text-slate-400 hover:text-slate-200'
-                    }`}
-                  >
-                    <Icons.Image className="w-3.5 h-3.5" />
-                    <span>Visual Prompt</span>
-                  </button>
-
-                  <button
-                    type="button"
-                    onClick={() => setActiveTab('caption')}
-                    className={`flex items-center space-x-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-all outline-none ${
-                      activeTab === 'caption' ? 'bg-pink-500/20 text-pink-400 border border-pink-500/35' : 'text-slate-400 hover:text-slate-200'
-                    }`}
-                  >
-                    <Icons.MessageSquare className="w-3.5 h-3.5" />
-                    <span>Caption Prompt</span>
-                  </button>
-
-                  <button
-                    type="button"
-                    onClick={() => setActiveTab('seo')}
-                    className={`flex items-center space-x-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-all outline-none ${
-                      activeTab === 'seo' ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/35' : 'text-slate-400 hover:text-slate-200'
-                    }`}
-                  >
-                    <Icons.ShoppingBag className="w-3.5 h-3.5" />
-                    <span>SEO Prompt</span>
-                  </button>
-
-                  <button
-                    type="button"
-                    onClick={() => setActiveTab('grid')}
-                    className={`flex items-center space-x-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-all outline-none ${
-                      activeTab === 'grid' ? 'bg-indigo-500/20 text-indigo-400 border border-indigo-500/35' : 'text-slate-400 hover:text-slate-200'
-                    }`}
-                  >
-                    <Icons.LayoutGrid className="w-3.5 h-3.5" />
-                    <span>Grid Output</span>
-                  </button>
-                </div>
-
-                {/* Instant copy button mapped based on active workspace tab */}
-                {activeTab === 'visual' && visualPrompt && (
-                  <button
-                    type="button"
-                    onClick={() => handleCopyText(visualPrompt, 'visual')}
-                    className="flex items-center gap-1 px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-200 rounded-lg text-xs font-bold transition-colors outline-none"
-                  >
-                    {visualCopied ? (
-                      <>
-                        <Icons.CheckCircle className="w-3.5 h-3.5 text-emerald-400" />
-                        <span className="text-emerald-400">Tersalin!</span>
-                      </>
-                    ) : (
-                      <>
-                        <Icons.Copy className="w-3.5 h-3.5" />
-                        <span>Salin Prompt</span>
-                      </>
-                    )}
-                  </button>
-                )}
-
-                {activeTab === 'caption' && captionPrompt && (
-                  <button
-                    type="button"
-                    onClick={() => handleCopyText(captionPrompt, 'caption')}
-                    className="flex items-center gap-1 px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-200 rounded-lg text-xs font-bold transition-colors outline-none"
-                  >
-                    {captionCopied ? (
-                      <>
-                        <Icons.CheckCircle className="w-3.5 h-3.5 text-emerald-400" />
-                        <span className="text-emerald-400">Tersalin!</span>
-                      </>
-                    ) : (
-                      <>
-                        <Icons.Copy className="w-3.5 h-3.5" />
-                        <span>Salin Prompt</span>
-                      </>
-                    )}
-                  </button>
-                )}
-
-                {activeTab === 'seo' && seoPrompt && (
-                  <button
-                    type="button"
-                    onClick={() => handleCopyText(seoPrompt, 'seo')}
-                    className="flex items-center gap-1 px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-200 rounded-lg text-xs font-bold transition-colors outline-none"
-                  >
-                    {seoCopied ? (
-                      <>
-                        <Icons.CheckCircle className="w-3.5 h-3.5 text-emerald-400" />
-                        <span className="text-emerald-400">Tersalin!</span>
-                      </>
-                    ) : (
-                      <>
-                        <Icons.Copy className="w-3.5 h-3.5" />
-                        <span>Salin Prompt</span>
-                      </>
-                    )}
-                  </button>
-                )}
-              </div>
-
-              {/* OVERLAY: Loading and recording statuses */}
-              {recordingStatus && (
-                <div className="absolute inset-0 z-50 bg-slate-950/90 flex flex-col items-center justify-center p-6 text-center animate-fade-in space-y-4">
-                  <Icons.Loader2 className="w-12 h-12 text-rose-500 animate-spin" />
-                  <div>
-                    <h3 className="text-lg font-black text-white">{recordingStatus}</h3>
-                    <p className="text-sm text-slate-400 mt-1 max-w-sm">
-                      {recordingStatus.toLowerCase().includes('video')
-                        ? 'Sedang merender dan merekam video slideshow...'
-                        : 'Sedang memproses dan mengompresi berkas potongan gambar ke ZIP...'}
-                    </p>
-
-                    {/* Highly Polished Progress Bar */}
-                    <div className="mt-5 max-w-xs w-72 mx-auto space-y-2">
-                      <div className="flex justify-between text-[11px] font-mono font-bold tracking-wide uppercase">
-                        <span className="text-slate-400">Progres Proses</span>
-                        <span className="text-rose-400 font-black">{recordingProgress}%</span>
+                  {/* Product Global Identifier input */}
+                  <div className="bg-slate-50 border border-slate-200 rounded-xl p-3.5 space-y-2 shadow-2xs">
+                    <div className="flex items-center justify-between text-[11px] font-bold text-slate-500 uppercase tracking-wider">
+                      <div className="flex items-center gap-1.5 text-slate-700">
+                        <Icons.Package className="w-4 h-4 text-indigo-600" />
+                        <span>Nama Utama Produk</span>
                       </div>
-                      <div className="w-full bg-slate-900/90 rounded-full h-4 p-0.5 border border-slate-800 shadow-inner overflow-hidden">
-                        <div 
-                          className="bg-gradient-to-r from-rose-500 via-pink-500 to-indigo-500 h-full rounded-full transition-all duration-300 ease-out relative shadow-md"
-                          style={{ width: `${recordingProgress}%` }}
+                      <span className="text-[10px] text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-full flex items-center gap-1 font-bold">
+                        <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                        Sinkron Otomatis
+                      </span>
+                    </div>
+                    
+                    <input
+                      type="text"
+                      value={productName}
+                      onChange={(e) => setProductName(e.target.value)}
+                      placeholder="Contoh: Sepatu sneakers putih pria"
+                      className="w-full px-3 py-2 bg-white border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none text-xs font-semibold text-slate-800 shadow-2xs transition-all"
+                    />
+
+                    {/* Quick Preset helper pills */}
+                    <div className="flex items-center gap-1.5 pt-1 overflow-x-auto pb-0.5 text-[10px]">
+                      <span className="text-slate-400 shrink-0 font-medium">Contoh:</span>
+                      {samplePresets.slice(0, 3).map((p, idx) => (
+                        <button
+                          key={idx}
+                          type="button"
+                          onClick={() => handleApplyPreset(p)}
+                          className="px-2 py-0.5 rounded-md bg-white border border-slate-200 hover:border-indigo-400 hover:text-indigo-600 text-slate-600 font-medium transition-all shrink-0 cursor-pointer"
                         >
-                          {/* Shimmer overlay */}
-                          <div className="absolute inset-0 bg-white/10 bg-gradient-to-r from-transparent via-white/25 to-transparent animate-pulse" style={{ backgroundSize: '200% 100%' }} />
-                        </div>
-                      </div>
+                          {p.label.split(' ')[1]}
+                        </button>
+                      ))}
                     </div>
-                    <p className="text-xs text-rose-500/80 bg-rose-950/20 px-3 py-1.5 rounded-full border border-rose-900/30 inline-block mt-4 font-bold tracking-wide uppercase">
-                      Proses tetap berjalan meski browser Anda di-minimize
-                    </p>
                   </div>
-                </div>
-              )}
 
-              {/* TAB CONTENT: Visual AI Prompt Textarea */}
-              {activeTab === 'visual' && (
-                <div className="flex-1 flex flex-col">
-                  {visualPrompt ? (
-                    <div className="flex-1 flex flex-col space-y-2">
-                      <div className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Prompt Visual Hasil Racikan Engine</div>
-                      <textarea
-                        value={visualPrompt}
-                        onChange={(e) => setVisualPrompt(e.target.value)}
-                        className="w-full flex-1 min-h-[350px] bg-slate-800/45 text-slate-200 border border-slate-800 rounded-xl p-4 focus:outline-none font-mono text-[12px] leading-relaxed resize-none shadow-inner focus:border-blue-500/50"
+                  {/* Dynamic Sub-form panel rendering depending on currently active left rail tab */}
+                  <div className="flex-1">
+                    {activeTab === 'visual' && (
+                      <VisualPanel
+                        productName={productName}
+                        onGenerate={setVisualPrompt}
                       />
-                      <div className="flex flex-wrap justify-between items-center text-[10px] text-slate-400 font-mono mt-1 bg-slate-950/40 px-3 py-1.5 rounded-lg border border-slate-800/40 gap-2">
-                        <div className="flex gap-4">
-                          <span>Characters: <strong className="text-blue-400 font-extrabold">{visualPrompt.length}</strong></span>
-                          <span>Words: <strong className="text-blue-400 font-extrabold">{visualPrompt.trim() ? visualPrompt.trim().split(/\s+/).length : 0}</strong></span>
-                        </div>
-                        <span className="text-[9px] text-slate-500 font-bold uppercase tracking-wider">Midjourney / Flux Optimized</span>
-                      </div>
+                    )}
+                    {activeTab === 'caption' && (
+                      <CaptionPanel
+                        productName={productName}
+                        keywords={keywords}
+                        onAddKeyword={handleAddKeyword}
+                        onRemoveKeyword={handleRemoveKeyword}
+                        onGenerate={setCaptionPrompt}
+                      />
+                    )}
+                    {activeTab === 'seo' && (
+                      <SeoPanel
+                        productName={productName}
+                        keywords={keywords}
+                        onAddKeyword={handleAddKeyword}
+                        onRemoveKeyword={handleRemoveKeyword}
+                        onGenerate={setSeoPrompt}
+                      />
+                    )}
+                  </div>
+                </aside>
+
+                {/* PANEL KANAN: Real-time Snapshot Outputs / Workspace Result */}
+                <main className="flex-1 bg-[#0b1120] flex flex-col text-white p-5 overflow-y-auto relative min-w-[300px]">
+                  
+                  {/* Output Tab-Headers & Actions Toolbar */}
+                  <div className="flex flex-wrap justify-between items-center gap-3 border-b border-slate-800 pb-3 mb-4">
+                    <div className="flex items-center gap-2">
+                      <button
+                        type="button"
+                        onClick={() => setActiveTab('visual')}
+                        className={`flex items-center space-x-1.5 px-3 py-1.5 rounded-xl text-xs font-bold transition-all outline-none cursor-pointer ${
+                          activeTab === 'visual'
+                            ? 'bg-blue-500/20 text-blue-400 border border-blue-500/40 shadow-sm'
+                            : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/60'
+                        }`}
+                      >
+                        <Icons.Sparkles className="w-3.5 h-3.5" />
+                        <span>Prompt Visual</span>
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={() => setActiveTab('caption')}
+                        className={`flex items-center space-x-1.5 px-3 py-1.5 rounded-xl text-xs font-bold transition-all outline-none cursor-pointer ${
+                          activeTab === 'caption'
+                            ? 'bg-pink-500/20 text-pink-400 border border-pink-500/40 shadow-sm'
+                            : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/60'
+                        }`}
+                      >
+                        <Icons.MessageSquareText className="w-3.5 h-3.5" />
+                        <span>Prompt Caption</span>
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={() => setActiveTab('seo')}
+                        className={`flex items-center space-x-1.5 px-3 py-1.5 rounded-xl text-xs font-bold transition-all outline-none cursor-pointer ${
+                          activeTab === 'seo'
+                            ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/40 shadow-sm'
+                            : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/60'
+                        }`}
+                      >
+                        <Icons.ShoppingBag className="w-3.5 h-3.5" />
+                        <span>Prompt SEO</span>
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={() => setActiveTab('grid')}
+                        className={`flex items-center space-x-1.5 px-3 py-1.5 rounded-xl text-xs font-bold transition-all outline-none cursor-pointer ${
+                          activeTab === 'grid'
+                            ? 'bg-indigo-500/20 text-indigo-400 border border-indigo-500/40 shadow-sm'
+                            : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/60'
+                        }`}
+                      >
+                        <Icons.LayoutGrid className="w-3.5 h-3.5" />
+                        <span>Grid & Video</span>
+                      </button>
                     </div>
-                  ) : (
-                    <div className="flex-1 flex flex-col items-center justify-center text-slate-500 space-y-4">
-                      <div className="relative">
-                        <div className="absolute inset-0 bg-blue-500/25 rounded-full blur-xl opacity-20 animate-pulse" />
-                        <Icons.Wand2 className="w-14 h-12 text-slate-600 relative z-10" />
-                      </div>
-                      <div className="text-center">
-                        <h4 className="text-sm font-bold text-slate-300">Belum Ada Prompt Visual</h4>
-                        <p className="text-[11px] text-slate-500 max-w-xs mt-1">Konfigurasikan gaya, background, dan model pada form visual di sebelah kiri lalu klik Generate.</p>
+
+                    {/* Action buttons mapped based on active workspace tab */}
+                    <div className="flex items-center gap-2">
+                      {/* External AI Launchers */}
+                      <a
+                        href="https://chatgpt.com"
+                        target="_blank"
+                        rel="noreferrer"
+                        className="flex items-center gap-1 px-2.5 py-1.5 bg-slate-800/80 hover:bg-slate-700 text-slate-300 hover:text-white rounded-lg text-xs font-medium transition-colors border border-slate-700/60"
+                        title="Buka ChatGPT di tab baru untuk paste prompt"
+                      >
+                        <Icons.ExternalLink className="w-3 h-3 text-emerald-400" />
+                        <span className="hidden sm:inline">ChatGPT</span>
+                      </a>
+
+                      <a
+                        href="https://gemini.google.com"
+                        target="_blank"
+                        rel="noreferrer"
+                        className="flex items-center gap-1 px-2.5 py-1.5 bg-slate-800/80 hover:bg-slate-700 text-slate-300 hover:text-white rounded-lg text-xs font-medium transition-colors border border-slate-700/60"
+                        title="Buka Google Gemini di tab baru untuk paste prompt"
+                      >
+                        <Icons.Sparkles className="w-3 h-3 text-blue-400" />
+                        <span className="hidden sm:inline">Gemini</span>
+                      </a>
+
+                      {/* Instant copy button mapped based on active workspace tab */}
+                      {activeTab === 'visual' && visualPrompt && (
+                        <button
+                          type="button"
+                          onClick={() => handleCopyText(visualPrompt, 'visual')}
+                          className="flex items-center gap-1.5 px-3 py-1.5 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white rounded-lg text-xs font-bold transition-all shadow-md shadow-blue-500/20 cursor-pointer active:scale-95"
+                        >
+                          {visualCopied ? (
+                            <>
+                              <Icons.CheckCircle className="w-3.5 h-3.5 text-white" />
+                              <span>Tersalin!</span>
+                            </>
+                          ) : (
+                            <>
+                              <Icons.Copy className="w-3.5 h-3.5" />
+                              <span>Salin Prompt</span>
+                            </>
+                          )}
+                        </button>
+                      )}
+
+                      {activeTab === 'caption' && captionPrompt && (
+                        <button
+                          type="button"
+                          onClick={() => handleCopyText(captionPrompt, 'caption')}
+                          className="flex items-center gap-1.5 px-3 py-1.5 bg-gradient-to-r from-pink-600 to-rose-600 hover:from-pink-500 hover:to-rose-500 text-white rounded-lg text-xs font-bold transition-all shadow-md shadow-pink-500/20 cursor-pointer active:scale-95"
+                        >
+                          {captionCopied ? (
+                            <>
+                              <Icons.CheckCircle className="w-3.5 h-3.5 text-white" />
+                              <span>Tersalin!</span>
+                            </>
+                          ) : (
+                            <>
+                              <Icons.Copy className="w-3.5 h-3.5" />
+                              <span>Salin Prompt</span>
+                            </>
+                          )}
+                        </button>
+                      )}
+
+                      {activeTab === 'seo' && seoPrompt && (
+                        <button
+                          type="button"
+                          onClick={() => handleCopyText(seoPrompt, 'seo')}
+                          className="flex items-center gap-1.5 px-3 py-1.5 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white rounded-lg text-xs font-bold transition-all shadow-md shadow-emerald-500/20 cursor-pointer active:scale-95"
+                        >
+                          {seoCopied ? (
+                            <>
+                              <Icons.CheckCircle className="w-3.5 h-3.5 text-white" />
+                              <span>Tersalin!</span>
+                            </>
+                          ) : (
+                            <>
+                              <Icons.Copy className="w-3.5 h-3.5" />
+                              <span>Salin Prompt</span>
+                            </>
+                          )}
+                        </button>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* OVERLAY: Loading and recording statuses */}
+                  {recordingStatus && (
+                    <div className="absolute inset-0 z-50 bg-slate-950/90 flex flex-col items-center justify-center p-6 text-center animate-fade-in space-y-4">
+                      <Icons.Loader2 className="w-12 h-12 text-rose-500 animate-spin" />
+                      <div>
+                        <h3 className="text-lg font-black text-white">{recordingStatus}</h3>
+                        <p className="text-sm text-slate-400 mt-1 max-w-sm">
+                          {recordingStatus.toLowerCase().includes('video')
+                            ? 'Sedang merender dan merekam video slideshow...'
+                            : 'Sedang memproses dan mengompresi berkas potongan gambar ke ZIP...'}
+                        </p>
+
+                        {/* Highly Polished Progress Bar */}
+                        <div className="mt-5 max-w-xs w-72 mx-auto space-y-2">
+                          <div className="flex justify-between text-[11px] font-mono font-bold tracking-wide uppercase">
+                            <span className="text-slate-400">Progres Proses</span>
+                            <span className="text-rose-400 font-black">{recordingProgress}%</span>
+                          </div>
+                          <div className="w-full bg-slate-900/90 rounded-full h-4 p-0.5 border border-slate-800 shadow-inner overflow-hidden">
+                            <div 
+                              className="bg-gradient-to-r from-rose-500 via-pink-500 to-indigo-500 h-full rounded-full transition-all duration-300 ease-out relative shadow-md"
+                              style={{ width: `${recordingProgress}%` }}
+                            >
+                              {/* Shimmer overlay */}
+                              <div className="absolute inset-0 bg-white/10 bg-gradient-to-r from-transparent via-white/25 to-transparent animate-pulse" style={{ backgroundSize: '200% 100%' }} />
+                            </div>
+                          </div>
+                        </div>
+                        <p className="text-xs text-rose-500/80 bg-rose-950/20 px-3 py-1.5 rounded-full border border-rose-900/30 inline-block mt-4 font-bold tracking-wide uppercase">
+                          Proses tetap berjalan meski browser Anda di-minimize
+                        </p>
                       </div>
                     </div>
                   )}
-                </div>
-              )}
 
-              {/* TAB CONTENT: Social Media Caption Prompt Textarea */}
-              {activeTab === 'caption' && (
-                <div className="flex-1 flex flex-col">
-                  {captionPrompt ? (
-                    <div className="flex-1 flex flex-col space-y-2">
-                      <div className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Prompt Caption Hasil Racikan Engine</div>
-                      <textarea
-                        value={captionPrompt}
-                        onChange={(e) => setCaptionPrompt(e.target.value)}
-                        className="w-full flex-1 min-h-[350px] bg-slate-800/45 text-slate-200 border border-slate-800 rounded-xl p-4 focus:outline-none font-mono text-[12px] leading-relaxed resize-none shadow-inner focus:border-pink-500/50"
-                      />
-                      <div className="flex flex-wrap justify-between items-center text-[10px] text-slate-400 font-mono mt-1 bg-slate-950/40 px-3 py-1.5 rounded-lg border border-slate-800/40 gap-2">
-                        <div className="flex gap-4">
-                          <span>Characters: <strong className="text-pink-400 font-extrabold">{captionPrompt.length}</strong></span>
-                          <span>Words: <strong className="text-pink-400 font-extrabold">{captionPrompt.trim() ? captionPrompt.trim().split(/\s+/).length : 0}</strong></span>
+                  {/* TAB CONTENT: Visual AI Prompt Textarea */}
+                  {activeTab === 'visual' && (
+                    <div className="flex-1 flex flex-col">
+                      {visualPrompt ? (
+                        <div className="flex-1 flex flex-col space-y-2">
+                          <div className="flex items-center justify-between">
+                            <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider flex items-center gap-1.5">
+                              <Icons.Sparkles className="w-3.5 h-3.5 text-blue-400" />
+                              Prompt Visual Hasil Racikan Studio
+                            </span>
+                            <button
+                              type="button"
+                              onClick={() => setVisualPrompt('')}
+                              className="text-[11px] text-slate-500 hover:text-rose-400 transition-colors flex items-center gap-1 cursor-pointer"
+                            >
+                              <Icons.Trash2 className="w-3 h-3" />
+                              <span>Bersihkan</span>
+                            </button>
+                          </div>
+
+                          <textarea
+                            value={visualPrompt}
+                            onChange={(e) => setVisualPrompt(e.target.value)}
+                            className="w-full flex-1 min-h-[350px] bg-slate-900/80 text-slate-100 border border-slate-800 rounded-xl p-4 focus:outline-none font-mono text-[12px] leading-relaxed resize-none shadow-inner focus:border-blue-500/50"
+                          />
+
+                          <div className="flex flex-wrap justify-between items-center text-[10px] text-slate-400 font-mono mt-1 bg-slate-950/50 px-3 py-2 rounded-xl border border-slate-800/60 gap-2">
+                            <div className="flex gap-4">
+                              <span>Characters: <strong className="text-blue-400 font-bold">{visualPrompt.length}</strong></span>
+                              <span>Words: <strong className="text-blue-400 font-bold">{visualPrompt.trim() ? visualPrompt.trim().split(/\s+/).length : 0}</strong></span>
+                            </div>
+                            <span className="text-[9px] text-slate-400 font-bold uppercase tracking-wider bg-slate-800/60 px-2 py-0.5 rounded border border-slate-700">
+                              Midjourney &bull; Flux &bull; Bing Image Creator
+                            </span>
+                          </div>
                         </div>
-                        <div className="flex gap-3">
-                          <span className="text-[9px] font-bold">
-                            {captionPrompt.length > 2200 ? (
-                              <span className="text-rose-400 font-bold">⚠️ Instagram Over (Max 2,200)</span>
-                            ) : (
-                              <span className="text-emerald-400">✓ Instagram OK</span>
-                            )}
-                          </span>
-                          <span className="text-slate-700">|</span>
-                          <span className="text-[9px] font-bold">
-                            {captionPrompt.length > 2000 ? (
-                              <span className="text-rose-400 font-bold">⚠️ TikTok Over (Max 2,000)</span>
-                            ) : (
-                              <span className="text-emerald-400">✓ TikTok OK</span>
-                            )}
-                          </span>
+                      ) : (
+                        <div className="flex-1 flex flex-col items-center justify-center text-slate-500 space-y-4 py-12">
+                          <div className="p-4 rounded-2xl bg-blue-500/10 border border-blue-500/20 text-blue-400">
+                            <Icons.Wand2 className="w-12 h-12 animate-pulse" />
+                          </div>
+                          <div className="text-center max-w-sm">
+                            <h4 className="text-base font-bold text-slate-200">Belum Ada Prompt Visual</h4>
+                            <p className="text-xs text-slate-400 mt-1 leading-relaxed">
+                              Atur gaya fotografi, background estetik, atau model pada form di sebelah kiri lalu klik tombol <strong>Generate Prompt</strong>.
+                            </p>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                const sampleName = productName.trim() || 'Sepatu sneakers kulit putih pria casual';
+                                setVisualPrompt(`Commercial product photography of ${sampleName}, placed elegantly on a luxurious minimalist marble pedestal, surrounded by subtle natural palm shadows, soft studio lighting with warm golden hour highlights, eye-level shot, ultra sharp focus, 8k resolution, photorealistic texture, masterpiece --ar 1:1 --v 6.0 --style raw`);
+                              }}
+                              className="mt-4 px-4 py-2 bg-blue-600 hover:bg-blue-500 text-white rounded-xl text-xs font-bold transition-all shadow-md shadow-blue-500/25 inline-flex items-center gap-1.5 cursor-pointer"
+                            >
+                              <Icons.Sparkles className="w-3.5 h-3.5" />
+                              <span>Muat Contoh Prompt Visual</span>
+                            </button>
+                          </div>
                         </div>
-                      </div>
-                    </div>
-                  ) : (
-                    <div className="flex-1 flex flex-col items-center justify-center text-slate-500 space-y-4">
-                      <div className="relative">
-                        <div className="absolute inset-0 bg-pink-500/25 rounded-full blur-xl opacity-20 animate-pulse" />
-                        <Icons.MessageSquareDashed className="w-14 h-12 text-slate-600 relative z-10" />
-                      </div>
-                      <div className="text-center">
-                        <h4 className="text-sm font-bold text-slate-300">Belum Ada Prompt Caption</h4>
-                        <p className="text-[11px] text-slate-500 max-w-xs mt-1">Isi target platform, gaya bahasa, dan promo pada form caption di sebelah kiri lalu klik Generate.</p>
-                      </div>
+                      )}
                     </div>
                   )}
-                </div>
-              )}
 
-              {/* TAB CONTENT: Marketplace SEO Copywriting Prompt Textarea */}
-              {activeTab === 'seo' && (
-                <div className="flex-1 flex flex-col">
-                  {seoPrompt ? (
-                    <div className="flex-1 flex flex-col space-y-2">
-                      <div className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Prompt SEO Hasil Racikan Engine</div>
-                      <textarea
-                        value={seoPrompt}
-                        onChange={(e) => setSeoPrompt(e.target.value)}
-                        className="w-full flex-1 min-h-[350px] bg-slate-800/45 text-slate-200 border border-slate-800 rounded-xl p-4 focus:outline-none font-mono text-[12px] leading-relaxed resize-none shadow-inner focus:border-emerald-500/50"
-                      />
-                      <div className="flex flex-wrap justify-between items-center text-[10px] text-slate-400 font-mono mt-1 bg-slate-950/40 px-3 py-1.5 rounded-lg border border-slate-800/40 gap-2">
-                        <div className="flex gap-4">
-                          <span>Characters: <strong className="text-emerald-400 font-extrabold">{seoPrompt.length}</strong></span>
-                          <span>Words: <strong className="text-emerald-400 font-extrabold">{seoPrompt.trim() ? seoPrompt.trim().split(/\s+/).length : 0}</strong></span>
+                  {/* TAB CONTENT: Social Media Caption Prompt Textarea */}
+                  {activeTab === 'caption' && (
+                    <div className="flex-1 flex flex-col">
+                      {captionPrompt ? (
+                        <div className="flex-1 flex flex-col space-y-2">
+                          <div className="flex items-center justify-between">
+                            <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider flex items-center gap-1.5">
+                              <Icons.MessageSquareText className="w-3.5 h-3.5 text-pink-400" />
+                              Prompt Caption Hasil Racikan Studio
+                            </span>
+                            <button
+                              type="button"
+                              onClick={() => setCaptionPrompt('')}
+                              className="text-[11px] text-slate-500 hover:text-rose-400 transition-colors flex items-center gap-1 cursor-pointer"
+                            >
+                              <Icons.Trash2 className="w-3 h-3" />
+                              <span>Bersihkan</span>
+                            </button>
+                          </div>
+
+                          <textarea
+                            value={captionPrompt}
+                            onChange={(e) => setCaptionPrompt(e.target.value)}
+                            className="w-full flex-1 min-h-[350px] bg-slate-900/80 text-slate-100 border border-slate-800 rounded-xl p-4 focus:outline-none font-mono text-[12px] leading-relaxed resize-none shadow-inner focus:border-pink-500/50"
+                          />
+
+                          <div className="flex flex-wrap justify-between items-center text-[10px] text-slate-400 font-mono mt-1 bg-slate-950/50 px-3 py-2 rounded-xl border border-slate-800/60 gap-2">
+                            <div className="flex gap-4">
+                              <span>Characters: <strong className="text-pink-400 font-bold">{captionPrompt.length}</strong></span>
+                              <span>Words: <strong className="text-pink-400 font-bold">{captionPrompt.trim() ? captionPrompt.trim().split(/\s+/).length : 0}</strong></span>
+                            </div>
+                            <div className="flex items-center gap-3">
+                              <span className={`px-2 py-0.5 rounded font-bold ${captionPrompt.length > 2200 ? 'bg-rose-950/50 text-rose-400 border border-rose-800/50' : 'bg-emerald-950/50 text-emerald-400 border border-emerald-800/50'}`}>
+                                {captionPrompt.length > 2200 ? '⚠️ Instagram Melebihi Batas' : '✓ Instagram Pas (Max 2.200)'}
+                              </span>
+                              <span className={`px-2 py-0.5 rounded font-bold ${captionPrompt.length > 2000 ? 'bg-rose-950/50 text-rose-400 border border-rose-800/50' : 'bg-emerald-950/50 text-emerald-400 border border-emerald-800/50'}`}>
+                                {captionPrompt.length > 2000 ? '⚠️ TikTok Melebihi Batas' : '✓ TikTok Pas (Max 2.000)'}
+                              </span>
+                            </div>
+                          </div>
                         </div>
-                        <div className="flex gap-3">
-                          <span className="text-[9px] font-bold">
-                            {seoPrompt.length > 3000 ? (
-                              <span className="text-rose-400 font-bold">⚠️ Tokopedia/Shopee Over (Max 3,000)</span>
-                            ) : (
-                              <span className="text-emerald-400">✓ Tokopedia/Shopee OK</span>
-                            )}
-                          </span>
+                      ) : (
+                        <div className="flex-1 flex flex-col items-center justify-center text-slate-500 space-y-4 py-12">
+                          <div className="p-4 rounded-2xl bg-pink-500/10 border border-pink-500/20 text-pink-400">
+                            <Icons.MessageSquareDashed className="w-12 h-12 animate-pulse" />
+                          </div>
+                          <div className="text-center max-w-sm">
+                            <h4 className="text-base font-bold text-slate-200">Belum Ada Prompt Caption</h4>
+                            <p className="text-xs text-slate-400 mt-1 leading-relaxed">
+                              Tentukan platform target, gaya bahasa, dan promo pada form di sebelah kiri lalu klik tombol <strong>Generate Prompt</strong>.
+                            </p>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                const sampleName = productName.trim() || 'Sepatu Sneakers Pria Premium';
+                                setCaptionPrompt(`🔥 UPGRADE GAYA KAMU HARI INI!\n\nLagi cari ${sampleName} yang super empuk, anti-pegal dipakai seharian, tapi tetap kelihatan maskulin dan stylish? Ini pilihan paling tepat buat kamu!\n\n✨ Kenapa Kamu Wajib Punya:\n- Bahan breathable, kaki tetap adem bebas gerah\n- Sol anti-slip kokoh & fleksibel di segala permukaan\n- Jahitan rapi presisi standar pabrik ekspor\n\n⚡ SPECIAL OFFER BULAN INI:\nKlaim diskon s.d 40% + Voucher Gratis Ongkir Ekstra! Stok warna favorit cepat habis, yuk checkout sekarang sebelum kehabisan promo.\n\n👉 Klik link di bio / keranjang kuning di bawah!\n\n#sneakerspria #sepatukasual #ootdindo #racuntiktok #promospesial`);
+                              }}
+                              className="mt-4 px-4 py-2 bg-pink-600 hover:bg-pink-500 text-white rounded-xl text-xs font-bold transition-all shadow-md shadow-pink-500/25 inline-flex items-center gap-1.5 cursor-pointer"
+                            >
+                              <Icons.Sparkles className="w-3.5 h-3.5" />
+                              <span>Muat Contoh Prompt Caption</span>
+                            </button>
+                          </div>
                         </div>
-                      </div>
-                    </div>
-                  ) : (
-                    <div className="flex-1 flex flex-col items-center justify-center text-slate-500 space-y-4">
-                      <div className="relative">
-                        <div className="absolute inset-0 bg-emerald-500/25 rounded-full blur-xl opacity-20 animate-pulse" />
-                        <Icons.ShoppingBag className="w-14 h-12 text-slate-600 relative z-10" />
-                      </div>
-                      <div className="text-center">
-                        <h4 className="text-sm font-bold text-slate-300">Belum Ada Prompt SEO</h4>
-                        <p className="text-[11px] text-slate-500 max-w-xs mt-1">Masukkan data spesifikasi, USP, dan keyword SEO di sebelah kiri lalu klik Generate.</p>
-                      </div>
+                      )}
                     </div>
                   )}
-                </div>
-              )}
 
-            </main>
-          </>
-        )}
-      </div>
+                  {/* TAB CONTENT: Marketplace SEO Copywriting Prompt Textarea */}
+                  {activeTab === 'seo' && (
+                    <div className="flex-1 flex flex-col">
+                      {seoPrompt ? (
+                        <div className="flex-1 flex flex-col space-y-2">
+                          <div className="flex items-center justify-between">
+                            <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider flex items-center gap-1.5">
+                              <Icons.ShoppingBag className="w-3.5 h-3.5 text-emerald-400" />
+                              Prompt SEO Hasil Racikan Studio
+                            </span>
+                            <button
+                              type="button"
+                              onClick={() => setSeoPrompt('')}
+                              className="text-[11px] text-slate-500 hover:text-rose-400 transition-colors flex items-center gap-1 cursor-pointer"
+                            >
+                              <Icons.Trash2 className="w-3 h-3" />
+                              <span>Bersihkan</span>
+                            </button>
+                          </div>
+
+                          <textarea
+                            value={seoPrompt}
+                            onChange={(e) => setSeoPrompt(e.target.value)}
+                            className="w-full flex-1 min-h-[350px] bg-slate-900/80 text-slate-100 border border-slate-800 rounded-xl p-4 focus:outline-none font-mono text-[12px] leading-relaxed resize-none shadow-inner focus:border-emerald-500/50"
+                          />
+
+                          <div className="flex flex-wrap justify-between items-center text-[10px] text-slate-400 font-mono mt-1 bg-slate-950/50 px-3 py-2 rounded-xl border border-slate-800/60 gap-2">
+                            <div className="flex gap-4">
+                              <span>Characters: <strong className="text-emerald-400 font-bold">{seoPrompt.length}</strong></span>
+                              <span>Words: <strong className="text-emerald-400 font-bold">{seoPrompt.trim() ? seoPrompt.trim().split(/\s+/).length : 0}</strong></span>
+                            </div>
+                            <span className={`px-2 py-0.5 rounded font-bold ${seoPrompt.length > 3000 ? 'bg-rose-950/50 text-rose-400 border border-rose-800/50' : 'bg-emerald-950/50 text-emerald-400 border border-emerald-800/50'}`}>
+                              {seoPrompt.length > 3000 ? '⚠️ Tokopedia / Shopee Melebihi Batas' : '✓ Tokopedia & Shopee Pas (Max 3.000)'}
+                            </span>
+                          </div>
+                        </div>
+                      ) : (
+                        <div className="flex-1 flex flex-col items-center justify-center text-slate-500 space-y-4 py-12">
+                          <div className="p-4 rounded-2xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-400">
+                            <Icons.ShoppingBag className="w-12 h-12 animate-pulse" />
+                          </div>
+                          <div className="text-center max-w-sm">
+                            <h4 className="text-base font-bold text-slate-200">Belum Ada Prompt SEO</h4>
+                            <p className="text-xs text-slate-400 mt-1 leading-relaxed">
+                              Lengkapi spesifikasi produk, keunggulan USP, dan keyword pencarian di sebelah kiri lalu klik tombol <strong>Generate Prompt</strong>.
+                            </p>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                const sampleName = productName.trim() || 'Sepatu Sneakers Pria Casual';
+                                setSeoPrompt(`🎯 3 PILIHAN JUDUL SEO SHOPEE / TOKOPEDIA:\n1. ${sampleName} Original Kualitas Premium Nyaman Dipakai Harian Ringan Anti Slip\n2. [TERLARIS] ${sampleName} Desain Trendi Masa Kini Bergaransi Awet Tahan Lama\n3. Promo Spesial ${sampleName} Bahan Katun Kanvas Tebal Adem Bergaransi Resmi\n\n═══════════════════════════════════════════\n📦 DESKRIPSI LENGKAP & SPESIFIKASI PRODUK:\n\nSelamat datang di Official Store! Produk dijamin 100% Baru & Berkualitas Tinggi.\n\n🌟 KEUNGGULAN UTAMA PRODUK:\n• Menggunakan material standar ekspor yang kokoh dan tahan lama\n• Sangat nyaman untuk aktivitas harian, kuliah, kerja maupun hangout\n• Insole empuk ergonomis tidak membuat telapak kaki cepat lelah\n\n📋 SPESIFIKASI DETAIL:\n- Nama Produk: ${sampleName}\n- Material: Kulit Sintetis Grade A + Sol Karet Thermoplastic\n- Warna Tersedia: Hitam, Putih, Abu-abu\n- Ukuran: 39 s/d 44\n\n🚚 PENGIRIMAN & GARANSI:\n• Pengiriman cepat setiap hari kerja\n• Kemasan kardus tebal + bubble wrap aman gratis\n• Garansi tukar baru jika pesanan cacat atau salah kirim\n\nSilakan checkout sekarang selagi stok warna & ukuran masih lengkap!`);
+                              }}
+                              className="mt-4 px-4 py-2 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl text-xs font-bold transition-all shadow-md shadow-emerald-500/25 inline-flex items-center gap-1.5 cursor-pointer"
+                            >
+                              <Icons.Sparkles className="w-3.5 h-3.5" />
+                              <span>Muat Contoh Prompt SEO</span>
+                            </button>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  )}
+
+                </main>
+              </>
+            )}
+          </div>
         </div>
       </div>
 
-      {/* High Density Status Footer (Terminal style) */}
-      <footer className="h-6 bg-[#1e2329] border-t border-gray-800 text-gray-400 text-[9px] font-mono px-3 flex items-center justify-between shrink-0">
-        <div className="flex gap-4">
-          <span className="flex items-center gap-1">
+      {/* Modern Status Footer */}
+      <footer className="h-7 bg-[#0b1329] border-t border-slate-800 text-slate-400 text-[11px] px-4 flex items-center justify-between shrink-0 select-none">
+        <div className="flex items-center gap-4">
+          <span className="flex items-center gap-1.5 text-emerald-400 font-semibold">
             <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-            SERVER_STATE: ONLINE
+            MarketBoost Ready
           </span>
-          <span>LATENCY: {serverLatency}</span>
-          <span className="text-blue-400 font-semibold">CLIENT_STATE: IDLE</span>
+          <span className="text-slate-600 hidden sm:inline">•</span>
+          <span className="text-slate-400 hidden sm:inline">
+            Optimasi E-Commerce: Shopee, Tokopedia, TikTok Shop & Instagram
+          </span>
         </div>
-        <div className="flex gap-4">
-          <span>FRAMEWORK: REACT 19 + VITE + TAILWIND</span>
-          <span className="text-white font-bold">{systemTime || 'STABLE'}</span>
+        <div className="flex items-center gap-4">
+          <span className="text-slate-400 flex items-center gap-1 text-[10px]">
+            <Icons.Check className="w-3 h-3 text-emerald-400" /> Auto-Save Lokal Aktif
+          </span>
+          <span className="text-slate-600 hidden md:inline">•</span>
+          <span className="text-slate-400 font-mono text-[10px] hidden md:inline">{systemTime || 'LIVE'}</span>
         </div>
       </footer>
+
+      {/* Guide Modal */}
+      <GuideModal
+        isOpen={guideOpen}
+        onClose={() => setGuideOpen(false)}
+        onSelectTab={(tab) => setActiveTab(tab)}
+      />
 
       {/* Recent Copies Drawer Overlay */}
       {historyDrawerOpen && (
