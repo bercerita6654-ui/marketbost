@@ -524,6 +524,7 @@ export default function App() {
                         keywords={keywords}
                         onAddKeyword={handleAddKeyword}
                         onRemoveKeyword={handleRemoveKeyword}
+                        onSetKeywords={setKeywords}
                         onGenerate={setSeoPrompt}
                       />
                     )}

@@ -100,3 +100,77 @@ export async function copyToClipboard(text: string): Promise<boolean> {
     return fallbackCopyToClipboard(text);
   }
 }
+
+/**
+ * Intelligent keyword extractor for Indonesian e-commerce marketplace SEO.
+ * Automatically generates 3-5 high-converting search keywords from a product name.
+ */
+export function extractKeywordsFromProductName(name: string): string[] {
+  if (!name || !name.trim()) return [];
+
+  // Clean special characters and lowercase
+  const clean = name
+    .toLowerCase()
+    .replace(/[^\w\s-]/gi, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+
+  const words = clean.split(' ').filter(w => w.length > 1);
+  if (words.length === 0) return [];
+
+  const stopWords = new Set([
+    'dan', 'yang', 'untuk', 'dengan', 'di', 'ke', 'dari', 'buat', 'atau', 'pada', 
+    'ini', 'itu', 'bisa', 'ada', 'yg', 'dgn', 'utk', 'karena', 'agar', 'oleh',
+    'dalam', 'atas', 'bawah', 'serta', 'pun', 'juga', 'saat', 'sudah', 'telah',
+    'promo', 'diskon', 'terlaris', 'murah', 'grosir', 'resmi', 'original', 'ori',
+    'asli', 'premium', 'terbaik', 'terbaru', 'new', 'sale', 'hot', 'ready', 'stock'
+  ]);
+
+  const activeWords = words.filter(w => !stopWords.has(w));
+  const pool = activeWords.length >= 2 ? activeWords : words;
+
+  const result: string[] = [];
+  const addKw = (kw: string) => {
+    const trimmed = kw.trim();
+    if (trimmed && trimmed.length >= 3 && !result.includes(trimmed) && result.length < 5) {
+      result.push(trimmed);
+    }
+  };
+
+  // 1. Primary bigram (first two words)
+  if (pool.length >= 2) {
+    addKw(`${pool[0]} ${pool[1]}`);
+  }
+
+  // 2. Secondary bigram (first word + third word, or second + third)
+  if (pool.length >= 3) {
+    addKw(`${pool[0]} ${pool[2]}`);
+    addKw(`${pool[1]} ${pool[2]}`);
+  }
+
+  // 3. Category + Last attribute (e.g. "sepatu pria", "serum glowing")
+  if (pool.length >= 4) {
+    addKw(`${pool[0]} ${pool[pool.length - 1]}`);
+    addKw(`${pool[pool.length - 2]} ${pool[pool.length - 1]}`);
+  }
+
+  // 4. Consecutive pairs
+  for (let i = 0; i < pool.length - 1; i++) {
+    if (result.length >= 5) break;
+    addKw(`${pool[i]} ${pool[i + 1]}`);
+  }
+
+  // 5. Full phrase if concise (3 words or less)
+  if (words.length >= 2 && words.length <= 4) {
+    addKw(clean);
+  }
+
+  // 6. Fallback single high-priority words if fewer than 4 keywords
+  for (const w of pool) {
+    if (result.length >= 5) break;
+    addKw(w);
+  }
+
+  return result.slice(0, 5);
+}
+

@@ -1,6 +1,7 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { AudienceId } from '../types';
 import { AUDIENCES } from '../data';
+import { extractKeywordsFromProductName } from '../utils';
 import * as Icons from 'lucide-react';
 
 // Dynamic Icon Renderer
@@ -14,6 +15,7 @@ interface SeoPanelProps {
   keywords: string[];
   onAddKeyword: (kw: string) => void;
   onRemoveKeyword: (idx: number) => void;
+  onSetKeywords?: (kws: string[]) => void;
   onGenerate: (prompt: string) => void;
 }
 
@@ -22,6 +24,7 @@ export const SeoPanel: React.FC<SeoPanelProps> = ({
   keywords,
   onAddKeyword,
   onRemoveKeyword,
+  onSetKeywords,
   onGenerate,
 }) => {
   const [audience, setAudience] = useState<AudienceId>('casual');
@@ -32,6 +35,26 @@ export const SeoPanel: React.FC<SeoPanelProps> = ({
   const [pack, setPack] = useState('');
   const [usp, setUsp] = useState('');
   const [kwInput, setKwInput] = useState('');
+  const [autoSync, setAutoSync] = useState(true);
+
+  // Otomatis sinkronkan kata kunci dari nama utama produk jika autoSync aktif
+  useEffect(() => {
+    if (autoSync && productName && productName.trim() && onSetKeywords) {
+      const extracted = extractKeywordsFromProductName(productName);
+      if (extracted.length > 0) {
+        onSetKeywords(extracted);
+      }
+    }
+  }, [productName, autoSync, onSetKeywords]);
+
+  const handleSyncFromProductName = () => {
+    if (productName.trim() && onSetKeywords) {
+      const extracted = extractKeywordsFromProductName(productName);
+      if (extracted.length > 0) {
+        onSetKeywords(extracted);
+      }
+    }
+  };
 
   const formulaResult = [
     productName.trim(),
@@ -90,7 +113,15 @@ export const SeoPanel: React.FC<SeoPanelProps> = ({
   };
 
   const handleGenerate = () => {
-    if (!productName.trim() || keywords.length === 0) {
+    let effectiveKeywords = keywords;
+    if (effectiveKeywords.length === 0 && productName.trim()) {
+      effectiveKeywords = extractKeywordsFromProductName(productName);
+      if (onSetKeywords && effectiveKeywords.length > 0) {
+        onSetKeywords(effectiveKeywords);
+      }
+    }
+
+    if (!productName.trim() || effectiveKeywords.length === 0) {
       alert("Mohon isi Nama Utama Produk dan pastikan minimal ada 1 Kata Kunci SEO.");
       return;
     }
@@ -155,7 +186,7 @@ ATURAN "ANTI-BERANTAKAN" (SANGAT PENTING):
 
 DATA INPUT PRODUK:
 Nama Produk Utama (Sesuai Formula): ${formulaResult}
-Keywords: ${keywords.join(', ')}
+Keywords: ${effectiveKeywords.join(', ')}
 USP / Keunggulan Unik: ${uspVal}`;
 
     onGenerate(systemPrompt);
@@ -243,38 +274,105 @@ USP / Keunggulan Unik: ${uspVal}`;
       </div>
 
       {/* Keywords (SEO) */}
-      <div>
-        <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest block mb-1">Kata Kunci (SEO)</label>
-        <div className="flex gap-2 mb-2">
+      <div className="bg-slate-50 border border-slate-200 rounded-xl p-3.5 space-y-2.5 shadow-2xs">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-1.5">
+            <Icons.Key className="w-4 h-4 text-emerald-600" />
+            <label className="text-[11px] font-bold text-slate-700 uppercase tracking-wider">
+              Kata Kunci (SEO)
+            </label>
+          </div>
+          
+          <div className="flex items-center gap-1.5">
+            {/* Auto-Sync Toggle */}
+            <button
+              type="button"
+              onClick={() => {
+                const nextState = !autoSync;
+                setAutoSync(nextState);
+                if (nextState) {
+                  handleSyncFromProductName();
+                }
+              }}
+              className={`text-[10px] font-bold px-2 py-0.5 rounded-full flex items-center gap-1 transition-all cursor-pointer ${
+                autoSync
+                  ? 'bg-emerald-100 text-emerald-700 border border-emerald-300'
+                  : 'bg-slate-200 text-slate-600 border border-slate-300'
+              }`}
+              title={autoSync ? 'Auto-sync aktif: kata kunci mengikuti nama produk. Klik untuk ubah ke manual.' : 'Mode manual: klik untuk aktifkan auto-sync.'}
+            >
+              <span className={`w-1.5 h-1.5 rounded-full ${autoSync ? 'bg-emerald-500 animate-pulse' : 'bg-slate-400'}`} />
+              <span>{autoSync ? 'Otomatis' : 'Manual'}</span>
+            </button>
+
+            {/* Manual Sync Button */}
+            <button
+              type="button"
+              onClick={handleSyncFromProductName}
+              className="text-[10px] font-bold text-emerald-700 hover:text-emerald-900 bg-emerald-50 hover:bg-emerald-100 px-2 py-0.5 rounded-md border border-emerald-200 transition-colors flex items-center gap-1 cursor-pointer"
+              title="Sinkronkan ulang kata kunci dari Nama Utama Produk"
+            >
+              <Icons.RefreshCw className="w-3 h-3 text-emerald-600" />
+              <span>Sinkron</span>
+            </button>
+          </div>
+        </div>
+
+        {autoSync ? (
+          <p className="text-[10px] text-emerald-700 bg-emerald-50/80 px-2.5 py-1 rounded-lg border border-emerald-200/60 font-medium flex items-center gap-1.5">
+            <Icons.Sparkles className="w-3 h-3 text-emerald-500 shrink-0" />
+            <span>Kata kunci otomatis diselaraskan dari <strong>Nama Utama Produk</strong>.</span>
+          </p>
+        ) : (
+          <p className="text-[10px] text-slate-500 font-medium">
+            Mode manual: ketik kata kunci custom Anda sendiri di bawah.
+          </p>
+        )}
+
+        {/* Input to add additional custom keywords */}
+        <div className="flex gap-2">
           <input
             type="text"
             value={kwInput}
             onChange={(e) => setKwInput(e.target.value)}
             onKeyPress={handleKeyPress}
-            placeholder="Ketik lalu Enter... (Maks 5)"
-            className="flex-1 px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-xs outline-none focus:border-emerald-400"
+            placeholder="Tambah kata kunci custom... (Maks 5)"
+            className="flex-1 px-3 py-2 bg-white border border-slate-200 rounded-lg text-xs outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 font-semibold text-slate-800 shadow-2xs"
           />
           <button
             type="button"
             onClick={handleAddKw}
-            className="bg-slate-800 text-white px-3 rounded-lg hover:bg-slate-700 outline-none flex items-center justify-center"
+            className="bg-slate-800 text-white px-3.5 py-2 rounded-lg hover:bg-slate-700 outline-none flex items-center justify-center cursor-pointer transition-colors shadow-2xs"
+            title="Tambahkan kata kunci"
           >
             <Icons.Plus className="w-4 h-4" />
           </button>
         </div>
 
-        <div className="flex flex-wrap gap-2">
-          {keywords.map((kw, i) => (
-            <span
-              key={i}
-              className="px-2 py-1 bg-emerald-100 text-emerald-700 text-[10px] font-bold rounded-md border border-emerald-200 flex items-center gap-1"
-            >
-              {kw}
-              <button type="button" onClick={() => onRemoveKeyword(i)} className="hover:text-red-500 transition-colors">
-                <Icons.X className="w-3 h-3" />
-              </button>
-            </span>
-          ))}
+        {/* Active Keywords Badges */}
+        <div className="flex flex-wrap gap-1.5 pt-0.5">
+          {keywords.length > 0 ? (
+            keywords.map((kw, i) => (
+              <span
+                key={i}
+                className="px-2.5 py-1 bg-white text-emerald-800 text-[11px] font-bold rounded-lg border border-emerald-200 flex items-center gap-1.5 shadow-3xs"
+              >
+                <span>{kw}</span>
+                <button
+                  type="button"
+                  onClick={() => onRemoveKeyword(i)}
+                  className="text-slate-400 hover:text-rose-500 transition-colors cursor-pointer"
+                  title="Hapus kata kunci"
+                >
+                  <Icons.X className="w-3 h-3" />
+                </button>
+              </span>
+            ))
+          ) : (
+            <div className="text-[11px] text-slate-400 italic py-1">
+              Belum ada kata kunci. Ketik nama produk untuk menghasilkan otomatis.
+            </div>
+          )}
         </div>
       </div>
 
