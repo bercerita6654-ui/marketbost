@@ -62,7 +62,7 @@ export interface CopiedPrompt {
   customName?: string;
 }
 
-export type BroadcastTemplateId = 'cart_reminder' | 'new_arrival' | 'promo';
+export type BroadcastTemplateId = 'cart_reminder' | 'new_arrival' | 'promo' | 'operational_info';
 
 export interface BroadcastTemplate {
   id: BroadcastTemplateId;

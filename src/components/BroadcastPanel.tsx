@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { BroadcastTemplateId, BroadcastThemeId } from '../types';
-import { BROADCAST_TEMPLATES, BROADCAST_THEMES } from '../data';
+import { BROADCAST_TEMPLATES, BROADCAST_THEMES, OPERATIONAL_TOPICS } from '../data';
 import * as Icons from 'lucide-react';
 
 interface BroadcastPanelProps {
@@ -12,7 +12,11 @@ export const BroadcastPanel: React.FC<BroadcastPanelProps> = ({
 }) => {
   const [activeTemplate, setActiveTemplate] = useState<BroadcastTemplateId>('cart_reminder');
   const [selectedTheme, setSelectedTheme] = useState<BroadcastThemeId>('double_date');
+  const [selectedOpTopic, setSelectedOpTopic] = useState<string>('holiday_notice');
   const [customEventName, setCustomEventName] = useState('Event 9.9 Super Shopping Day');
+  const [operationalDetail, setOperationalDetail] = useState(
+    'Toko libur mulai tanggal 10 s.d 15 April. Seluruh pesanan yang masuk selama libur akan diproses kirim segera saat toko buka kembali tanggal 16 April.'
+  );
   const [platform, setPlatform] = useState<'shopee' | 'tokopedia' | 'tiktok' | 'whatsapp'>('shopee');
   const [discountBenefit, setDiscountBenefit] = useState('Diskon Ekstra 25% + Gratis Ongkir');
   const [voucherCode, setVoucherCode] = useState('HEMAT99');
@@ -22,6 +26,19 @@ export const BroadcastPanel: React.FC<BroadcastPanelProps> = ({
 
   const selectedThemeObj = BROADCAST_THEMES.find(t => t.id === selectedTheme) || BROADCAST_THEMES[0];
   const selectedTemplateObj = BROADCAST_TEMPLATES.find(t => t.id === activeTemplate) || BROADCAST_TEMPLATES[0];
+  const selectedOpTopicObj = OPERATIONAL_TOPICS.find(t => t.id === selectedOpTopic) || OPERATIONAL_TOPICS[0];
+
+  const handleTemplateSelect = (tmplId: BroadcastTemplateId) => {
+    setActiveTemplate(tmplId);
+    if (tmplId === 'operational_info') {
+      setCustomEventName(selectedOpTopicObj.defaultTitle);
+      setIncludeVoucher(false);
+    } else {
+      const theme = BROADCAST_THEMES.find(t => t.id === selectedTheme);
+      setCustomEventName(theme?.defaultEventName || 'Promo Spesial Toko');
+      setIncludeVoucher(true);
+    }
+  };
 
   const handleThemeChange = (themeId: BroadcastThemeId) => {
     setSelectedTheme(themeId);
@@ -45,11 +62,27 @@ export const BroadcastPanel: React.FC<BroadcastPanelProps> = ({
     }
   };
 
+  const handleOpTopicChange = (topicId: string) => {
+    setSelectedOpTopic(topicId);
+    const topic = OPERATIONAL_TOPICS.find(t => t.id === topicId);
+    if (topic) {
+      setCustomEventName(topic.defaultTitle);
+      setOperationalDetail(topic.defaultDetail);
+      if (topicId === 'holiday_notice' || topicId === 'courier_delay') {
+        setToneStyle('friendly');
+      } else if (topicId === 'cutoff_shipping') {
+        setToneStyle('direct');
+      }
+    }
+  };
+
   const handleGenerate = () => {
-    const eventName = customEventName.trim() || selectedThemeObj.defaultEventName;
+    const isOperational = activeTemplate === 'operational_info';
+    const eventName = customEventName.trim() || (isOperational ? selectedOpTopicObj.defaultTitle : selectedThemeObj.defaultEventName);
     const discount = discountBenefit.trim() || 'Penawaran Spesial Terbatas';
     const voucher = includeVoucher && voucherCode.trim() ? voucherCode.trim() : '-';
     const urgency = urgencyLimit.trim() || 'Stok dan kuota sangat terbatas';
+    const opDetail = operationalDetail.trim() || selectedOpTopicObj.defaultDetail;
 
     const platformLabels = {
       shopee: 'Shopee (Fitur Pesan Siaran Penjual)',
@@ -62,16 +95,73 @@ export const BroadcastPanel: React.FC<BroadcastPanelProps> = ({
       cart_reminder: 'MENGINGATKAN PEMBELI UNTUK SEGERA CHECKOUT PRODUK DI KERANJANG (Cart Abandonment Recovery). Sentuh pembeli secara ramah bahwa produk impian yang ada di keranjang belanjanya masih menunggu dan promo/kuota terbatas.',
       new_arrival: 'MEMPERKENALKAN RILIS PRODUK TERBARU TOKO KEPADA PEMBELI (New Arrival Update). Bangkitkan antusiasme pembeli untuk melihat dan memesan koleksi teranyar toko dengan promo peluncuran khusus.',
       promo: 'MENYEBARKAN INFO PROMO DISKON / EVENT BERJALAN KEPADA PEMBELI (Active Promotion). Tunjukkan keuntungan besar belanja hari ini dengan penawaran potongan harga/voucher yang tak boleh dilewatkan.',
+      operational_info: 'MEMBERIKAN INFORMASI OPERASIONAL TOKO KEPADA PEMBELI (Operational & Service Notice). Sampaikan secara jelas, sopan, dan transparan mengenai jadwal operasional, batas jam pengiriman, libur/cuti toko, atau kesiapan pelayanan toko agar pembeli merasa tenang dan terinformasi.',
     };
 
     const toneDescriptions = {
       friendly: 'Hangat, sopan, akrab seperti teman terpercaya, tidak kaku, dan membuat pembeli merasa nyaman.',
-      fomo: 'Memicu rasa urgensi tinggi (Fear Of Missing Out), stok terbatas, promo kilat segera berakhir malam ini.',
-      direct: 'To-the-point, sangat ringkas, padat, langsung menyoroti keuntungan diskon dan link checkout.',
-      exclusive: 'Eksklusif dan istimewa, memperlakukan penerima pesan sebagai pelanggan VIP / Followers prioritas toko.',
+      fomo: 'Memicu rasa urgensi tinggi (Fear Of Missing Out), stok terbatas, batas waktu segera berakhir.',
+      direct: 'To-the-point, sangat ringkas, padat, langsung menyoroti inti pengumuman tanpa basa-basi.',
+      exclusive: 'Eksklusif dan profesional, memperlakukan penerima pesan sebagai pelanggan prioritas toko.',
     };
 
-    const systemPrompt = `Anda adalah seorang Master Copywriter E-Commerce & Pakar Broadcast Chat Marketplace Indonesia (Shopee, Tokopedia, TikTok Shop, WhatsApp).
+    let systemPrompt = '';
+
+    if (isOperational) {
+      systemPrompt = `Anda adalah seorang Master Copywriter E-Commerce & Customer Experience Specialist untuk Marketplace Indonesia (Shopee, Tokopedia, TikTok Shop, WhatsApp Business).
+
+TUGAS ANDA:
+Buatkan 3 VARIASI PESAN BROADCAST CHAT OPERASIONAL TOKO yang SANGAT JELAS, SOPAN, RAPI, dan NYAMAN DIBACA untuk dikirimkan kepada pelanggan toko.
+
+TARGET UTAMA FORMAT & GAYA BAHASA (ATURAN KETAT):
+1. KALIMAT TIDAK TERLALU PANJANG: Panjang pesan per variasi berkisar antara 180 - 400 karakter (maksimal 50-70 kata). Pengumuman operasional harus mudah dipahami sekilas.
+2. HOOK / JUDUL PEMBUKA JELAS: 1-2 baris pertama langsung menyatakan inti pengumuman operasional penting agar tidak disalahpahami oleh pembeli.
+3. TATA LETAK SANGAT RAPI (MOBILE-FRIENDLY): Berikan 1 baris kosong (ENTER) di antara salam pembuka, rincian jadwal/poin penting operasional, dan salam penutup.
+4. EMOJI YANG SESUAI: Gunakan emoji yang informatif dan relevan (misal: 📢, ⏰, 🚚, 🗓️, ✨, 🙏, 📦).
+5. BAHASA SANTUN & TRANSPARAN: Memberikan rasa aman, kejelasan jadwal, serta apresiasi kepada pelanggan atas kepercayaan mereka berbelanja di toko.
+6. SIAP KIRIM MASSAL: Pesan dapat disiarkan langsung ke semua pelanggan / followers toko.
+
+DATA PARAMETER OPERASIONAL:
+• Kategori Template : ${selectedTemplateObj.label} (${selectedTemplateObj.subtitle})
+• Topik Operasional : ${selectedOpTopicObj.label}
+• Judul Pengumuman : ${eventName}
+• Rincian Jadwal/Pesan: ${opDetail}
+• Platform Sasaran  : ${platformLabels[platform]}
+• Voucher Apresiasi : ${voucher}
+• Nada Bicara (Tone): ${toneDescriptions[toneStyle]}
+
+IKUTI STRUKTUR OUTPUT DI BAWAH INI SECARA PERSIS (SIAP DISALIN OLEH SELLER):
+
+═════════════════════════════════════════════════════
+📢 REKOMENDASI 3 VARIASI BROADCAST OPERASIONAL (${eventName.toUpperCase()})
+Kategori: ${selectedTemplateObj.label} | Platform: ${platform.toUpperCase()}
+═════════════════════════════════════════════════════
+
+📋 VARIASI 1: SINGKAT, PADAT & JELAS (Direct & Clear Notice)
+(Karakter: To-the-point, poin jadwal jelas terbaca dalam 3 detik, sangat cocok untuk pembeli di HP)
+
+[Tuliskan Teks Pesan Siaran Lengkap Siap Salin di sini]
+
+─────────────────────────────────────────────────────
+
+❤️ VARIASI 2: RAMAH, HANGAT & MENYAPA AKRAB (Friendly & Empathetic)
+(Karakter: Pendekatan akrab, sopan dengan ucapan terima kasih tulus atas kesabaran dan dukungan pelanggan)
+
+[Tuliskan Teks Pesan Siaran Lengkap Siap Salin di sini]
+
+─────────────────────────────────────────────────────
+
+⚠️ VARIASI 3: PENTING & PERHATIAN CEPAT (Priority Service Notice)
+(Karakter: Menekankan jadwal penting agar pembeli tidak terlewat batas cut-off atau libur operasional)
+
+[Tuliskan Teks Pesan Siaran Lengkap Siap Salin di sini]
+
+═════════════════════════════════════════════════════
+💡 TIPS OPERASIONAL TOKO DARI STUDIO MARKETBOOST:
+• Kirimkan pesan siaran operasional minimal 1-2 hari sebelum jadwal libur atau 2 jam sebelum batas cut-off pengiriman.
+• Atur fitur Auto-Reply / Asisten Chat di Seller Center agar senada dengan informasi yang Anda siarkan.`;
+    } else {
+      systemPrompt = `Anda adalah seorang Master Copywriter E-Commerce & Pakar Broadcast Chat Marketplace Indonesia (Shopee, Tokopedia, TikTok Shop, WhatsApp).
 
 TUGAS ANDA:
 Buatkan 3 VARIASI PESAN BROADCAST CHAT yang SANGAT MENARIK, EFEKTIF, dan MEMICU KLIK TINGGI (HIGH CTR & CONVERSION) untuk dikirimkan kepada pembeli toko.
@@ -124,14 +214,17 @@ Kategori: ${selectedTemplateObj.label} | Platform: ${platform.toUpperCase()}
 💡 TIPS OPTIMASI BROADCAST DARI STUDIO MARKETBOOST:
 • Waktu Kirim Terbaik: Pukul 11.30 - 13.00 (Jam Istirahat Siang) atau 19.00 - 21.00 (Jam Santai Malam).
 • Pastikan kupon diskon dan promo voucher sudah aktif di Seller Center sebelum mengirim pesan siaran.`;
+    }
 
     onGenerate(systemPrompt);
   };
 
+  const isOperational = activeTemplate === 'operational_info';
+
   return (
     <div className="space-y-4 text-xs text-slate-700">
       
-      {/* 1. Pilih Template Utama (3 Pilihan Wajib) */}
+      {/* 1. Pilih Template Utama */}
       <div className="space-y-2">
         <label className="text-[11px] font-bold text-slate-700 uppercase tracking-wider flex items-center gap-1.5">
           <Icons.MessageSquareQuote className="w-4 h-4 text-purple-600" />
@@ -141,13 +234,19 @@ Kategori: ${selectedTemplateObj.label} | Platform: ${platform.toUpperCase()}
         <div className="grid grid-cols-1 gap-2">
           {BROADCAST_TEMPLATES.map((tmpl) => {
             const isSelected = activeTemplate === tmpl.id;
-            const IconC = tmpl.id === 'cart_reminder' ? Icons.ShoppingCart : tmpl.id === 'new_arrival' ? Icons.Sparkles : Icons.BadgePercent;
+            const IconC = tmpl.id === 'cart_reminder'
+              ? Icons.ShoppingCart
+              : tmpl.id === 'new_arrival'
+              ? Icons.Sparkles
+              : tmpl.id === 'promo'
+              ? Icons.BadgePercent
+              : Icons.Clock;
 
             return (
               <button
                 key={tmpl.id}
                 type="button"
-                onClick={() => setActiveTemplate(tmpl.id)}
+                onClick={() => handleTemplateSelect(tmpl.id)}
                 className={`p-3 rounded-xl border text-left transition-all cursor-pointer flex items-start gap-3 relative ${
                   isSelected
                     ? 'bg-purple-50/80 border-purple-400 ring-2 ring-purple-400/20 shadow-xs'
@@ -184,53 +283,116 @@ Kategori: ${selectedTemplateObj.label} | Platform: ${platform.toUpperCase()}
         </div>
       </div>
 
-      {/* 2. Pilihan Tema Promo / Event */}
-      <div className="bg-slate-50 border border-slate-200 rounded-xl p-3.5 space-y-3 shadow-2xs">
-        <div className="flex items-center justify-between">
-          <label className="text-[11px] font-bold text-slate-700 uppercase tracking-wider flex items-center gap-1.5">
-            <Icons.CalendarDays className="w-4 h-4 text-purple-600" />
-            <span>Tema Acara / Event Promo</span>
-          </label>
-          <span className="text-[10px] text-purple-700 font-bold bg-purple-100 px-2 py-0.5 rounded-md">
-            {selectedThemeObj.badge}
-          </span>
-        </div>
+      {/* 2. Pilihan Topik Operasional ATAU Tema Promo / Event */}
+      {isOperational ? (
+        <div className="bg-slate-50 border border-slate-200 rounded-xl p-3.5 space-y-3 shadow-2xs">
+          <div className="flex items-center justify-between">
+            <label className="text-[11px] font-bold text-slate-700 uppercase tracking-wider flex items-center gap-1.5">
+              <Icons.Clock className="w-4 h-4 text-cyan-600" />
+              <span>Topik Informasi Operasional</span>
+            </label>
+            <span className="text-[10px] text-cyan-700 font-bold bg-cyan-100 px-2 py-0.5 rounded-md">
+              {selectedOpTopicObj.badge}
+            </span>
+          </div>
 
-        {/* Theme Pills */}
-        <div className="grid grid-cols-2 gap-1.5">
-          {BROADCAST_THEMES.map((th) => {
-            const isSel = selectedTheme === th.id;
-            return (
-              <button
-                key={th.id}
-                type="button"
-                onClick={() => handleThemeChange(th.id)}
-                className={`px-2.5 py-1.5 rounded-lg text-left text-[11px] font-medium transition-all flex items-center gap-1.5 border cursor-pointer ${
-                  isSel
-                    ? 'bg-purple-600 text-white border-purple-600 font-bold shadow-2xs'
-                    : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-100/80'
-                }`}
-              >
-                <span className="truncate">{th.label.split('(')[0]}</span>
-              </button>
-            );
-          })}
-        </div>
+          {/* Operational Topic Pills */}
+          <div className="grid grid-cols-2 gap-1.5">
+            {OPERATIONAL_TOPICS.map((op) => {
+              const isSel = selectedOpTopic === op.id;
+              return (
+                <button
+                  key={op.id}
+                  type="button"
+                  onClick={() => handleOpTopicChange(op.id)}
+                  className={`px-2.5 py-1.5 rounded-lg text-left text-[11px] font-medium transition-all flex items-center gap-1.5 border cursor-pointer ${
+                    isSel
+                      ? 'bg-cyan-700 text-white border-cyan-700 font-bold shadow-2xs'
+                      : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-100/80'
+                  }`}
+                >
+                  <span className="truncate">{op.label.split('(')[0]}</span>
+                </button>
+              );
+            })}
+          </div>
 
-        {/* Event Name Input (customizable) */}
-        <div>
-          <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block mb-1">
-            Nama Spesifik Event / Judul Campaign
-          </label>
-          <input
-            type="text"
-            value={customEventName}
-            onChange={(e) => setCustomEventName(e.target.value)}
-            placeholder="Contoh: Event 9.9 Super Shopping Day / Promo Gajian"
-            className="w-full px-3 py-2 bg-white border border-slate-200 rounded-lg text-xs font-semibold text-slate-800 outline-none focus:border-purple-500 focus:ring-1 focus:ring-purple-500 shadow-2xs"
-          />
+          {/* Judul Pengumuman */}
+          <div>
+            <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block mb-1">
+              Judul / Topik Pengumuman
+            </label>
+            <input
+              type="text"
+              value={customEventName}
+              onChange={(e) => setCustomEventName(e.target.value)}
+              placeholder="Contoh: Jadwal Libur & Cuti Bersama Toko Kami"
+              className="w-full px-3 py-2 bg-white border border-slate-200 rounded-lg text-xs font-semibold text-slate-800 outline-none focus:border-cyan-500 focus:ring-1 focus:ring-cyan-500 shadow-2xs"
+            />
+          </div>
+
+          {/* Detail Rincian Jadwal / Pesan Operasional */}
+          <div>
+            <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block mb-1">
+              Rincian Jadwal / Catatan Khusus
+            </label>
+            <textarea
+              rows={3}
+              value={operationalDetail}
+              onChange={(e) => setOperationalDetail(e.target.value)}
+              placeholder="Tuliskan detail tanggal libur, jam cut-off pengiriman, atau catatan penting lainnya..."
+              className="w-full px-3 py-2 bg-white border border-slate-200 rounded-lg text-xs font-medium text-slate-800 outline-none focus:border-cyan-500 focus:ring-1 focus:ring-cyan-500 shadow-2xs resize-none"
+            />
+          </div>
         </div>
-      </div>
+      ) : (
+        <div className="bg-slate-50 border border-slate-200 rounded-xl p-3.5 space-y-3 shadow-2xs">
+          <div className="flex items-center justify-between">
+            <label className="text-[11px] font-bold text-slate-700 uppercase tracking-wider flex items-center gap-1.5">
+              <Icons.CalendarDays className="w-4 h-4 text-purple-600" />
+              <span>Tema Acara / Event Promo</span>
+            </label>
+            <span className="text-[10px] text-purple-700 font-bold bg-purple-100 px-2 py-0.5 rounded-md">
+              {selectedThemeObj.badge}
+            </span>
+          </div>
+
+          {/* Theme Pills */}
+          <div className="grid grid-cols-2 gap-1.5">
+            {BROADCAST_THEMES.map((th) => {
+              const isSel = selectedTheme === th.id;
+              return (
+                <button
+                  key={th.id}
+                  type="button"
+                  onClick={() => handleThemeChange(th.id)}
+                  className={`px-2.5 py-1.5 rounded-lg text-left text-[11px] font-medium transition-all flex items-center gap-1.5 border cursor-pointer ${
+                    isSel
+                      ? 'bg-purple-600 text-white border-purple-600 font-bold shadow-2xs'
+                      : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-100/80'
+                  }`}
+                >
+                  <span className="truncate">{th.label.split('(')[0]}</span>
+                </button>
+              );
+            })}
+          </div>
+
+          {/* Event Name Input */}
+          <div>
+            <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block mb-1">
+              Nama Spesifik Event / Judul Campaign
+            </label>
+            <input
+              type="text"
+              value={customEventName}
+              onChange={(e) => setCustomEventName(e.target.value)}
+              placeholder="Contoh: Event 9.9 Super Shopping Day / Promo Gajian"
+              className="w-full px-3 py-2 bg-white border border-slate-200 rounded-lg text-xs font-semibold text-slate-800 outline-none focus:border-purple-500 focus:ring-1 focus:ring-purple-500 shadow-2xs"
+            />
+          </div>
+        </div>
+      )}
 
       {/* 3. Platform Sasaran & Gaya Bahasa */}
       <div className="grid grid-cols-2 gap-3">
@@ -262,73 +424,113 @@ Kategori: ${selectedTemplateObj.label} | Platform: ${platform.toUpperCase()}
             className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-xs font-semibold text-slate-800 outline-none focus:border-purple-500 shadow-2xs"
           >
             <option value="friendly">Ramah & Menyapa Akrab</option>
-            <option value="fomo">Urgensi Tinggi (FOMO)</option>
             <option value="direct">Padat, Singkat & To the Point</option>
-            <option value="exclusive">Eksklusif / Pelanggan VIP</option>
+            <option value="exclusive">Eksklusif & Profesional</option>
+            {!isOperational && <option value="fomo">Urgensi Tinggi (FOMO)</option>}
           </select>
         </div>
       </div>
 
-      {/* 4. Insentif, Diskon & Kode Voucher */}
-      <div className="bg-slate-50 border border-slate-200 rounded-xl p-3.5 space-y-3 shadow-2xs">
-        <div className="flex items-center justify-between">
-          <label className="text-[11px] font-bold text-slate-700 uppercase tracking-wider flex items-center gap-1.5">
-            <Icons.Gift className="w-4 h-4 text-purple-600" />
-            <span>Penawaran & Diskon Booster</span>
-          </label>
+      {/* 4. Voucher Apresiasi ATAU Insentif Promo */}
+      {isOperational ? (
+        <div className="bg-slate-50 border border-slate-200 rounded-xl p-3.5 space-y-3 shadow-2xs">
+          <div className="flex items-center justify-between">
+            <label className="text-[11px] font-bold text-slate-700 uppercase tracking-wider flex items-center gap-1.5">
+              <Icons.Gift className="w-4 h-4 text-cyan-600" />
+              <span>Voucher Apresiasi / Diskon Tambahan (Opsional)</span>
+            </label>
 
-          <label className="flex items-center gap-1 text-[11px] text-slate-600 font-medium cursor-pointer">
-            <input
-              type="checkbox"
-              checked={includeVoucher}
-              onChange={(e) => setIncludeVoucher(e.target.checked)}
-              className="accent-purple-600 rounded cursor-pointer"
-            />
-            <span>Sertakan Voucher</span>
-          </label>
+            <label className="flex items-center gap-1 text-[11px] text-slate-600 font-medium cursor-pointer">
+              <input
+                type="checkbox"
+                checked={includeVoucher}
+                onChange={(e) => setIncludeVoucher(e.target.checked)}
+                className="accent-cyan-600 rounded cursor-pointer"
+              />
+              <span>Sertakan Voucher</span>
+            </label>
+          </div>
+
+          {includeVoucher ? (
+            <div>
+              <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block mb-1">
+                Kode Voucher Permohonan Maaf / Sambutan Toko
+              </label>
+              <input
+                type="text"
+                value={voucherCode}
+                onChange={(e) => setVoucherCode(e.target.value.toUpperCase())}
+                placeholder="Misal: MAAFDELAY / BUKALAGI"
+                className="w-full px-3 py-2 bg-white border border-slate-200 rounded-lg text-xs font-mono font-bold text-cyan-700 uppercase outline-none focus:border-cyan-500 shadow-2xs"
+              />
+            </div>
+          ) : (
+            <p className="text-[11px] text-slate-500 leading-relaxed">
+              Pesan operasional akan dikirim murni sebagai pemberitahuan informasi layanan tanpa kode promo.
+            </p>
+          )}
         </div>
+      ) : (
+        <div className="bg-slate-50 border border-slate-200 rounded-xl p-3.5 space-y-3 shadow-2xs">
+          <div className="flex items-center justify-between">
+            <label className="text-[11px] font-bold text-slate-700 uppercase tracking-wider flex items-center gap-1.5">
+              <Icons.Gift className="w-4 h-4 text-purple-600" />
+              <span>Penawaran & Diskon Booster</span>
+            </label>
 
-        <div>
-          <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block mb-1">
-            Manfaat Promo Utama (Diskon / Cashback / Ongkir)
-          </label>
-          <input
-            type="text"
-            value={discountBenefit}
-            onChange={(e) => setDiscountBenefit(e.target.value)}
-            placeholder="Contoh: Diskon 25% + Potongan Ongkir s.d Rp20.000"
-            className="w-full px-3 py-2 bg-white border border-slate-200 rounded-lg text-xs font-semibold text-slate-800 outline-none focus:border-purple-500 focus:ring-1 focus:ring-purple-500 shadow-2xs"
-          />
-        </div>
+            <label className="flex items-center gap-1 text-[11px] text-slate-600 font-medium cursor-pointer">
+              <input
+                type="checkbox"
+                checked={includeVoucher}
+                onChange={(e) => setIncludeVoucher(e.target.checked)}
+                className="accent-purple-600 rounded cursor-pointer"
+              />
+              <span>Sertakan Voucher</span>
+            </label>
+          </div>
 
-        {includeVoucher && (
           <div>
             <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block mb-1">
-              Kode Voucher (Jika Ada)
+              Manfaat Promo Utama (Diskon / Cashback / Ongkir)
             </label>
             <input
               type="text"
-              value={voucherCode}
-              onChange={(e) => setVoucherCode(e.target.value.toUpperCase())}
-              placeholder="Misal: DISKON99"
-              className="w-full px-3 py-2 bg-white border border-slate-200 rounded-lg text-xs font-mono font-bold text-purple-700 uppercase outline-none focus:border-purple-500 shadow-2xs"
+              value={discountBenefit}
+              onChange={(e) => setDiscountBenefit(e.target.value)}
+              placeholder="Contoh: Diskon 25% + Potongan Ongkir s.d Rp20.000"
+              className="w-full px-3 py-2 bg-white border border-slate-200 rounded-lg text-xs font-semibold text-slate-800 outline-none focus:border-purple-500 focus:ring-1 focus:ring-purple-500 shadow-2xs"
             />
           </div>
-        )}
 
-        <div>
-          <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block mb-1">
-            Batas Waktu / Urgensi Kuota
-          </label>
-          <input
-            type="text"
-            value={urgencyLimit}
-            onChange={(e) => setUrgencyLimit(e.target.value)}
-            placeholder="Contoh: Berakhir malam ini jam 23:59 WIB / Sisa 15 kuota lagi"
-            className="w-full px-3 py-2 bg-white border border-slate-200 rounded-lg text-xs font-semibold text-slate-800 outline-none focus:border-purple-500 focus:ring-1 focus:ring-purple-500 shadow-2xs"
-          />
+          {includeVoucher && (
+            <div>
+              <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block mb-1">
+                Kode Voucher (Jika Ada)
+              </label>
+              <input
+                type="text"
+                value={voucherCode}
+                onChange={(e) => setVoucherCode(e.target.value.toUpperCase())}
+                placeholder="Misal: DISKON99"
+                className="w-full px-3 py-2 bg-white border border-slate-200 rounded-lg text-xs font-mono font-bold text-purple-700 uppercase outline-none focus:border-purple-500 shadow-2xs"
+              />
+            </div>
+          )}
+
+          <div>
+            <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block mb-1">
+              Batas Waktu / Urgensi Kuota
+            </label>
+            <input
+              type="text"
+              value={urgencyLimit}
+              onChange={(e) => setUrgencyLimit(e.target.value)}
+              placeholder="Contoh: Berakhir malam ini jam 23:59 WIB / Sisa 15 kuota lagi"
+              className="w-full px-3 py-2 bg-white border border-slate-200 rounded-lg text-xs font-semibold text-slate-800 outline-none focus:border-purple-500 focus:ring-1 focus:ring-purple-500 shadow-2xs"
+            />
+          </div>
         </div>
-      </div>
+      )}
 
       {/* Target Formula Highlight */}
       <div className="bg-purple-50/70 border border-purple-200/80 rounded-xl p-3 space-y-1">
@@ -337,7 +539,11 @@ Kategori: ${selectedTemplateObj.label} | Platform: ${platform.toUpperCase()}
           <span>Standar Copywriting Broadcast Studio</span>
         </div>
         <p className="text-[10px] text-purple-700/90 leading-relaxed">
-          Dirancang agar kalimat <strong>tidak terlalu panjang</strong> (ringkas & padat), <strong>tata letak rapi</strong> di layar smartphone, dan memiliki hook psikologis yang mendorong pembeli <strong>membuka chat & meng-klik link checkout</strong>.
+          {isOperational ? (
+            <>Format pesan operasional dirancang <strong>ringkas, sopan, dan transparan</strong> dengan hook pembuka yang jelas di notifikasi HP serta rincian tanggal yang mudah dipahami pembeli.</>
+          ) : (
+            <>Dirancang agar kalimat <strong>tidak terlalu panjang</strong> (ringkas & padat), <strong>tata letak rapi</strong> di layar smartphone, dan memiliki hook psikologis yang mendorong pembeli <strong>membuka chat toko</strong>.</>
+          )}
         </p>
       </div>
 
@@ -348,7 +554,7 @@ Kategori: ${selectedTemplateObj.label} | Platform: ${platform.toUpperCase()}
         className="w-full py-3 bg-gradient-to-r from-purple-600 via-indigo-600 to-purple-700 hover:from-purple-500 hover:to-indigo-500 text-white font-black text-xs uppercase tracking-wider rounded-xl shadow-lg shadow-purple-600/25 transition-all flex items-center justify-center gap-2 cursor-pointer active:scale-98"
       >
         <Icons.Send className="w-4 h-4" />
-        <span>Generate Prompt Broadcast Chat</span>
+        <span>{isOperational ? 'Generate Prompt Broadcast Operasional' : 'Generate Prompt Broadcast Chat'}</span>
       </button>
 
     </div>

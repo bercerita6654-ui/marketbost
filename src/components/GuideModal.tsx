@@ -58,8 +58,8 @@ export const GuideModal: React.FC<GuideModalProps> = ({ isOpen, onClose, onSelec
       icon: Icons.Radio,
       description: 'Menyusun pesan siaran (broadcast) yang ringkas, rapi, dan memicu tingkat klik tinggi untuk pengingat keranjang, produk baru, dan promo event seperti 9.9.',
       tips: [
-        'Pilih template: Pengingat Keranjang, Update Produk Terbaru, atau Promosi Toko.',
-        'Pilih tema seperti Event 9.9 / Gajian Sale dan masukkan kode voucher.',
+        'Pilih template: Pengingat Keranjang, Produk Baru, Promosi Toko, atau Info Operasional.',
+        'Pilih tema event promo atau topik operasional (jadwal libur, jam cut-off kirim, CS).',
         'Kalimat dioptimalkan pendek & padat (200-400 karakter) dengan hook pop-up HP yang kuat.'
       ]
     },

@@ -163,6 +163,66 @@ export const BROADCAST_TEMPLATES = [
     icon: 'BadgePercent',
     tag: 'Promo & Diskon',
     badgeColor: 'bg-emerald-50 text-emerald-700 border-emerald-200'
+  },
+  {
+    id: 'operational_info' as const,
+    label: 'Info Operasional Toko',
+    subtitle: 'Kirim pengumuman jam kerja, jadwal libur, atau batas kirim',
+    description: 'Pesan siaran informatif & sopan untuk mengabarkan jadwal buka/tutup, batas cut-off pengiriman pesanan hari ini, cuti/libur toko, atau pengumuman layanan lainnya.',
+    icon: 'Clock',
+    tag: 'Operasional',
+    badgeColor: 'bg-cyan-50 text-cyan-700 border-cyan-200'
+  }
+];
+
+export const OPERATIONAL_TOPICS = [
+  {
+    id: 'holiday_notice',
+    label: 'Jadwal Libur Toko / Cuti Bersama',
+    badge: 'Libur Toko',
+    icon: 'Calendar',
+    defaultTitle: 'Pemberitahuan Jadwal Libur & Cuti Bersama Toko',
+    defaultDetail: 'Toko libur mulai tanggal 10 s.d 15 April. Seluruh pesanan yang masuk selama libur akan diproses kirim segera saat toko buka kembali tanggal 16 April.'
+  },
+  {
+    id: 'cutoff_shipping',
+    label: 'Batas Jam Pengiriman Hari Ini (Cut-Off)',
+    badge: 'Same-Day & Instan',
+    icon: 'Truck',
+    defaultTitle: 'Batas Waktu Checkout untuk Pengiriman Hari Ini',
+    defaultDetail: 'Pesanan sebelum pukul 15.00 WIB dikirim di hari yang sama. Pengiriman Instant & Same Day aktif setiap hari s.d pukul 16.30 WIB.'
+  },
+  {
+    id: 'reopen_store',
+    label: 'Toko Buka Normal Kembali',
+    badge: 'Buka Normal',
+    icon: 'Store',
+    defaultTitle: 'Kabar Baik! Toko Kami Sudah Beroperasi Normal',
+    defaultDetail: 'Toko sudah aktif melayani pesanan Anda kembali. Seluruh antrean pesanan siap kami packing rapi dan kirim secepatnya hari ini.'
+  },
+  {
+    id: 'courier_delay',
+    label: 'Keterlambatan Ekspedisi / Kendala Cuaca',
+    badge: 'Update Ekspedisi',
+    icon: 'AlertTriangle',
+    defaultTitle: 'Pemberitahuan Estimasi Keterlambatan Pengiriman',
+    defaultDetail: 'Sehubungan dengan kondisi cuaca / lonjakan volume paket di gudang ekspedisi, kemungkinan terjadi estimasi keterlambatan 1-2 hari kerja. Tim kami terus memantau paket Anda.'
+  },
+  {
+    id: 'cs_hours',
+    label: 'Jam Layanan CS & Chat Fast-Response',
+    badge: 'Layanan Chat',
+    icon: 'MessageCircle',
+    defaultTitle: 'Jadwal Layanan Customer Service & Jam Operasional',
+    defaultDetail: 'Admin kami siap melayani chat & konsultasi setiap hari Senin-Sabtu pukul 08.00 - 21.00 WIB. Pertanyaan di luar jam operasional akan dijawab segera di jam kerja berikutnya.'
+  },
+  {
+    id: 'custom_op',
+    label: 'Pengumuman Operasional Bebas (Kustom)',
+    badge: 'Kustom',
+    icon: 'Edit3',
+    defaultTitle: 'Pengumuman Penting untuk Pelanggan Toko Kami',
+    defaultDetail: 'Informasi penting mengenai operasional dan pelayanan toko kami untuk seluruh pelanggan tercinta.'
   }
 ];
 
