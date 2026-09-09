@@ -135,44 +135,40 @@ export const SeoPanel: React.FC<SeoPanelProps> = ({
 
     const audienceData = AUDIENCES.find(a => a.id === audience) || AUDIENCES[0];
 
-    const systemPrompt = `Anda adalah pakar SEO Marketplace Indonesia. Buat deskripsi produk yang SANGAT RAPI, PROFESIONAL, dan BERSIH (PLAIN TEXT).
+    const systemPrompt = `Anda adalah pakar SEO Marketplace Indonesia (Shopee & Tokopedia). Buat deskripsi produk yang SANGAT RAPI, BERSIH, dan SIAP SALIN (PLAIN TEXT) sesuai format standar berikut.
 GAYA BAHASA: ${audienceData.promptMod}
 
 TUGAS ANDA:
-1. Buat 3 variasi rekomendasi judul SEO friendly (100-125 karakter). Gunakan format nama produk utama: "${formulaResult}" sebagai basis utama dikombinasikan dengan kata kunci SEO secara alami. Wajib pisahkan setiap judul dengan 1 baris kosong (ENTER).
-2. Buat deskripsi produk dalam SATU BLOK TEKS siap salin tanpa format berlebihan.
+1. Buat 3 variasi rekomendasi judul SEO friendly (100-125 karakter). Gunakan format nama produk utama: "${formulaResult}" sebagai basis utama dikombinasikan dengan kata kunci SEO secara alami. Wajib diawali tanda strip (-) di setiap judul dan pisahkan setiap judul dengan 1 baris kosong (ENTER).
+2. Buat deskripsi produk dalam SATU BLOK TEKS siap salin dengan garis pembatas (---------------------) di antara setiap pokok bahasan.
 
-IKUTI FORMAT TATA LETAK INI SECARA PRESISI (WAJIB BERIKAN 1 BARIS KOSONG/ENTER DI SETIAP PERGANTIAN POKOK BAHASAN):
+IKUTI STRUKTUR FORMAT DI BAWAH INI SECARA PERSIS:
 
 REKOMENDASI JUDUL SEO (100-125 Karakter):
-----------------------------------------------------------------
-(Judul 1)
+- (Judul 1 dengan panjang 100-125 karakter)
 
-(Judul 2)
+- (Judul 2 dengan panjang 100-125 karakter)
 
-(Judul 3)
-
-(${formulaResult.toUpperCase()})
-(Paragraf pembuka persuasif maksimal 3 kalimat)
-
-KEUNGGULAN UTAMA:
-• (Poin 1)
-• (Poin 2)
-• (Poin 3)
-
-PENGALAMAN PEMAKAIAN:
-(Jelaskan singkat manfaat yang dirasakan)
-
-SANGAT COCOK UNTUK:
-(Target 1)
-(Target 2)
-
+- (Judul 3 dengan panjang 100-125 karakter)
+---------------------
 DETAIL SPESIFIKASI:
 • Merk   : ${brandVal}
 • Tipe   : ${typeVal}
 • Harga  : Harga Tertera (${unitVal})${packVal ? `\n• Kemasan: ${packVal}` : ''}
 • Ukuran : ${sizeVal}
-
+---------------------
+KEUNGGULAN UTAMA:
+• (Poin keunggulan 1 yang kuat dan jelas)
+• (Poin keunggulan 2)
+• (Poin keunggulan 3)
+---------------------
+PENGALAMAN PEMAKAIAN:
+(Paragraf ringkas yang menjelaskan secara mengalir kenyamanan, rasa tenang, dan manfaat nyata yang dirasakan pembeli saat menggunakan produk ini)
+---------------------
+SANGAT COCOK UNTUK:
+(Poin kebutuhan / penggunaan 1)
+(Poin kebutuhan / penggunaan 2)
+---------------------
 CATATAN TOKO:
 • Produk yang kami jual dijamin Original & Baru.
 • Cover/kemasan/motif/warna dikirim sesuai stock yang tersedia.
@@ -180,7 +176,7 @@ CATATAN TOKO:
 
 ATURAN "ANTI-BERANTAKAN" (SANGAT PENTING):
 1. JANGAN gunakan format Markdown berlebihan (TIDAK BOLEH ADA simbol ** atau * atau # di dalam teks deskripsi).
-2. WAJIB tekan ENTER (1 baris kosong) sebelum menuliskan sub-judul baru (seperti KEUNGGULAN UTAMA, PENGALAMAN PEMAKAIAN, dll).
+2. Gunakan garis pembatas --------------------- persis di antara setiap bagian seperti contoh struktur di atas.
 3. RATA KIRI MUTLAK: Jangan ada spasi (indentasi) di awal baris.
 4. AMAN DARI PELANGGARAN: Sangat penting! HINDARI penggunaan kata/kalimat yang dilarang atau dibatasi oleh algoritma Shopee, Tokopedia, dan TikTok Shop (seperti ajakan transaksi di luar platform, nomor HP/WA, kata-kata kasar, janji/klaim medis berlebihan, atau kata kunci terlarang lainnya).
 
