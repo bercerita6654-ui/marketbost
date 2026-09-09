@@ -1890,10 +1890,31 @@ export const GridPanel: React.FC<GridPanelProps> = ({
   };
 
   // Video Slideshow Slides Video Generator
-  const generateVideoBlob = async (customImages?: string[]): Promise<{ blob: Blob; ext: string }> => {
-    const validImages = customImages || (pieces.map((p, idx) => getPieceDataUrl(idx)).filter((x) => x !== null) as string[]);
+  const generateVideoBlob = async (customImages?: unknown): Promise<{ blob: Blob; ext: string }> => {
+    let validImages: string[] = [];
 
-    if (validImages.length === 0) {
+    if (Array.isArray(customImages) && customImages.length > 0) {
+      validImages = customImages.filter((x): x is string => typeof x === 'string' && x.length > 0);
+    } else {
+      const pieceUrls = pieces.map((_, idx) => getPieceDataUrl(idx)).filter((x): x is string => x !== null);
+      if (pieceUrls.length > 0) {
+        validImages = pieceUrls;
+      } else if (masterImages.length > 0) {
+        for (let imgIdx = 0; imgIdx < masterImages.length; imgIdx++) {
+          const m = masterImages[imgIdx];
+          if (m?.img) {
+            for (let r = 0; r < rows; r++) {
+              for (let c = 0; c < cols; c++) {
+                const dataUrl = getPieceDataUrlForImage(m.img, c, r, true, 'image/png');
+                if (dataUrl) validImages.push(dataUrl);
+              }
+            }
+          }
+        }
+      }
+    }
+
+    if (!Array.isArray(validImages) || validImages.length === 0) {
       throw new Error("Harap unggah minimal 1 gambar ke dalam slot grid.");
     }
 
@@ -2081,11 +2102,12 @@ export const GridPanel: React.FC<GridPanelProps> = ({
     });
   };
 
-  const handleDownloadVideo = async (customImages?: string[]) => {
+  const handleDownloadVideo = async (customImages?: unknown) => {
     setIsSlicing(true);
     setSlicingMessage("Merekam video slideshow...");
     try {
-      const { blob, ext } = await generateVideoBlob(customImages);
+      const imagesToUse = Array.isArray(customImages) ? (customImages as string[]) : undefined;
+      const { blob, ext } = await generateVideoBlob(imagesToUse);
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
@@ -3153,7 +3175,7 @@ export const GridPanel: React.FC<GridPanelProps> = ({
               </button>
               <button
                 type="button"
-                onClick={handleDownloadVideo}
+                onClick={() => handleDownloadVideo()}
                 className="flex-1 sm:flex-none bg-rose-600 hover:bg-rose-500 hover:scale-102 text-white px-4 py-2 rounded-xl font-bold text-xs transition-all flex items-center justify-center gap-1.5 shadow-md shadow-rose-600/15 cursor-pointer active:scale-98"
               >
                 <Icons.Video className="w-3.5 h-3.5 animate-pulse" />
