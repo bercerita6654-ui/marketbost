@@ -4,12 +4,10 @@ import { BROADCAST_TEMPLATES, BROADCAST_THEMES } from '../data';
 import * as Icons from 'lucide-react';
 
 interface BroadcastPanelProps {
-  productName: string;
   onGenerate: (prompt: string) => void;
 }
 
 export const BroadcastPanel: React.FC<BroadcastPanelProps> = ({
-  productName,
   onGenerate,
 }) => {
   const [activeTemplate, setActiveTemplate] = useState<BroadcastTemplateId>('cart_reminder');
@@ -48,7 +46,6 @@ export const BroadcastPanel: React.FC<BroadcastPanelProps> = ({
   };
 
   const handleGenerate = () => {
-    const product = productName.trim() || 'Produk Favorit Pilihan Anda';
     const eventName = customEventName.trim() || selectedThemeObj.defaultEventName;
     const discount = discountBenefit.trim() || 'Penawaran Spesial Terbatas';
     const voucher = includeVoucher && voucherCode.trim() ? voucherCode.trim() : '-';
@@ -62,8 +59,8 @@ export const BroadcastPanel: React.FC<BroadcastPanelProps> = ({
     };
 
     const templateGoals = {
-      cart_reminder: 'MENGINGATKAN PEMBELI UNTUK SEGERA CHECKOUT PRODUK DI KERANJANG (Cart Abandonment Recovery). Sentuh pembeli secara ramah bahwa produk impiannya masih menunggu dan stok/promo terbatas.',
-      new_arrival: 'MEMPERKENALKAN RILIS PRODUK TERBARU TOKO KEPADA PEMBELI (New Arrival Update). Bangkitkan antusiasme pembeli untuk jadi yang pertama memiliki produk ini dengan promo peluncuran khusus.',
+      cart_reminder: 'MENGINGATKAN PEMBELI UNTUK SEGERA CHECKOUT PRODUK DI KERANJANG (Cart Abandonment Recovery). Sentuh pembeli secara ramah bahwa produk impian yang ada di keranjang belanjanya masih menunggu dan promo/kuota terbatas.',
+      new_arrival: 'MEMPERKENALKAN RILIS PRODUK TERBARU TOKO KEPADA PEMBELI (New Arrival Update). Bangkitkan antusiasme pembeli untuk melihat dan memesan koleksi teranyar toko dengan promo peluncuran khusus.',
       promo: 'MENYEBARKAN INFO PROMO DISKON / EVENT BERJALAN KEPADA PEMBELI (Active Promotion). Tunjukkan keuntungan besar belanja hari ini dengan penawaran potongan harga/voucher yang tak boleh dilewatkan.',
     };
 
@@ -82,17 +79,16 @@ Buatkan 3 VARIASI PESAN BROADCAST CHAT yang SANGAT MENARIK, EFEKTIF, dan MEMICU 
 TARGET UTAMA FORMAT & GAYA BAHASA (ATURAN KETAT):
 1. KALIMAT TIDAK TERLALU PANJANG: Panjang pesan per variasi berkisar antara 200 - 450 karakter (maksimal 60-80 kata). Pesan yang terlalu panjang akan diabaikan oleh pembeli di HP.
 2. HOOK PEMBUKA SANGAT MEMIKAT: 1-2 baris pertama harus langsung menarik perhatian di notifikasi pop-up layar handphone pembeli.
-3. TATA LETAK SANGAT RAPI (MOBILE-FRIENDLY): Berikan 1 baris kosong (ENTER) di antara hook, isi promo, dan Call-to-Action (CTA). Jangan membuat teks menumpuk rapat.
+3. TATA LETAK SANGAT RAPI (MOBILE-FRIENDLY): Berikan 1 baris kosong (ENTER) di antara hook dan isi promo/penawaran. Jangan membuat teks menumpuk rapat.
 4. EMOJI YANG TEPAT & ESTETIK: Gunakan emoji yang eye-catching namun tidak berlebihan (misal: ⚡, 🛒, 🎁, 🔥, ⏳, 👉).
 5. AMAN DARI FILTER PELANGGARAN MARKETPLACE: JANGAN gunakan kata-kata spam terlarang, janji palsu, atau nomor kontak luar platform.
-6. CALL TO ACTION (CTA) JELAS: Akhiri pesan dengan ajakan bertindak yang kuat (misal: "Klik tombol Lihat Keranjang di bawah", "Klaim kuponnya sekarang").
+6. FLEKSIBEL & SIAP KIRIM MASSAL: Jangan sebutkan nama produk spesifik secara kaku. Buat pesan fleksibel untuk keranjang belanja atau katalog toko secara menyeluruh sehingga seller dapat langsung menyalin dan menyiarkan ke banyak pembeli sekaligus.
 
 DATA PARAMETER BROADCAST:
 • Kategori Template : ${selectedTemplateObj.label} (${selectedTemplateObj.subtitle})
 • Fokus Utama Pesan : ${templateGoals[activeTemplate]}
 • Tema / Event Acara: ${eventName}
 • Platform Sasaran  : ${platformLabels[platform]}
-• Nama Produk       : ${product}
 • Penawaran/Benefit : ${discount}
 • Kode Voucher      : ${voucher}
 • Batas Waktu / Urgensi: ${urgency}
@@ -110,16 +106,12 @@ Kategori: ${selectedTemplateObj.label} | Platform: ${platform.toUpperCase()}
 
 [Tuliskan Teks Pesan Siaran Lengkap Siap Salin di sini]
 
-Rekomendasi Tombol CTA: [Tuliskan teks tombol action marketplace, misal: "Buka Keranjang", "Ambil Voucher"]
-
 ─────────────────────────────────────────────────────
 
 ❤️ VARIASI 2: RAMAH, MENYAPA HANGAT & PERSONAL (Friendly & Engaging)
 (Karakter: Menyapa akrab pembeli setia, sopan, persuasif tanpa terkesan memaksa)
 
 [Tuliskan Teks Pesan Siaran Lengkap Siap Salin di sini]
-
-Rekomendasi Tombol CTA: [Tuliskan teks tombol action marketplace, misal: "Cek Sekarang", "Lihat Produk"]
 
 ─────────────────────────────────────────────────────
 
@@ -128,12 +120,10 @@ Rekomendasi Tombol CTA: [Tuliskan teks tombol action marketplace, misal: "Cek Se
 
 [Tuliskan Teks Pesan Siaran Lengkap Siap Salin di sini]
 
-Rekomendasi Tombol CTA: [Tuliskan teks tombol action marketplace, misal: "Checkout Cepat", "Klaim Promo"]
-
 ═════════════════════════════════════════════════════
 💡 TIPS OPTIMASI BROADCAST DARI STUDIO MARKETBOOST:
 • Waktu Kirim Terbaik: Pukul 11.30 - 13.00 (Jam Istirahat Siang) atau 19.00 - 21.00 (Jam Santai Malam).
-• Hubungkan langsung link tombol pesan siaran dengan produk "${product}" atau halaman keranjang pembeli.`;
+• Pastikan kupon diskon dan promo voucher sudah aktif di Seller Center sebelum mengirim pesan siaran.`;
 
     onGenerate(systemPrompt);
   };
@@ -312,31 +302,17 @@ Rekomendasi Tombol CTA: [Tuliskan teks tombol action marketplace, misal: "Checko
         </div>
 
         {includeVoucher && (
-          <div className="grid grid-cols-2 gap-2.5">
-            <div>
-              <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block mb-1">
-                Kode Voucher (Jika Ada)
-              </label>
-              <input
-                type="text"
-                value={voucherCode}
-                onChange={(e) => setVoucherCode(e.target.value.toUpperCase())}
-                placeholder="Misal: DISKON99"
-                className="w-full px-3 py-2 bg-white border border-slate-200 rounded-lg text-xs font-mono font-bold text-purple-700 uppercase outline-none focus:border-purple-500 shadow-2xs"
-              />
-            </div>
-
-            <div>
-              <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block mb-1">
-                Tombol Action CTA
-              </label>
-              <input
-                type="text"
-                readOnly
-                value={selectedTemplateObj.defaultActionText}
-                className="w-full px-3 py-2 bg-slate-100 border border-slate-200 rounded-lg text-xs font-semibold text-slate-600 outline-none cursor-not-allowed"
-              />
-            </div>
+          <div>
+            <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block mb-1">
+              Kode Voucher (Jika Ada)
+            </label>
+            <input
+              type="text"
+              value={voucherCode}
+              onChange={(e) => setVoucherCode(e.target.value.toUpperCase())}
+              placeholder="Misal: DISKON99"
+              className="w-full px-3 py-2 bg-white border border-slate-200 rounded-lg text-xs font-mono font-bold text-purple-700 uppercase outline-none focus:border-purple-500 shadow-2xs"
+            />
           </div>
         )}
 

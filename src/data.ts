@@ -144,8 +144,7 @@ export const BROADCAST_TEMPLATES = [
     description: 'Pesan persuasif ramah & santun untuk mendorong pembeli yang sudah memasukkan produk ke keranjang belanja agar segera checkout sebelum stok habis.',
     icon: 'ShoppingCart',
     tag: 'Tingkatkan Checkout',
-    badgeColor: 'bg-amber-50 text-amber-700 border-amber-200',
-    defaultActionText: 'Checkout Sekarang'
+    badgeColor: 'bg-amber-50 text-amber-700 border-amber-200'
   },
   {
     id: 'new_arrival' as const,
@@ -154,8 +153,7 @@ export const BROADCAST_TEMPLATES = [
     description: 'Kabari pelanggan & followers setia tentang rilis produk teranyar di toko Anda dengan highlight fitur unggulan serta promo launching.',
     icon: 'Sparkles',
     tag: 'Rilisan Baru',
-    badgeColor: 'bg-blue-50 text-blue-700 border-blue-200',
-    defaultActionText: 'Lihat Produk Baru'
+    badgeColor: 'bg-blue-50 text-blue-700 border-blue-200'
   },
   {
     id: 'promo' as const,
@@ -164,8 +162,7 @@ export const BROADCAST_TEMPLATES = [
     description: 'Sebarkan kabar diskon heboh, voucher cashback, flash sale, atau penawaran spesial terbatas agar pembeli berbondong-bondong memborong.',
     icon: 'BadgePercent',
     tag: 'Promo & Diskon',
-    badgeColor: 'bg-emerald-50 text-emerald-700 border-emerald-200',
-    defaultActionText: 'Klaim Promo Toko'
+    badgeColor: 'bg-emerald-50 text-emerald-700 border-emerald-200'
   }
 ];
 

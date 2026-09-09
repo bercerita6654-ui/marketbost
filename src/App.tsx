@@ -486,42 +486,44 @@ export default function App() {
                 {/* PANEL KIRI: Controls & Form */}
                 <aside className="w-[360px] lg:w-[380px] bg-white border-r border-slate-200 flex flex-col overflow-y-auto shrink-0 p-4 space-y-4 shadow-xs">
               
-                  {/* Product Global Identifier input */}
-                  <div className="bg-slate-50 border border-slate-200 rounded-xl p-3.5 space-y-2 shadow-2xs">
-                    <div className="flex items-center justify-between text-[11px] font-bold text-slate-500 uppercase tracking-wider">
-                      <div className="flex items-center gap-1.5 text-slate-700">
-                        <Icons.Package className="w-4 h-4 text-indigo-600" />
-                        <span>Nama Utama Produk</span>
+                  {/* Product Global Identifier input - disembunyikan saat tab Broadcast Chat */}
+                  {activeTab !== 'broadcast' && (
+                    <div className="bg-slate-50 border border-slate-200 rounded-xl p-3.5 space-y-2 shadow-2xs">
+                      <div className="flex items-center justify-between text-[11px] font-bold text-slate-500 uppercase tracking-wider">
+                        <div className="flex items-center gap-1.5 text-slate-700">
+                          <Icons.Package className="w-4 h-4 text-indigo-600" />
+                          <span>Nama Utama Produk</span>
+                        </div>
+                        <span className="text-[10px] text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-full flex items-center gap-1 font-bold">
+                          <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                          Sinkron Otomatis
+                        </span>
                       </div>
-                      <span className="text-[10px] text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-full flex items-center gap-1 font-bold">
-                        <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
-                        Sinkron Otomatis
-                      </span>
-                    </div>
-                    
-                    <input
-                      type="text"
-                      value={productName}
-                      onChange={(e) => setProductName(e.target.value)}
-                      placeholder="Contoh: Sepatu sneakers putih pria"
-                      className="w-full px-3 py-2 bg-white border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none text-xs font-semibold text-slate-800 shadow-2xs transition-all"
-                    />
+                      
+                      <input
+                        type="text"
+                        value={productName}
+                        onChange={(e) => setProductName(e.target.value)}
+                        placeholder="Contoh: Sepatu sneakers putih pria"
+                        className="w-full px-3 py-2 bg-white border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none text-xs font-semibold text-slate-800 shadow-2xs transition-all"
+                      />
 
-                    {/* Quick Preset helper pills */}
-                    <div className="flex items-center gap-1.5 pt-1 overflow-x-auto pb-0.5 text-[10px]">
-                      <span className="text-slate-400 shrink-0 font-medium">Contoh:</span>
-                      {samplePresets.slice(0, 3).map((p, idx) => (
-                        <button
-                          key={idx}
-                          type="button"
-                          onClick={() => handleApplyPreset(p)}
-                          className="px-2 py-0.5 rounded-md bg-white border border-slate-200 hover:border-indigo-400 hover:text-indigo-600 text-slate-600 font-medium transition-all shrink-0 cursor-pointer"
-                        >
-                          {p.label.split(' ')[1]}
-                        </button>
-                      ))}
+                      {/* Quick Preset helper pills */}
+                      <div className="flex items-center gap-1.5 pt-1 overflow-x-auto pb-0.5 text-[10px]">
+                        <span className="text-slate-400 shrink-0 font-medium">Contoh:</span>
+                        {samplePresets.slice(0, 3).map((p, idx) => (
+                          <button
+                            key={idx}
+                            type="button"
+                            onClick={() => handleApplyPreset(p)}
+                            className="px-2 py-0.5 rounded-md bg-white border border-slate-200 hover:border-indigo-400 hover:text-indigo-600 text-slate-600 font-medium transition-all shrink-0 cursor-pointer"
+                          >
+                            {p.label.split(' ')[1]}
+                          </button>
+                        ))}
+                      </div>
                     </div>
-                  </div>
+                  )}
 
                   {/* Dynamic Sub-form panel rendering depending on currently active left rail tab */}
                   <div className="flex-1">
@@ -552,7 +554,6 @@ export default function App() {
                     )}
                     {activeTab === 'broadcast' && (
                       <BroadcastPanel
-                        productName={productName}
                         onGenerate={setBroadcastPrompt}
                       />
                     )}
@@ -1019,8 +1020,7 @@ export default function App() {
                             <button
                               type="button"
                               onClick={() => {
-                                const sampleName = productName.trim() || 'Sepatu sneakers kulit putih pria';
-                                setBroadcastPrompt(`📢 REKOMENDASI 3 VARIASI PESAN BROADCAST CHAT (EVENT 9.9 SUPER SHOPPING DAY)\nKategori: Pengingat Keranjang Belanja (Abandoned Cart) | Platform: SHOPEE & TOKOPEDIA\n═════════════════════════════════════════════════════\n\n🎯 VARIASI 1: PENDEK, PADAT & LANGSUNG PADA INTI (Punchy & Direct)\n\nAda yang ketinggalan di keranjangmu nih! 🛒\n\nKhusus event 9.9 hari ini, nikmati DISKON EKSTRA 25% + GRATIS ONGKIR XTRA untuk produk favoritmu: "${sampleName}".\n\n⚡ Masukkan Kode: HEMAT99 saat checkout.\nSisa 15 kuota lagi sebelum promo berakhir malam ini pukul 23:59 WIB!\n\n👉 Amankan sekarang sebelum kehabisan:\n[Tombol CTA: Buka Keranjang Sekarang]\n\n─────────────────────────────────────────────────────\n\n❤️ VARIASI 2: RAMAH & PERSONAL (Friendly & Engaging)\n\nHalo kak! Masih naksir sama "${sampleName}" yang ada di keranjang belanjamu? 😊\n\nKabar baik! Sekarang lagi berlangsung Promo 9.9 Super Shopping Day di toko kami. Kamu bisa checkout dengan Diskon Tambahan 25% + Potongan Ongkir langsung!\n\nYuk checkout sekarang selagi warna & ukuran impianmu masih ready ya kak ✨\n\n[Tombol CTA: Ambil Diskon & Checkout]\n\n─────────────────────────────────────────────────────\n\n⚡ VARIASI 3: URGENSI TINGGI & KUOTA MENIPIS (FOMO Booster)\n\n⚠️ PERINGATAN PROMO 9.9 SEGERA BERAKHIR!\n\nStok "${sampleName}" di keranjangmu tinggal tersisa 3 pcs lagi kak!\n\nGunakan Voucher: HEMAT99 untuk hemat hingga 25% sekarang juga. Kesempatan hanya sampai 23:59 WIB hari ini!\n\n🔥 Jangan sampai keduluan pembeli lain ya!\n[Tombol CTA: Checkout Sekarang Juga]`);
+                                setBroadcastPrompt(`📢 REKOMENDASI 3 VARIASI PESAN BROADCAST CHAT (EVENT 9.9 SUPER SHOPPING DAY)\nKategori: Pengingat Keranjang Belanja (Abandoned Cart) | Platform: SHOPEE & TOKOPEDIA\n═════════════════════════════════════════════════════\n\n🎯 VARIASI 1: PENDEK, PADAT & LANGSUNG PADA INTI (Punchy & Direct)\n\nAda yang ketinggalan di keranjangmu nih! 🛒\n\nKhusus event 9.9 hari ini, nikmati DISKON EKSTRA 25% + GRATIS ONGKIR XTRA untuk barang impian yang ada di keranjang belanjamu!\n\n⚡ Masukkan Kode: HEMAT99 saat checkout.\nSisa 15 kuota lagi sebelum promo berakhir malam ini pukul 23:59 WIB!\n\n👉 Amankan sekarang sebelum kehabisan!\n\n─────────────────────────────────────────────────────\n\n❤️ VARIASI 2: RAMAH & PERSONAL (Friendly & Engaging)\n\nHalo kak! Masih naksir sama produk pilihan yang masih tersimpan di keranjang belanjamu? 😊\n\nKabar baik! Sekarang lagi berlangsung Promo 9.9 Super Shopping Day di toko kami. Kamu bisa checkout dengan Diskon Tambahan 25% + Potongan Ongkir langsung!\n\nYuk checkout sekarang selagi stok & varian incaranmu masih ready ya kak ✨\n\n─────────────────────────────────────────────────────\n\n⚡ VARIASI 3: URGENSI TINGGI & KUOTA MENIPIS (FOMO Booster)\n\n⚠️ PERINGATAN PROMO 9.9 SEGERA BERAKHIR!\n\nStok produk pilihan di keranjang belanjamu tinggal tersisa sedikit lagi kak!\n\nGunakan Voucher: HEMAT99 untuk hemat hingga 25% sekarang juga. Kesempatan hanya sampai 23:59 WIB hari ini!\n\n🔥 Jangan sampai keduluan pembeli lain ya!`);
                               }}
                               className="mt-4 px-4 py-2 bg-purple-600 hover:bg-purple-500 text-white rounded-xl text-xs font-bold transition-all shadow-md shadow-purple-500/25 inline-flex items-center gap-1.5 cursor-pointer"
                             >
