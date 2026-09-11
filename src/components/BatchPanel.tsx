@@ -26,11 +26,185 @@ interface BatchItem {
   colorsUsed: number;
   isLossless: boolean;
   withinLimit: boolean; // size <= 148 * 1024
+  bgRemoved: boolean;
 }
 
 interface BatchPanelProps {
   activeTab: ActiveTab;
   setActiveTab: (tab: ActiveTab) => void;
+}
+
+/**
+ * Algoritma cerdas penghapus latar belakang berbasis BFS Edge-Connected Flood-Fill
+ * dan Edge Anti-Aliasing/Feathering. Melindungi bagian dalam produk (seperti sol putih,
+ * tali putih, atau logo) agar tidak bolong.
+ */
+function removeBackgroundFromImage(
+  sourceImg: HTMLImageElement,
+  options: {
+    tolerance: number; // 5 to 60
+    feather: number;   // 0 to 5
+    edgeOnly: boolean; // true = flood fill dari batas luar; false = global chroma
+    customColor?: string;
+  }
+): HTMLCanvasElement {
+  const w = sourceImg.naturalWidth || sourceImg.width;
+  const h = sourceImg.naturalHeight || sourceImg.height;
+
+  const canvas = document.createElement('canvas');
+  canvas.width = w;
+  canvas.height = h;
+  const ctx = canvas.getContext('2d', { willReadFrequently: true });
+  if (!ctx) return canvas;
+
+  ctx.drawImage(sourceImg, 0, 0, w, h);
+  const imgData = ctx.getImageData(0, 0, w, h);
+  const data = imgData.data;
+
+  // Menentukan warna latar belakang yang akan dihapus
+  let bgR = 255;
+  let bgG = 255;
+  let bgB = 255;
+
+  if (options.customColor) {
+    const hex = options.customColor.replace('#', '');
+    if (hex.length === 6) {
+      bgR = parseInt(hex.substring(0, 2), 16);
+      bgG = parseInt(hex.substring(2, 4), 16);
+      bgB = parseInt(hex.substring(4, 6), 16);
+    }
+  } else {
+    // Deteksi otomatis warna dominan pada sudut-sudut dan pinggir kanvas
+    const sampleCoords: [number, number][] = [
+      [0, 0], [w - 1, 0], [0, h - 1], [w - 1, h - 1],
+      [Math.floor(w / 2), 0], [Math.floor(w / 2), h - 1],
+      [0, Math.floor(h / 2)], [w - 1, Math.floor(h / 2)],
+      [2, 2], [w - 3, 2], [2, h - 3], [w - 3, h - 3]
+    ];
+    let sumR = 0, sumG = 0, sumB = 0, count = 0;
+    for (const [sx, sy] of sampleCoords) {
+      if (sx >= 0 && sx < w && sy >= 0 && sy < h) {
+        const idx = (sy * w + sx) * 4;
+        if (data[idx + 3] > 20) { // Hanya pixel yang tidak transparan
+          sumR += data[idx];
+          sumG += data[idx + 1];
+          sumB += data[idx + 2];
+          count++;
+        }
+      }
+    }
+    if (count > 0) {
+      bgR = Math.round(sumR / count);
+      bgG = Math.round(sumG / count);
+      bgB = Math.round(sumB / count);
+    }
+  }
+
+  const maxEuclideanDist = 441.67; // sqrt(255^2 * 3)
+  const thresholdDist = (options.tolerance / 100) * maxEuclideanDist;
+  const featherDist = Math.max(2, (options.feather * 3 / 100) * maxEuclideanDist);
+
+  // Fungsi pengukur kemiripan warna & alpha transisi
+  const getAlphaFactor = (r: number, g: number, b: number, a: number): number => {
+    if (a < 10) return 0;
+    const dr = r - bgR;
+    const dg = g - bgG;
+    const db = b - bgB;
+    const dist = Math.sqrt(dr * dr + dg * dg + db * db);
+    if (dist <= thresholdDist - featherDist) {
+      return 0; // Latar belakang pasti -> hapus total (transparan)
+    }
+    if (dist >= thresholdDist + featherDist) {
+      return 1; // Subjek utama pasti -> biarkan solid
+    }
+    // Gradasi halus pada tepian produk (feathering)
+    return (dist - (thresholdDist - featherDist)) / (2 * featherDist);
+  };
+
+  if (options.edgeOnly) {
+    // Edge-Connected Flood Fill BFS: Hanya menghapus latar yang tersambung dari tepian luar
+    const visited = new Uint8Array(w * h);
+    const queue = new Int32Array(w * h);
+    let head = 0;
+    let tail = 0;
+
+    // Masukkan seluruh pixel batas luar (tepi atas, bawah, kiri, kanan)
+    for (let x = 0; x < w; x++) {
+      // Baris atas
+      let idx = x;
+      let p = idx * 4;
+      if (getAlphaFactor(data[p], data[p + 1], data[p + 2], data[p + 3]) < 0.95) {
+        visited[idx] = 1;
+        queue[tail++] = idx;
+      }
+      // Baris bawah
+      idx = (h - 1) * w + x;
+      p = idx * 4;
+      if (getAlphaFactor(data[p], data[p + 1], data[p + 2], data[p + 3]) < 0.95) {
+        visited[idx] = 1;
+        queue[tail++] = idx;
+      }
+    }
+    for (let y = 1; y < h - 1; y++) {
+      // Kolom kiri
+      let idx = y * w;
+      let p = idx * 4;
+      if (getAlphaFactor(data[p], data[p + 1], data[p + 2], data[p + 3]) < 0.95) {
+        visited[idx] = 1;
+        queue[tail++] = idx;
+      }
+      // Kolom kanan
+      idx = y * w + (w - 1);
+      p = idx * 4;
+      if (getAlphaFactor(data[p], data[p + 1], data[p + 2], data[p + 3]) < 0.95) {
+        visited[idx] = 1;
+        queue[tail++] = idx;
+      }
+    }
+
+    // Jalankan BFS ke pixel-pixel tetangga
+    while (head < tail) {
+      const curr = queue[head++];
+      const cx = curr % w;
+      const cy = Math.floor(curr / w);
+
+      const neighbors = [
+        cx > 0 ? curr - 1 : -1,
+        cx < w - 1 ? curr + 1 : -1,
+        cy > 0 ? curr - w : -1,
+        cy < h - 1 ? curr + w : -1
+      ];
+
+      for (const n of neighbors) {
+        if (n !== -1 && visited[n] === 0) {
+          const np = n * 4;
+          const factor = getAlphaFactor(data[np], data[np + 1], data[np + 2], data[np + 3]);
+          if (factor < 0.95) {
+            visited[n] = 1;
+            queue[tail++] = n;
+          }
+        }
+      }
+    }
+
+    // Terapkan transparansi pada pixel latar yang terhubung
+    for (let i = 0; i < w * h; i++) {
+      if (visited[i] === 1) {
+        const p = i * 4;
+        const factor = getAlphaFactor(data[p], data[p + 1], data[p + 2], data[p + 3]);
+        data[p + 3] = Math.round(data[p + 3] * factor);
+      }
+    }
+  } else {
+    // Global Color Keying
+    for (let i = 0; i < data.length; i += 4) {
+      const factor = getAlphaFactor(data[i], data[i + 1], data[i + 2], data[i + 3]);
+      data[i + 3] = Math.round(data[i + 3] * factor);
+    }
+  }
+
+  ctx.putImageData(imgData, 0, 0);
+  return canvas;
 }
 
 export const BatchPanel: React.FC<BatchPanelProps> = () => {
@@ -46,9 +220,18 @@ export const BatchPanel: React.FC<BatchPanelProps> = () => {
   const [isDragging, setIsDragging] = useState<boolean>(false);
   const [previewItem, setPreviewItem] = useState<BatchItem | null>(null);
 
+  // State untuk Remove Background
+  const [removeBg, setRemoveBg] = useState<boolean>(false);
+  const [bgTolerance, setBgTolerance] = useState<number>(26); // 5 to 60
+  const [bgFeather, setBgFeather] = useState<number>(2); // 0 to 5
+  const [bgRemovalMode, setBgRemovalMode] = useState<'edge' | 'global'>('edge');
+  const [customBgColor, setCustomBgColor] = useState<string>('#ffffff');
+  const [useCustomColor, setUseCustomColor] = useState<boolean>(false);
+
   /**
    * Mengompresi file gambar ke resolusi 1000x1000px, format PNG,
-   * dengan batas ukuran maksimal ketat <= 148 KB (151.552 bytes).
+   * dengan batas ukuran maksimal ketat <= 148 KB (151.552 bytes),
+   * plus opsi hapus background studio otomatis.
    */
   const compressToPng1000 = (
     file: File,
@@ -56,6 +239,11 @@ export const BatchPanel: React.FC<BatchPanelProps> = () => {
       fitMode: 'contain' | 'cover';
       bgColor: 'white' | 'transparent';
       maxBytes: number;
+      removeBg: boolean;
+      bgTolerance: number;
+      bgFeather: number;
+      bgRemovalMode: 'edge' | 'global';
+      customBgColor?: string;
     }
   ): Promise<{
     blob: Blob;
@@ -66,6 +254,7 @@ export const BatchPanel: React.FC<BatchPanelProps> = () => {
     colorsUsed: number;
     isLossless: boolean;
     withinLimit: boolean;
+    bgRemoved: boolean;
   }> => {
     return new Promise((resolve, reject) => {
       const reader = new FileReader();
@@ -74,6 +263,21 @@ export const BatchPanel: React.FC<BatchPanelProps> = () => {
         img.crossOrigin = 'anonymous';
         img.onload = () => {
           try {
+            // Jika fitur Remove Background aktif, olah gambar terlebih dahulu
+            let sourceToDraw: CanvasImageSource = img;
+            let bgWasRemoved = false;
+
+            if (options.removeBg) {
+              const cutoutCanvas = removeBackgroundFromImage(img, {
+                tolerance: options.bgTolerance,
+                feather: options.bgFeather,
+                edgeOnly: options.bgRemovalMode === 'edge',
+                customColor: options.customBgColor
+              });
+              sourceToDraw = cutoutCanvas;
+              bgWasRemoved = true;
+            }
+
             const canvas = document.createElement('canvas');
             canvas.width = 1000;
             canvas.height = 1000;
@@ -81,6 +285,9 @@ export const BatchPanel: React.FC<BatchPanelProps> = () => {
             if (!ctx) {
               throw new Error('Gagal menginisialisasi Canvas context');
             }
+
+            const srcWidth = (sourceToDraw as any).width || img.width;
+            const srcHeight = (sourceToDraw as any).height || img.height;
 
             const renderCanvas = (scaleMultiplier = 1.0, blurNoise = false) => {
               ctx.clearRect(0, 0, 1000, 1000);
@@ -94,18 +301,18 @@ export const BatchPanel: React.FC<BatchPanelProps> = () => {
 
               let baseScale = 1;
               if (options.fitMode === 'contain') {
-                baseScale = Math.min(1000 / img.width, 1000 / img.height);
+                baseScale = Math.min(1000 / srcWidth, 1000 / srcHeight);
               } else {
-                baseScale = Math.max(1000 / img.width, 1000 / img.height);
+                baseScale = Math.max(1000 / srcWidth, 1000 / srcHeight);
               }
 
               const finalScale = baseScale * scaleMultiplier;
-              const drawW = Math.round(img.width * finalScale);
-              const drawH = Math.round(img.height * finalScale);
+              const drawW = Math.round(srcWidth * finalScale);
+              const drawH = Math.round(srcHeight * finalScale);
               const drawX = Math.round((1000 - drawW) / 2);
               const drawY = Math.round((1000 - drawH) / 2);
 
-              ctx.drawImage(img, drawX, drawY, drawW, drawH);
+              ctx.drawImage(sourceToDraw, drawX, drawY, drawW, drawH);
 
               if (blurNoise) {
                 // Sedikit meratakan noise pixel tinggi agar DEFLATE PNG muat di bawah 148KB
@@ -200,7 +407,8 @@ export const BatchPanel: React.FC<BatchPanelProps> = () => {
               dimensions: '1000x1000px',
               colorsUsed,
               isLossless,
-              withinLimit: blobSize <= maxAllowed
+              withinLimit: blobSize <= maxAllowed,
+              bgRemoved: bgWasRemoved
             });
           } catch (e) {
             reject(e);
@@ -236,7 +444,12 @@ export const BatchPanel: React.FC<BatchPanelProps> = () => {
         const processed = await compressToPng1000(file, {
           fitMode,
           bgColor,
-          maxBytes
+          maxBytes,
+          removeBg,
+          bgTolerance,
+          bgFeather,
+          bgRemovalMode,
+          customBgColor: useCustomColor ? customBgColor : undefined
         });
 
         const cleanPrefix = filePrefix.trim() || 'Produk';
@@ -261,7 +474,8 @@ export const BatchPanel: React.FC<BatchPanelProps> = () => {
           dimensions: '1000x1000px',
           colorsUsed: processed.colorsUsed,
           isLossless: processed.isLossless,
-          withinLimit: processed.withinLimit
+          withinLimit: processed.withinLimit,
+          bgRemoved: processed.bgRemoved
         });
       } catch (err) {
         console.error('Error saat kompresi batch:', file.name, err);
@@ -322,7 +536,7 @@ export const BatchPanel: React.FC<BatchPanelProps> = () => {
   return (
     <div className="flex-1 flex bg-[#0f172a] text-slate-100 overflow-hidden">
       {/* Kolom Pengaturan Kiri */}
-      <div className="w-[370px] lg:w-[390px] bg-[#1e293b] border-r border-slate-800 flex flex-col p-5 space-y-4 overflow-y-auto shrink-0 shadow-xl">
+      <div className="w-[370px] lg:w-[400px] bg-[#1e293b] border-r border-slate-800 flex flex-col p-5 space-y-4 overflow-y-auto shrink-0 shadow-xl">
         {/* Header Panel */}
         <div className="flex items-center justify-between border-b border-slate-700/80 pb-3.5">
           <div className="flex items-center gap-2.5">
@@ -331,7 +545,7 @@ export const BatchPanel: React.FC<BatchPanelProps> = () => {
             </div>
             <div>
               <h2 className="text-sm font-black text-white tracking-wide">Batch Processor</h2>
-              <p className="text-[10px] text-slate-400 font-medium">1000x1000px &bull; Max 148KB &bull; Format PNG</p>
+              <p className="text-[10px] text-slate-400 font-medium">1000x1000px &bull; Max 148KB &bull; PNG</p>
             </div>
           </div>
           <span className="text-[10px] font-mono font-extrabold bg-emerald-500/10 text-emerald-400 border border-emerald-500/30 px-2 py-0.5 rounded-full">
@@ -364,6 +578,146 @@ export const BatchPanel: React.FC<BatchPanelProps> = () => {
               <strong className="text-indigo-300 text-xs font-mono">PNG</strong>
             </div>
           </div>
+        </div>
+
+        {/* Fitur Baru: Hapus Background (Remove BG) */}
+        <div className="space-y-3 bg-gradient-to-br from-indigo-950/40 to-slate-900/80 border border-indigo-500/30 p-3.5 rounded-xl">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <div className={`p-1.5 rounded-lg transition-colors ${removeBg ? 'bg-indigo-600 text-white shadow-md shadow-indigo-600/40' : 'bg-slate-800 text-slate-400'}`}>
+                <Icons.Wand2 className="w-4 h-4" />
+              </div>
+              <div>
+                <label
+                  onClick={() => setRemoveBg(!removeBg)}
+                  className="text-xs font-extrabold text-white block cursor-pointer flex items-center gap-1.5"
+                >
+                  <span>Hapus Background (Remove BG)</span>
+                  <span className="text-[9px] bg-indigo-500/20 text-indigo-300 border border-indigo-500/40 px-1.5 py-0.2 rounded font-mono font-bold">
+                    BARU
+                  </span>
+                </label>
+                <span className="text-[9px] text-slate-400 block">Isolasi subjek produk otomatis sebelum kompresi</span>
+              </div>
+            </div>
+            <button
+              type="button"
+              onClick={() => setRemoveBg(!removeBg)}
+              className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors cursor-pointer shrink-0 ${
+                removeBg ? 'bg-indigo-600' : 'bg-slate-700'
+              }`}
+            >
+              <span
+                className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
+                  removeBg ? 'translate-x-6' : 'translate-x-1'
+                }`}
+              />
+            </button>
+          </div>
+
+          {removeBg && (
+            <div className="space-y-3 pt-2.5 border-t border-slate-800 animate-fade-in">
+              {/* Mode Hapus */}
+              <div className="space-y-1">
+                <label className="text-[10px] font-bold text-slate-400 block">Metode Hapus Latar</label>
+                <div className="grid grid-cols-2 gap-1.5">
+                  <button
+                    type="button"
+                    onClick={() => setBgRemovalMode('edge')}
+                    className={`px-2 py-1.5 rounded-lg text-[11px] font-semibold flex items-center justify-center gap-1 transition-all cursor-pointer ${
+                      bgRemovalMode === 'edge'
+                        ? 'bg-indigo-600 text-white shadow-md'
+                        : 'bg-slate-800 text-slate-400 hover:text-white'
+                    }`}
+                  >
+                    <Icons.ShieldCheck className="w-3 h-3" />
+                    <span>Batas Luar (Aman)</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setBgRemovalMode('global')}
+                    className={`px-2 py-1.5 rounded-lg text-[11px] font-semibold flex items-center justify-center gap-1 transition-all cursor-pointer ${
+                      bgRemovalMode === 'global'
+                        ? 'bg-indigo-600 text-white shadow-md'
+                        : 'bg-slate-800 text-slate-400 hover:text-white'
+                    }`}
+                  >
+                    <Icons.Zap className="w-3 h-3" />
+                    <span>Semua Warna Serupa</span>
+                  </button>
+                </div>
+                <p className="text-[9px] text-slate-400">
+                  {bgRemovalMode === 'edge'
+                    ? 'Direkomendasikan: Hanya menghapus latar dari tepian luar kanvas sehingga warna putih di dalam produk tidak bolong.'
+                    : 'Menghapus warna latar di seluruh area foto.'}
+                </p>
+              </div>
+
+              {/* Slider Toleransi */}
+              <div className="space-y-1">
+                <div className="flex items-center justify-between text-[10px]">
+                  <span className="font-bold text-slate-400">Sensitivitas / Toleransi</span>
+                  <span className="font-mono font-bold text-indigo-300">{bgTolerance}%</span>
+                </div>
+                <input
+                  type="range"
+                  min={5}
+                  max={60}
+                  value={bgTolerance}
+                  onChange={(e) => setBgTolerance(Number(e.target.value))}
+                  className="w-full h-1.5 bg-slate-800 rounded-lg appearance-none cursor-pointer accent-indigo-500"
+                />
+                <div className="flex justify-between text-[8px] text-slate-500 font-mono">
+                  <span>Ketat (5%)</span>
+                  <span>Standar Studio (26%)</span>
+                  <span>Lebar (60%)</span>
+                </div>
+              </div>
+
+              {/* Slider Edge Feather */}
+              <div className="space-y-1">
+                <div className="flex items-center justify-between text-[10px]">
+                  <span className="font-bold text-slate-400">Kehalusan Tepi (Edge Feather)</span>
+                  <span className="font-mono font-bold text-indigo-300">{bgFeather} px</span>
+                </div>
+                <input
+                  type="range"
+                  min={0}
+                  max={5}
+                  value={bgFeather}
+                  onChange={(e) => setBgFeather(Number(e.target.value))}
+                  className="w-full h-1.5 bg-slate-800 rounded-lg appearance-none cursor-pointer accent-indigo-500"
+                />
+                <p className="text-[9px] text-slate-400">
+                  Membuat tepian potongan produk halus alami, tanpa pixel kasar atau bergerigi.
+                </p>
+              </div>
+
+              {/* Custom Color Sampler Toggle */}
+              <div className="pt-2 border-t border-slate-800/80 flex items-center justify-between">
+                <label className="text-[10px] font-bold text-slate-400 cursor-pointer flex items-center gap-1.5">
+                  <input
+                    type="checkbox"
+                    checked={useCustomColor}
+                    onChange={(e) => setUseCustomColor(e.target.checked)}
+                    className="rounded bg-slate-800 border-slate-700 text-indigo-600 focus:ring-0 cursor-pointer"
+                  />
+                  <span>Target Warna Latar Kustom</span>
+                </label>
+                {useCustomColor && (
+                  <div className="flex items-center gap-1.5">
+                    <input
+                      type="color"
+                      value={customBgColor}
+                      onChange={(e) => setCustomBgColor(e.target.value)}
+                      className="w-6 h-6 rounded border border-slate-700 bg-transparent cursor-pointer"
+                    />
+                    <span className="text-[9px] font-mono text-slate-300 uppercase">{customBgColor}</span>
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
         </div>
 
         {/* Pengaturan Konfigurasi */}
@@ -418,14 +772,16 @@ export const BatchPanel: React.FC<BatchPanelProps> = () => {
             </div>
             <p className="text-[9px] text-slate-500">
               {fitMode === 'contain'
-                ? 'Seluruh produk tampak utuh tanpa terpotong (disertai latar belakang).'
+                ? 'Seluruh produk tampak utuh tanpa terpotong (disertai latar belakang pilihan).'
                 : 'Mengisi penuh kanvas persegi 1000x1000px tanpa ada sisa ruang samping.'}
             </p>
           </div>
 
-          {/* Warna Latar Belakang */}
+          {/* Warna Latar Belakang Hasil Akhir */}
           <div className="space-y-1">
-            <label className="text-[10px] font-bold text-slate-400 block">Latar Belakang Kanvas</label>
+            <label className="text-[10px] font-bold text-slate-400 block">
+              {removeBg ? 'Latar Belakang Baru (Pasca Hapus BG)' : 'Latar Belakang Kanvas'}
+            </label>
             <div className="grid grid-cols-2 gap-1.5">
               <button
                 type="button"
@@ -437,7 +793,7 @@ export const BatchPanel: React.FC<BatchPanelProps> = () => {
                 }`}
               >
                 <div className="w-3 h-3 rounded-full bg-white border border-slate-400 shrink-0" />
-                <span>Putih Bersih</span>
+                <span>Putih Bersih (#FFF)</span>
               </button>
               <button
                 type="button"
@@ -449,13 +805,13 @@ export const BatchPanel: React.FC<BatchPanelProps> = () => {
                 }`}
               >
                 <div className="w-3 h-3 rounded-full border border-dashed border-slate-300 shrink-0" />
-                <span>Transparan</span>
+                <span>Transparan (Alpha)</span>
               </button>
             </div>
             <p className="text-[9px] text-slate-500">
               {bgColor === 'white'
-                ? 'Standar katalog resmi Shopee, Tokopedia, TikTok Shop & Lazada.'
-                : 'Transparansi penuh PNG untuk gambar cutout / tanpa background.'}
+                ? 'Standar resmi katalog Shopee, Tokopedia, TikTok Shop & Lazada.'
+                : 'Format transparan murni untuk isolasi produk atau desain grafis.'}
             </p>
           </div>
 
@@ -559,7 +915,7 @@ export const BatchPanel: React.FC<BatchPanelProps> = () => {
           {isProcessing && (
             <div className="flex items-center gap-3">
               <span className="text-xs text-indigo-400 font-mono font-bold animate-pulse">
-                Memproses {currentFileIndex}/{totalFileCount}... ({overallProgress}%)
+                {removeBg ? 'Menghapus BG & Kompresi' : 'Memproses'} {currentFileIndex}/{totalFileCount}... ({overallProgress}%)
               </span>
               <div className="w-32 bg-slate-800 rounded-full h-2 overflow-hidden border border-slate-700">
                 <div
@@ -643,12 +999,14 @@ export const BatchPanel: React.FC<BatchPanelProps> = () => {
               <div className="space-y-2">
                 <h4 className="text-base font-bold text-slate-100">Batch Processor Gambar Siap Digunakan</h4>
                 <p className="text-xs text-slate-400 leading-relaxed">
-                  Unggah foto produk sekaligus. Sistem secara otomatis mengompres dan menyesuaikan setiap gambar menjadi{' '}
-                  <strong className="text-indigo-300">1000x1000 pixel</strong> dengan ukuran{' '}
+                  Unggah foto produk sekaligus. Sistem secara otomatis mendukung{' '}
+                  <strong className="text-indigo-300">Hapus Background (Remove BG)</strong>, mengatur ukuran menjadi{' '}
+                  <strong className="text-indigo-300">1000x1000 pixel</strong>, dan mengompresi ke batas{' '}
                   <strong className="text-emerald-400">maksimal &le; 148 KB</strong> dalam format{' '}
                   <strong className="text-indigo-300">PNG</strong>.
                 </p>
-                <div className="pt-2 flex items-center justify-center gap-2 text-[10px] text-slate-400 font-mono">
+                <div className="pt-2 flex flex-wrap items-center justify-center gap-2 text-[10px] text-slate-400 font-mono">
+                  <span className="bg-slate-800 px-2.5 py-1 rounded-lg border border-indigo-700/50 text-indigo-300">✨ Support Remove BG</span>
                   <span className="bg-slate-800 px-2.5 py-1 rounded-lg border border-slate-700">1000x1000px</span>
                   <span className="bg-slate-800 px-2.5 py-1 rounded-lg border border-emerald-800/50 text-emerald-400">&le; 148 KB</span>
                   <span className="bg-slate-800 px-2.5 py-1 rounded-lg border border-slate-700">Format PNG</span>
@@ -666,7 +1024,7 @@ export const BatchPanel: React.FC<BatchPanelProps> = () => {
                   <div className="relative aspect-square w-full rounded-xl overflow-hidden border border-slate-700/80 bg-slate-950 flex items-center justify-center">
                     {/* Background checkerboard pattern for transparent PNG preview */}
                     <div
-                      className="absolute inset-0 opacity-15"
+                      className="absolute inset-0 opacity-20"
                       style={{
                         backgroundImage:
                           'linear-gradient(45deg, #334155 25%, transparent 25%), linear-gradient(-45deg, #334155 25%, transparent 25%), linear-gradient(45deg, transparent 75%, #334155 75%), linear-gradient(-45deg, transparent 75%, #334155 75%)',
@@ -684,6 +1042,14 @@ export const BatchPanel: React.FC<BatchPanelProps> = () => {
                     <div className="absolute top-2 left-2 flex items-center gap-1 bg-slate-900/90 backdrop-blur-xs text-white text-[9px] font-mono font-bold px-2 py-0.5 rounded-md border border-slate-700">
                       <span>1000x1000</span>
                     </div>
+
+                    {/* Badge Remove BG jika aktif */}
+                    {item.bgRemoved && (
+                      <div className="absolute bottom-2 left-2 flex items-center gap-1 bg-indigo-600/90 backdrop-blur-xs text-white text-[8px] font-bold px-2 py-0.5 rounded-md shadow">
+                        <Icons.Sparkles className="w-2.5 h-2.5 text-yellow-300" />
+                        <span>No BG</span>
+                      </div>
+                    )}
 
                     {/* Badge Format PNG */}
                     <div className="absolute top-2 right-2 bg-indigo-950/90 text-indigo-300 text-[9px] font-mono font-extrabold px-2 py-0.5 rounded-md border border-indigo-800/80">
@@ -773,6 +1139,11 @@ export const BatchPanel: React.FC<BatchPanelProps> = () => {
               <div className="flex items-center gap-2">
                 <Icons.Image className="w-5 h-5 text-indigo-400" />
                 <h3 className="text-sm font-bold text-white truncate max-w-md">{previewItem.newName}</h3>
+                {previewItem.bgRemoved && (
+                  <span className="text-[10px] bg-indigo-600/30 text-indigo-300 px-2 py-0.5 rounded-full border border-indigo-500/40 font-bold">
+                    Background Removed
+                  </span>
+                )}
               </div>
               <button
                 type="button"
