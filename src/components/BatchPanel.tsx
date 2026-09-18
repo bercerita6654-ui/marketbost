@@ -82,6 +82,44 @@ export function getAspectRatioLabel(w: number, h: number): string {
 }
 
 /**
+ * Format ukuran KB ke format yang mudah dibaca:
+ * Apabila nilai >= 1024 KB maka otomatis dikonversi ke satuan MB (contoh: 1.25 MB atau 2 MB)
+ * Apabila < 1024 KB maka tetap dalam satuan KB (contoh: 148 KB)
+ */
+export function formatSizeDisplay(kb: number | undefined | null): string {
+  if (kb === undefined || kb === null || isNaN(kb) || kb <= 0) return '0 KB';
+  if (kb >= 1024) {
+    const mb = kb / 1024;
+    return `${mb % 1 === 0 ? mb : +mb.toFixed(2)} MB`;
+  }
+  return `${+kb.toFixed(1)} KB`;
+}
+
+/**
+ * Format batas limit KB (misal untuk label batas maksimal ≤ 148 KB atau ≤ 1.5 MB)
+ */
+export function formatLimitDisplay(kb: number | undefined | null): string {
+  if (kb === undefined || kb === null || isNaN(kb) || kb <= 0) return '0 KB';
+  if (kb >= 1024) {
+    const mb = kb / 1024;
+    return `${mb % 1 === 0 ? mb : +mb.toFixed(2)} MB`;
+  }
+  return `${kb} KB`;
+}
+
+/**
+ * Format ringkas limit untuk tombol preset & tag (contoh: 148k, 1MB, 2MB)
+ */
+export function formatShortLimit(kb: number | undefined | null): string {
+  if (kb === undefined || kb === null || isNaN(kb) || kb <= 0) return '0k';
+  if (kb >= 1024) {
+    const mb = kb / 1024;
+    return `${mb % 1 === 0 ? mb : +mb.toFixed(1)}MB`;
+  }
+  return `${kb}k`;
+}
+
+/**
  * Algoritma cerdas penghapus latar belakang berbasis BFS Edge-Connected Flood-Fill
  * dan Edge Anti-Aliasing/Feathering. Melindungi bagian dalam produk (seperti sol putih,
  * tali putih, atau logo) agar tidak bolong.
@@ -991,12 +1029,12 @@ export const BatchPanel: React.FC<BatchPanelProps> = () => {
             <div>
               <h2 className="text-sm font-black text-white tracking-wide">Batch Processor</h2>
               <p className="text-[10px] text-slate-400 font-medium">
-                {resizeMode === 'original' ? 'Resolusi Foto Asli' : `${targetWidth}x${targetHeight}px`} &bull; Max {maxKbLimit}KB &bull; PNG
+                {resizeMode === 'original' ? 'Resolusi Foto Asli' : `${targetWidth}x${targetHeight}px`} &bull; Max {formatLimitDisplay(maxKbLimit)} &bull; PNG
               </p>
             </div>
           </div>
           <span className="text-[10px] font-mono font-extrabold bg-emerald-500/10 text-emerald-400 border border-emerald-500/30 px-2.5 py-0.5 rounded-full">
-            &le; {maxKbLimit} KB
+            &le; {formatLimitDisplay(maxKbLimit)}
           </span>
         </div>
 
@@ -1020,7 +1058,7 @@ export const BatchPanel: React.FC<BatchPanelProps> = () => {
             </div>
             <div className="bg-slate-800/70 p-2 rounded-lg text-center border border-emerald-500/20">
               <span className="text-slate-400 block text-[9px]">BATAS SIZE</span>
-              <strong className="text-emerald-400 text-xs font-mono">&le; {maxKbLimit} KB</strong>
+              <strong className="text-emerald-400 text-xs font-mono">&le; {formatLimitDisplay(maxKbLimit)}</strong>
             </div>
             <div className="bg-slate-800/70 p-2 rounded-lg text-center border border-indigo-500/20">
               <span className="text-slate-400 block text-[9px]">FORMAT</span>
@@ -1519,7 +1557,7 @@ export const BatchPanel: React.FC<BatchPanelProps> = () => {
                 <span>Batas Ukuran Maksimal</span>
               </label>
               <span className="text-[10px] font-mono font-bold text-emerald-400 bg-emerald-950/60 border border-emerald-800/60 px-2 py-0.5 rounded">
-                &le; {maxKbLimit} KB
+                &le; {formatLimitDisplay(maxKbLimit)}
               </span>
             </div>
 
@@ -1571,10 +1609,10 @@ export const BatchPanel: React.FC<BatchPanelProps> = () => {
                   setKbLimitMode('manual');
                 }}
                 placeholder="Isi bebas batas KB (cth: 148)"
-                className="w-full bg-slate-800 border border-slate-700 rounded-xl pl-3 pr-12 py-2 text-xs text-white font-mono font-bold focus:outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500/40"
+                className="w-full bg-slate-800 border border-slate-700 rounded-xl pl-3 pr-16 py-2 text-xs text-white font-mono font-bold focus:outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500/40"
               />
               <span className="absolute right-3 top-2 text-[10px] text-emerald-400 font-mono font-bold">
-                KB
+                {maxKbLimit >= 1024 ? 'KB (Auto MB)' : 'KB'}
               </span>
             </div>
 
@@ -1606,10 +1644,10 @@ export const BatchPanel: React.FC<BatchPanelProps> = () => {
                         : 'bg-slate-800 border-slate-700 text-slate-300 hover:text-white'
                     }`}
                   >
-                    Ikuti File Upload ({Math.ceil(items[0].originalSizeKb)} KB)
+                    Ikuti File Upload ({formatSizeDisplay(items[0].originalSizeKb)})
                   </button>
                 )}
-                {[50, 100, 148, 200, 500, 1024].map((kb) => (
+                {[50, 100, 148, 200, 500, 1024, 2048, 5120].map((kb) => (
                   <button
                     key={kb}
                     type="button"
@@ -1623,7 +1661,7 @@ export const BatchPanel: React.FC<BatchPanelProps> = () => {
                         : 'bg-slate-800 border-slate-700/60 text-slate-400 hover:text-white hover:bg-slate-700'
                     }`}
                   >
-                    {kb === 148 ? '148 KB (Std)' : kb === 1024 ? '1 MB' : `${kb} KB`}
+                    {kb === 148 ? '148 KB (Std)' : formatLimitDisplay(kb)}
                   </button>
                 ))}
               </div>
@@ -1695,7 +1733,7 @@ export const BatchPanel: React.FC<BatchPanelProps> = () => {
           <div className="flex items-center gap-3">
             <h3 className="text-sm font-black text-white flex items-center gap-2">
               <Icons.CheckCircle2 className="w-4 h-4 text-emerald-400" />
-              Hasil Kompresi & Resize ({resizeMode === 'original' ? 'Resolusi Foto Asli' : `${targetWidth}x${targetHeight}px`} &bull; &le; {maxKbLimit}KB &bull; PNG)
+              Hasil Kompresi & Resize ({resizeMode === 'original' ? 'Resolusi Foto Asli' : `${targetWidth}x${targetHeight}px`} &bull; &le; {formatLimitDisplay(maxKbLimit)} &bull; PNG)
             </h3>
             <span className="text-xs bg-slate-800 text-slate-300 font-mono px-2.5 py-0.5 rounded-full border border-slate-700 font-bold">
               {items.length} Berkas
@@ -1753,15 +1791,11 @@ export const BatchPanel: React.FC<BatchPanelProps> = () => {
                 <div>
                   <span className="text-[9px] font-bold text-slate-400 block uppercase">Ukuran Total</span>
                   <span className="text-sm font-extrabold text-emerald-400 font-mono">
-                    {totalCompressedKb > 1024
-                      ? `${(totalCompressedKb / 1024).toFixed(2)} MB`
-                      : `${totalCompressedKb.toFixed(0)} KB`}
+                    {formatSizeDisplay(totalCompressedKb)}
                   </span>
                 </div>
                 <span className="text-[10px] font-mono text-slate-500 line-through">
-                  {totalOriginalKb > 1024
-                    ? `${(totalOriginalKb / 1024).toFixed(1)} MB`
-                    : `${totalOriginalKb.toFixed(0)} KB`}
+                  {formatSizeDisplay(totalOriginalKb)}
                 </span>
               </div>
 
@@ -1783,7 +1817,7 @@ export const BatchPanel: React.FC<BatchPanelProps> = () => {
                 <div>
                   <span className="text-[9px] font-bold text-emerald-400 block uppercase">Status Syarat</span>
                   <span className="text-xs font-black text-emerald-300">
-                    {allWithinLimit ? `✓ 100% Lolos (≤${maxKbLimit}KB)` : 'Diproses Sesuai Target'}
+                    {allWithinLimit ? `✓ 100% Lolos (≤${formatLimitDisplay(maxKbLimit)})` : 'Diproses Sesuai Target'}
                   </span>
                 </div>
                 <Icons.ShieldCheck className="w-4 h-4 text-emerald-400" />
@@ -1802,14 +1836,14 @@ export const BatchPanel: React.FC<BatchPanelProps> = () => {
               <div className="space-y-2">
                 <h4 className="text-base font-bold text-slate-100">Batch Resize & Compressor Siap Digunakan</h4>
                 <p className="text-xs text-slate-400 leading-relaxed">
-                  Unggah foto produk sekaligus. Ukuran dan resolusi <strong className="text-indigo-300">otomatis mengikuti foto asli</strong> atau bebas di-resize manual, batas ukuran <strong className="text-emerald-400">bebas ditentukan (&le; {maxKbLimit} KB)</strong>, plus dukungan <strong className="text-indigo-300">Hapus Background (Remove BG)</strong> dan format murni <strong className="text-indigo-300">PNG</strong>.
+                  Unggah foto produk sekaligus. Ukuran dan resolusi <strong className="text-indigo-300">otomatis mengikuti foto asli</strong> atau bebas di-resize manual, batas ukuran <strong className="text-emerald-400">bebas ditentukan (&le; {formatLimitDisplay(maxKbLimit)})</strong>, plus dukungan <strong className="text-indigo-300">Hapus Background (Remove BG)</strong> dan format murni <strong className="text-indigo-300">PNG</strong>.
                 </p>
                 <div className="pt-2 flex flex-wrap items-center justify-center gap-2 text-[10px] text-slate-400 font-mono">
                   <span className="bg-slate-800 px-2.5 py-1 rounded-lg border border-indigo-500/40 text-indigo-300">
                     {resizeMode === 'original' ? '⚡ Auto Ikuti Foto Asli' : `📐 Resize Bebas (${targetWidth}x${targetHeight}px)`}
                   </span>
                   <span className="bg-slate-800 px-2.5 py-1 rounded-lg border border-indigo-700/50 text-indigo-300">✨ Remove BG</span>
-                  <span className="bg-slate-800 px-2.5 py-1 rounded-lg border border-emerald-800/50 text-emerald-400">&le; {maxKbLimit} KB</span>
+                  <span className="bg-slate-800 px-2.5 py-1 rounded-lg border border-emerald-800/50 text-emerald-400">&le; {formatLimitDisplay(maxKbLimit)}</span>
                   <span className="bg-slate-800 px-2.5 py-1 rounded-lg border border-slate-700">PNG</span>
                 </div>
               </div>
@@ -1909,15 +1943,15 @@ export const BatchPanel: React.FC<BatchPanelProps> = () => {
                       className="flex items-center justify-between text-[10px] font-mono bg-slate-900/90 hover:bg-slate-800/90 px-2.5 py-1.5 rounded-lg border border-slate-800 hover:border-indigo-500/70 transition-all cursor-pointer group/size shadow-xs"
                       title="Klik untuk Custom Ukuran (Dimensi px & Batas KB) Foto Ini"
                     >
-                      <div className="flex items-center gap-1.5">
-                        <span style={{ width: '52.0312px' }} className="text-slate-500 line-through inline-block truncate">{item.originalSizeKb} KB</span>
+                      <div className="flex items-center gap-1.5 min-w-0">
+                        <span className="text-slate-500 line-through inline-block truncate">{formatSizeDisplay(item.originalSizeKb)}</span>
                         <Icons.ArrowRight className="w-3 h-3 text-slate-600 shrink-0" />
-                        <span style={{ width: '47.9336px' }} className="text-emerald-400 font-extrabold inline-block truncate">{item.compressedSizeKb} KB</span>
-                        <span className="text-[9px] text-indigo-300 font-sans font-semibold ml-0.5">
-                          (&le;{item.customMaxKb || maxKbLimit}k)
+                        <span className="text-emerald-400 font-extrabold inline-block truncate">{formatSizeDisplay(item.compressedSizeKb)}</span>
+                        <span className="text-[9px] text-indigo-300 font-sans font-semibold ml-0.5 shrink-0">
+                          (&le;{formatShortLimit(item.customMaxKb || maxKbLimit)})
                         </span>
                       </div>
-                      <div className="flex items-center gap-1.5">
+                      <div className="flex items-center gap-1.5 shrink-0">
                         <span className="text-teal-400 font-bold">-{item.savedPercent}%</span>
                         <span style={{ width: '79.8047px' }} className="text-[9px] bg-indigo-600/30 group-hover/size:bg-indigo-600 text-indigo-300 group-hover/size:text-white px-1.5 py-0.5 rounded font-sans font-bold transition-all flex items-center justify-center gap-0.5 whitespace-nowrap">
                           <Icons.Sliders className="w-2.5 h-2.5 shrink-0" />
@@ -1930,7 +1964,7 @@ export const BatchPanel: React.FC<BatchPanelProps> = () => {
                     <div className="flex items-center justify-between gap-1 pt-0.5 text-[9px]">
                       <span className="text-slate-400 font-bold">Batas Size:</span>
                       <div className="flex items-center gap-1">
-                        {[50, 100, 148, 200].map((kb) => {
+                        {[50, 100, 148, 200, 500, 1024].map((kb) => {
                           const isCurrent = (item.customMaxKb || maxKbLimit) === kb;
                           return (
                             <button
@@ -1945,9 +1979,9 @@ export const BatchPanel: React.FC<BatchPanelProps> = () => {
                                   ? 'bg-emerald-600 border-emerald-500 text-white shadow-xs'
                                   : 'bg-slate-900/80 border-slate-800 text-slate-400 hover:text-white hover:bg-slate-800'
                               }`}
-                              title={`Ubah batas ukuran file ke ≤ ${kb} KB`}
+                              title={`Ubah batas ukuran file ke ≤ ${formatLimitDisplay(kb)}`}
                             >
-                              {kb}k
+                              {formatShortLimit(kb)}
                             </button>
                           );
                         })}
@@ -1997,7 +2031,7 @@ export const BatchPanel: React.FC<BatchPanelProps> = () => {
                     <div className="flex items-center justify-between text-[9px] pt-0.5">
                       <span className="text-emerald-400 font-bold flex items-center gap-1">
                         <Icons.CheckCircle2 className="w-3 h-3" />
-                        Lolos Syarat (&le; {item.customMaxKb || maxKbLimit} KB)
+                        Lolos Syarat (&le; {formatLimitDisplay(item.customMaxKb || maxKbLimit)})
                       </span>
                       <span className="text-slate-400 font-mono">
                         {(item.compressedSizeBytes).toLocaleString()} B
@@ -2257,7 +2291,7 @@ export const BatchPanel: React.FC<BatchPanelProps> = () => {
                       <span>3. Batas Ukuran File (Max KB Bebas Kustom)</span>
                     </label>
                     <span className="text-[9px] font-mono text-emerald-400 font-bold bg-emerald-950/80 px-2 py-0.5 rounded border border-emerald-800/60">
-                      &le; {adjMaxKb} KB
+                      &le; {formatLimitDisplay(adjMaxKb)}
                     </span>
                   </div>
 
@@ -2274,7 +2308,9 @@ export const BatchPanel: React.FC<BatchPanelProps> = () => {
                         style={{ width: '90.6836px' }}
                         className="bg-slate-900 border border-slate-700 rounded-xl px-2.5 py-1.5 text-xs text-white font-mono font-bold focus:outline-none focus:border-emerald-500"
                       />
-                      <span className="absolute right-2 top-2 text-[9px] text-emerald-400 font-mono font-bold">KB Max</span>
+                      <span className="absolute right-2 top-2 text-[9px] text-emerald-400 font-mono font-bold">
+                        {adjMaxKb >= 1024 ? 'MB' : 'KB Max'}
+                      </span>
                     </div>
                     <div className="flex items-center gap-1 overflow-x-auto pb-0.5">
                       {adjustingItem && (
@@ -2287,10 +2323,10 @@ export const BatchPanel: React.FC<BatchPanelProps> = () => {
                               : 'bg-slate-900 border-slate-800 text-emerald-400 hover:text-white hover:bg-slate-800'
                           }`}
                         >
-                          Asli ({Math.ceil(adjustingItem.originalSizeKb)}k)
+                          Asli ({formatShortLimit(Math.ceil(adjustingItem.originalSizeKb))})
                         </button>
                       )}
-                      {[50, 100, 148, 200, 500].map((kb) => (
+                      {[50, 100, 148, 200, 500, 1024, 2048].map((kb) => (
                         <button
                           key={kb}
                           type="button"
@@ -2301,7 +2337,7 @@ export const BatchPanel: React.FC<BatchPanelProps> = () => {
                               : 'bg-slate-900 border-slate-800 text-slate-400 hover:text-white hover:bg-slate-800'
                           }`}
                         >
-                          {kb === 148 ? '148k (Std)' : `${kb}k`}
+                          {kb === 148 ? '148k (Std)' : formatShortLimit(kb)}
                         </button>
                       ))}
                     </div>
@@ -2491,7 +2527,7 @@ export const BatchPanel: React.FC<BatchPanelProps> = () => {
               </div>
               <div className="bg-slate-900 p-2.5 rounded-xl border border-slate-800">
                 <span className="text-[10px] text-slate-400 block font-bold">UKURAN BERKAS</span>
-                <span className="text-emerald-400 font-mono font-extrabold">{previewItem.compressedSizeKb} KB</span>
+                <span className="text-emerald-400 font-mono font-extrabold">{formatSizeDisplay(previewItem.compressedSizeKb)}</span>
                 <span className="text-[9px] text-slate-500 font-mono block">({previewItem.compressedSizeBytes.toLocaleString()} B)</span>
               </div>
               <div className="bg-slate-900 p-2.5 rounded-xl border border-slate-800">
@@ -2501,7 +2537,7 @@ export const BatchPanel: React.FC<BatchPanelProps> = () => {
               <div className="bg-slate-900 p-2.5 rounded-xl border border-emerald-500/30">
                 <span className="text-[10px] text-slate-400 block font-bold">STATUS SYARAT</span>
                 <span className="text-emerald-400 font-bold">
-                  {previewItem.withinLimit ? `✓ Lolos (≤${maxKbLimit} KB)` : 'Tepat Target'}
+                  {previewItem.withinLimit ? `✓ Lolos (≤${formatLimitDisplay(previewItem.customMaxKb || maxKbLimit)})` : 'Tepat Target'}
                 </span>
                 <span className="text-[9px] text-teal-400 block font-mono">Hemat {previewItem.savedPercent}%</span>
               </div>
