@@ -274,6 +274,8 @@ export const BatchPanel: React.FC<BatchPanelProps> = () => {
   const [fitMode, setFitMode] = useState<'contain' | 'cover'>('contain');
   const [bgColor, setBgColor] = useState<'white' | 'transparent'>('white');
   const [maxKbLimit, setMaxKbLimit] = useState<number>(148);
+  // Mode Batas Ukuran Maksimal: 'auto' (Otomatis ikuti file upload) vs 'manual' (Bebas diatur)
+  const [kbLimitMode, setKbLimitMode] = useState<'auto' | 'manual'>('auto');
   const [isDragging, setIsDragging] = useState<boolean>(false);
   const [previewItem, setPreviewItem] = useState<BatchItem | null>(null);
 
@@ -571,7 +573,15 @@ export const BatchPanel: React.FC<BatchPanelProps> = () => {
     const files = Array.from(fileList);
     setTotalFileCount(files.length);
     const newBatchItems: BatchItem[] = [];
-    const maxBytes = Math.max(10, maxKbLimit || 148) * 1024;
+
+    // Jika mode auto: otomatis set batas KB ke ukuran file yang di-upload
+    if (kbLimitMode === 'auto' && files.length > 0) {
+      const highestFileKb = Math.max(...files.map((f) => Math.ceil(f.size / 1024)));
+      if (highestFileKb > 0) {
+        setMaxKbLimit(highestFileKb);
+      }
+    }
+
     const curW = targetWidth;
     const curH = targetHeight;
 
@@ -582,6 +592,9 @@ export const BatchPanel: React.FC<BatchPanelProps> = () => {
 
       const originalSizeBytes = file.size;
       const originalSizeKb = +(originalSizeBytes / 1024).toFixed(1);
+      const fileAutoKb = Math.max(10, Math.ceil(originalSizeKb));
+      const targetItemMaxKb = kbLimitMode === 'auto' ? fileAutoKb : Math.max(10, maxKbLimit || 148);
+      const itemMaxBytes = targetItemMaxKb * 1024;
 
       try {
         const processed = await compressToPng(file, {
@@ -590,7 +603,7 @@ export const BatchPanel: React.FC<BatchPanelProps> = () => {
           targetHeight: curH,
           fitMode,
           bgColor,
-          maxBytes,
+          maxBytes: itemMaxBytes,
           removeBg,
           bgTolerance,
           bgFeather,
@@ -628,7 +641,8 @@ export const BatchPanel: React.FC<BatchPanelProps> = () => {
           withinLimit: processed.withinLimit,
           bgRemoved: processed.bgRemoved,
           fitMode,
-          bgColor
+          bgColor,
+          customMaxKb: targetItemMaxKb
         });
       } catch (err) {
         console.error('Error saat kompresi batch:', file.name, err);
@@ -655,7 +669,7 @@ export const BatchPanel: React.FC<BatchPanelProps> = () => {
     setAdjLockRatio(w === h || Math.abs(w / h - 4 / 5) < 0.04 || Math.abs(w / h - 3 / 4) < 0.04 || Math.abs(w / h - 9 / 16) < 0.04);
     setAdjFitMode(item.fitMode || fitMode);
     setAdjBgColor(item.bgColor || bgColor);
-    setAdjMaxKb(item.customMaxKb || maxKbLimit);
+    setAdjMaxKb(item.customMaxKb || Math.ceil(item.originalSizeKb) || maxKbLimit || 148);
     setAdjRemoveBg(item.bgRemoved);
   };
 
@@ -680,29 +694,37 @@ export const BatchPanel: React.FC<BatchPanelProps> = () => {
   const handleAdjWidthChange = (val: number) => {
     const w = Math.max(10, Math.min(4000, val || 10));
     setAdjWidth(w);
+    let newH = adjHeight;
     if (adjLockRatio) {
       const preset = ASPECT_RATIO_PRESETS.find((p) => p.label === adjRatio);
       if (preset && preset.ratio) {
-        setAdjHeight(Math.round(w / preset.ratio));
+        newH = Math.round(w / preset.ratio);
+        setAdjHeight(newH);
       } else {
         const ratio = adjWidth && adjHeight ? adjWidth / adjHeight : 1;
-        setAdjHeight(Math.round(w / ratio));
+        newH = Math.round(w / ratio);
+        setAdjHeight(newH);
       }
     }
+    setAdjRatio(getAspectRatioLabel(w, newH));
   };
 
   const handleAdjHeightChange = (val: number) => {
     const h = Math.max(10, Math.min(4000, val || 10));
     setAdjHeight(h);
+    let newW = adjWidth;
     if (adjLockRatio) {
       const preset = ASPECT_RATIO_PRESETS.find((p) => p.label === adjRatio);
       if (preset && preset.ratio) {
-        setAdjWidth(Math.round(h * preset.ratio));
+        newW = Math.round(h * preset.ratio);
+        setAdjWidth(newW);
       } else {
         const ratio = adjWidth && adjHeight ? adjWidth / adjHeight : 1;
-        setAdjWidth(Math.round(h * ratio));
+        newW = Math.round(h * ratio);
+        setAdjWidth(newW);
       }
     }
+    setAdjRatio(getAspectRatioLabel(newW, h));
   };
 
   /**
@@ -885,9 +907,9 @@ export const BatchPanel: React.FC<BatchPanelProps> = () => {
     await processSingleItemAdjustment(item, {
       targetWidth: preset.w,
       targetHeight: preset.h,
-      fitMode,
-      bgColor,
-      maxKb: maxKbLimit,
+      fitMode: item.fitMode || fitMode,
+      bgColor: item.bgColor || bgColor,
+      maxKb: item.customMaxKb || maxKbLimit,
       removeBg: item.bgRemoved
     });
   };
@@ -956,7 +978,10 @@ export const BatchPanel: React.FC<BatchPanelProps> = () => {
   return (
     <div className="flex-1 flex bg-[#0f172a] text-slate-100 overflow-hidden">
       {/* Kolom Pengaturan Kiri */}
-      <div className="w-[370px] lg:w-[410px] bg-[#1e293b] border-r border-slate-800 flex flex-col p-5 space-y-4 overflow-y-auto shrink-0 shadow-xl">
+      <div
+        style={{ width: '405px', height: '902.766px' }}
+        className="w-[370px] lg:w-[410px] bg-[#1e293b] border-r border-slate-800 flex flex-col p-5 space-y-4 overflow-y-auto shrink-0 shadow-xl"
+      >
         {/* Header Panel */}
         <div className="flex items-center justify-between border-b border-slate-700/80 pb-3.5">
           <div className="flex items-center gap-2.5">
@@ -1491,11 +1516,45 @@ export const BatchPanel: React.FC<BatchPanelProps> = () => {
             <div className="flex items-center justify-between">
               <label className="text-[10px] font-bold text-slate-300 flex items-center gap-1.5">
                 <Icons.HardDrive className="w-3.5 h-3.5 text-emerald-400" />
-                <span>Batas Ukuran Maksimal (Bebas Diatur)</span>
+                <span>Batas Ukuran Maksimal</span>
               </label>
               <span className="text-[10px] font-mono font-bold text-emerald-400 bg-emerald-950/60 border border-emerald-800/60 px-2 py-0.5 rounded">
                 &le; {maxKbLimit} KB
               </span>
+            </div>
+
+            {/* Mode Switcher: Otomatis Ikuti File vs Bebas Manual */}
+            <div className="grid grid-cols-2 gap-1 p-0.5 bg-slate-800 rounded-lg border border-slate-700/80 text-[10px]">
+              <button
+                type="button"
+                onClick={() => {
+                  setKbLimitMode('auto');
+                  if (items.length > 0) {
+                    const firstKb = Math.ceil(items[0].originalSizeKb);
+                    if (firstKb > 0) setMaxKbLimit(firstKb);
+                  }
+                }}
+                className={`py-1 rounded font-bold transition-all cursor-pointer flex items-center justify-center gap-1 ${
+                  kbLimitMode === 'auto'
+                    ? 'bg-emerald-600 text-white shadow-xs'
+                    : 'text-slate-400 hover:text-white'
+                }`}
+              >
+                <Icons.Sparkles className="w-3 h-3 text-emerald-300" />
+                <span>Otomatis Ikuti File</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => setKbLimitMode('manual')}
+                className={`py-1 rounded font-bold transition-all cursor-pointer flex items-center justify-center gap-1 ${
+                  kbLimitMode === 'manual'
+                    ? 'bg-emerald-600 text-white shadow-xs'
+                    : 'text-slate-400 hover:text-white'
+                }`}
+              >
+                <Icons.Sliders className="w-3 h-3 text-emerald-300" />
+                <span>Bebas Manual</span>
+              </button>
             </div>
 
             {/* Input Bebas Angka KB Berapa Saja */}
@@ -1509,6 +1568,7 @@ export const BatchPanel: React.FC<BatchPanelProps> = () => {
                 onChange={(e) => {
                   const val = parseInt(e.target.value, 10);
                   setMaxKbLimit(isNaN(val) ? 0 : Math.max(1, val));
+                  setKbLimitMode('manual');
                 }}
                 placeholder="Isi bebas batas KB (cth: 148)"
                 className="w-full bg-slate-800 border border-slate-700 rounded-xl pl-3 pr-12 py-2 text-xs text-white font-mono font-bold focus:outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500/40"
@@ -1532,13 +1592,33 @@ export const BatchPanel: React.FC<BatchPanelProps> = () => {
             <div className="space-y-1">
               <span className="text-[9px] font-bold text-slate-500 block">Pilihan Cepat (Preset):</span>
               <div className="grid grid-cols-3 gap-1.5 text-center">
+                {items.length > 0 && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const origKb = Math.ceil(items[0].originalSizeKb);
+                      setMaxKbLimit(origKb);
+                      setKbLimitMode('auto');
+                    }}
+                    className={`py-1 rounded text-[10px] font-mono font-bold transition-all cursor-pointer border col-span-3 ${
+                      kbLimitMode === 'auto'
+                        ? 'bg-emerald-700/50 border-emerald-500 text-emerald-200 shadow-xs'
+                        : 'bg-slate-800 border-slate-700 text-slate-300 hover:text-white'
+                    }`}
+                  >
+                    Ikuti File Upload ({Math.ceil(items[0].originalSizeKb)} KB)
+                  </button>
+                )}
                 {[50, 100, 148, 200, 500, 1024].map((kb) => (
                   <button
                     key={kb}
                     type="button"
-                    onClick={() => setMaxKbLimit(kb)}
+                    onClick={() => {
+                      setMaxKbLimit(kb);
+                      setKbLimitMode('manual');
+                    }}
                     className={`py-1 rounded text-[10px] font-mono font-bold transition-all cursor-pointer border ${
-                      maxKbLimit === kb
+                      maxKbLimit === kb && kbLimitMode === 'manual'
                         ? 'bg-emerald-600 border-emerald-500 text-white shadow-md shadow-emerald-600/25'
                         : 'bg-slate-800 border-slate-700/60 text-slate-400 hover:text-white hover:bg-slate-700'
                     }`}
@@ -1655,7 +1735,10 @@ export const BatchPanel: React.FC<BatchPanelProps> = () => {
         {items.length > 0 && (
           <div className="bg-[#101726] border-b border-slate-800 px-6 py-3">
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-              <div className="bg-slate-900/80 border border-slate-800/80 rounded-xl px-3 py-2 flex items-center justify-between">
+              <div
+                style={{ width: '185.50400000000002px' }}
+                className="bg-slate-900/80 border border-slate-800/80 rounded-xl px-3 py-2 flex items-center justify-between"
+              >
                 <div>
                   <span className="text-[9px] font-bold text-slate-400 block uppercase">Total Berkas</span>
                   <span className="text-sm font-extrabold text-white font-mono">{items.length} PNG</span>
@@ -1663,7 +1746,10 @@ export const BatchPanel: React.FC<BatchPanelProps> = () => {
                 <Icons.Layers className="w-4 h-4 text-indigo-400" />
               </div>
 
-              <div className="bg-slate-900/80 border border-slate-800/80 rounded-xl px-3 py-2 flex items-center justify-between">
+              <div
+                style={{ width: '185.50400000000002px' }}
+                className="bg-slate-900/80 border border-slate-800/80 rounded-xl px-3 py-2 flex items-center justify-between"
+              >
                 <div>
                   <span className="text-[9px] font-bold text-slate-400 block uppercase">Ukuran Total</span>
                   <span className="text-sm font-extrabold text-emerald-400 font-mono">
@@ -1679,7 +1765,10 @@ export const BatchPanel: React.FC<BatchPanelProps> = () => {
                 </span>
               </div>
 
-              <div className="bg-slate-900/80 border border-slate-800/80 rounded-xl px-3 py-2 flex items-center justify-between">
+              <div
+                style={{ width: '185.50400000000002px' }}
+                className="bg-slate-900/80 border border-slate-800/80 rounded-xl px-3 py-2 flex items-center justify-between"
+              >
                 <div>
                   <span className="text-[9px] font-bold text-slate-400 block uppercase">Penghematan</span>
                   <span className="text-sm font-extrabold text-teal-400 font-mono">Hemat {totalSavedPercent}%</span>
@@ -1687,7 +1776,10 @@ export const BatchPanel: React.FC<BatchPanelProps> = () => {
                 <Icons.TrendingDown className="w-4 h-4 text-teal-400" />
               </div>
 
-              <div className="bg-slate-900/80 border border-emerald-500/30 rounded-xl px-3 py-2 flex items-center justify-between">
+              <div
+                style={{ width: '185.50400000000002px' }}
+                className="bg-slate-900/80 border border-emerald-500/30 rounded-xl px-3 py-2 flex items-center justify-between"
+              >
                 <div>
                   <span className="text-[9px] font-bold text-emerald-400 block uppercase">Status Syarat</span>
                   <span className="text-xs font-black text-emerald-300">
@@ -1727,10 +1819,11 @@ export const BatchPanel: React.FC<BatchPanelProps> = () => {
               {items.map((item) => (
                 <div
                   key={item.id}
-                  className="bg-[#161f31] border border-slate-800 hover:border-indigo-500/60 rounded-2xl p-3.5 flex flex-col justify-between gap-3 shadow-lg hover:shadow-indigo-500/10 hover:shadow-xl transition-all group relative"
+                  style={{ width: '327.496px' }}
+                  className="bg-[#161f31] border border-slate-800 hover:border-indigo-500/60 rounded-2xl p-3.5 flex flex-col justify-between gap-3 shadow-lg hover:shadow-indigo-500/10 hover:shadow-xl transition-all group relative max-w-full"
                 >
                   {/* Preview Thumbnail */}
-                  <div className="relative aspect-square w-full rounded-xl overflow-hidden border border-slate-700/80 bg-slate-950 flex items-center justify-center">
+                  <div className="relative aspect-square w-full rounded-xl overflow-hidden border border-slate-700/80 bg-slate-950 flex items-center justify-center p-2">
                     {/* Background checkerboard pattern for transparent PNG preview */}
                     <div
                       className="absolute inset-0 opacity-20"
@@ -1741,11 +1834,26 @@ export const BatchPanel: React.FC<BatchPanelProps> = () => {
                         backgroundPosition: '0 0, 0 8px, 8px -8px, -8px 0px'
                       }}
                     />
-                    <img
-                      src={item.compressedUrl}
-                      alt={item.newName}
-                      className="relative max-w-full max-h-full object-contain"
-                    />
+                    {/* Inner frame dynamically showing the actual aspect ratio & fit mode */}
+                    <div
+                      className="relative rounded-lg overflow-hidden flex items-center justify-center transition-all duration-300 shadow-sm"
+                      style={{
+                        maxWidth: '100%',
+                        maxHeight: '100%',
+                        aspectRatio: item.dimensions
+                          ? `${item.dimensions.replace('px', '').split('x')[0]} / ${item.dimensions.replace('px', '').split('x')[1]}`
+                          : '1 / 1',
+                        backgroundColor: item.bgColor === 'white' ? '#ffffff' : 'transparent'
+                      }}
+                    >
+                      <img
+                        src={item.compressedUrl}
+                        alt={item.newName}
+                        className={`max-w-full max-h-full transition-all duration-300 ${
+                          item.fitMode === 'cover' ? 'object-cover w-full h-full' : 'object-contain'
+                        }`}
+                      />
+                    </div>
 
                     {/* Badge Resolusi & Rasio Aktif */}
                     <div className="absolute top-2 left-2 flex items-center gap-1.5 bg-slate-900/90 backdrop-blur-xs text-white text-[9px] font-mono font-bold px-2 py-0.5 rounded-md border border-slate-700 shadow">
@@ -1802,17 +1910,17 @@ export const BatchPanel: React.FC<BatchPanelProps> = () => {
                       title="Klik untuk Custom Ukuran (Dimensi px & Batas KB) Foto Ini"
                     >
                       <div className="flex items-center gap-1.5">
-                        <span className="text-slate-500 line-through">{item.originalSizeKb} KB</span>
-                        <Icons.ArrowRight className="w-3 h-3 text-slate-600" />
-                        <span className="text-emerald-400 font-extrabold">{item.compressedSizeKb} KB</span>
+                        <span style={{ width: '52.0312px' }} className="text-slate-500 line-through inline-block truncate">{item.originalSizeKb} KB</span>
+                        <Icons.ArrowRight className="w-3 h-3 text-slate-600 shrink-0" />
+                        <span style={{ width: '47.9336px' }} className="text-emerald-400 font-extrabold inline-block truncate">{item.compressedSizeKb} KB</span>
                         <span className="text-[9px] text-indigo-300 font-sans font-semibold ml-0.5">
                           (&le;{item.customMaxKb || maxKbLimit}k)
                         </span>
                       </div>
                       <div className="flex items-center gap-1.5">
                         <span className="text-teal-400 font-bold">-{item.savedPercent}%</span>
-                        <span className="text-[9px] bg-indigo-600/30 group-hover/size:bg-indigo-600 text-indigo-300 group-hover/size:text-white px-1.5 py-0.5 rounded font-sans font-bold transition-all flex items-center gap-0.5">
-                          <Icons.Sliders className="w-2.5 h-2.5" />
+                        <span style={{ width: '79.8047px' }} className="text-[9px] bg-indigo-600/30 group-hover/size:bg-indigo-600 text-indigo-300 group-hover/size:text-white px-1.5 py-0.5 rounded font-sans font-bold transition-all flex items-center justify-center gap-0.5 whitespace-nowrap">
+                          <Icons.Sliders className="w-2.5 h-2.5 shrink-0" />
                           Custom Size
                         </span>
                       </div>
@@ -1976,11 +2084,15 @@ export const BatchPanel: React.FC<BatchPanelProps> = () => {
             <div className="grid grid-cols-1 md:grid-cols-2 gap-5 items-center">
               {/* Kolom Pratinjau Proporsi Frame */}
               <div className="space-y-2.5 flex flex-col items-center">
-                <div className="relative w-full max-w-[260px] aspect-square rounded-2xl border-2 border-dashed border-indigo-500/40 bg-slate-950/90 flex items-center justify-center p-2 overflow-hidden shadow-inner">
+                <div
+                  style={{ width: '278.5px' }}
+                  className="relative w-full max-w-[280px] h-[280px] rounded-2xl border-2 border-dashed border-indigo-500/40 bg-slate-950/90 flex items-center justify-center p-3 overflow-hidden shadow-inner"
+                >
                   {/* Checkerboard pattern */}
                   <div
                     className="absolute inset-0 opacity-20"
                     style={{
+                      width: '278.5px',
                       backgroundImage:
                         'linear-gradient(45deg, #334155 25%, transparent 25%), linear-gradient(-45deg, #334155 25%, transparent 25%), linear-gradient(45deg, transparent 75%, #334155 75%), linear-gradient(-45deg, transparent 75%, #334155 75%)',
                       backgroundSize: '16px 16px',
@@ -1989,20 +2101,28 @@ export const BatchPanel: React.FC<BatchPanelProps> = () => {
                   />
                   {/* Dynamic aspect frame */}
                   <div
-                    className="relative rounded-xl overflow-hidden border-2 border-indigo-400 shadow-2xl transition-all duration-200 flex items-center justify-center"
+                    className="relative rounded-xl overflow-hidden border-2 border-indigo-400 shadow-2xl transition-all duration-300 flex items-center justify-center"
                     style={{
-                      width: adjWidth >= adjHeight ? '100%' : `${Math.max(20, Math.round((adjWidth / adjHeight) * 100))}%`,
-                      height: adjHeight >= adjWidth ? '100%' : `${Math.max(20, Math.round((adjHeight / adjWidth) * 100))}%`,
+                      aspectRatio: `${Math.max(10, adjWidth)} / ${Math.max(10, adjHeight)}`,
+                      maxWidth: '100%',
+                      maxHeight: '100%',
+                      width: adjWidth >= adjHeight ? '100%' : 'auto',
+                      height: adjHeight > adjWidth ? '100%' : 'auto',
                       backgroundColor: adjBgColor === 'white' ? '#ffffff' : 'transparent'
                     }}
                   >
                     <img
                       src={adjustingItem.compressedUrl}
                       alt="Pratinjau Rasio"
-                      className={`w-full h-full ${adjFitMode === 'contain' ? 'object-contain' : 'object-cover'}`}
+                      className={`w-full h-full transition-all duration-300 ${
+                        adjFitMode === 'contain' ? 'object-contain p-1' : 'object-cover'
+                      }`}
+                      style={{
+                        backgroundColor: adjBgColor === 'white' ? '#ffffff' : 'transparent'
+                      }}
                     />
-                    <div className="absolute bottom-1 right-1 bg-black/75 text-[8px] font-mono font-bold text-white px-1.5 py-0.5 rounded shadow">
-                      {adjRatio}
+                    <div className="absolute bottom-1 right-1 bg-black/80 backdrop-blur-xs text-[8px] font-mono font-bold text-white px-1.5 py-0.5 rounded shadow">
+                      {adjRatio} ({adjWidth}x{adjHeight})
                     </div>
                   </div>
                 </div>
@@ -2018,7 +2138,7 @@ export const BatchPanel: React.FC<BatchPanelProps> = () => {
               </div>
 
               {/* Kolom Pengaturan Ukuran & Rasio */}
-              <div className="space-y-3.5">
+              <div style={{ width: '355.762px' }} className="space-y-3.5 max-w-full">
                 {/* 1. Preset Aspek Rasio */}
                 <div className="space-y-1.5">
                   <label className="text-[10px] font-bold text-slate-300 uppercase tracking-wider block">
@@ -2141,8 +2261,8 @@ export const BatchPanel: React.FC<BatchPanelProps> = () => {
                     </span>
                   </div>
 
-                  <div className="flex items-center gap-2">
-                    <div className="relative">
+                  <div className="flex items-center gap-2 flex-wrap sm:flex-nowrap">
+                    <div className="relative shrink-0">
                       <input
                         type="number"
                         min={10}
@@ -2156,13 +2276,26 @@ export const BatchPanel: React.FC<BatchPanelProps> = () => {
                       />
                       <span className="absolute right-2 top-2 text-[9px] text-emerald-400 font-mono font-bold">KB Max</span>
                     </div>
-                    <div className="flex items-center gap-1">
+                    <div className="flex items-center gap-1 overflow-x-auto pb-0.5">
+                      {adjustingItem && (
+                        <button
+                          type="button"
+                          onClick={() => setAdjMaxKb(Math.ceil(adjustingItem.originalSizeKb))}
+                          className={`px-2 py-1.5 rounded-lg text-[9px] font-mono font-bold transition-all cursor-pointer border shrink-0 ${
+                            adjMaxKb === Math.ceil(adjustingItem.originalSizeKb)
+                              ? 'bg-emerald-600 border-emerald-500 text-white shadow-xs'
+                              : 'bg-slate-900 border-slate-800 text-emerald-400 hover:text-white hover:bg-slate-800'
+                          }`}
+                        >
+                          Asli ({Math.ceil(adjustingItem.originalSizeKb)}k)
+                        </button>
+                      )}
                       {[50, 100, 148, 200, 500].map((kb) => (
                         <button
                           key={kb}
                           type="button"
                           onClick={() => setAdjMaxKb(kb)}
-                          className={`px-2 py-1.5 rounded-lg text-[9px] font-mono font-bold transition-all cursor-pointer border ${
+                          className={`px-2 py-1.5 rounded-lg text-[9px] font-mono font-bold transition-all cursor-pointer border shrink-0 ${
                             adjMaxKb === kb
                               ? 'bg-emerald-600 border-emerald-500 text-white shadow-xs'
                               : 'bg-slate-900 border-slate-800 text-slate-400 hover:text-white hover:bg-slate-800'
