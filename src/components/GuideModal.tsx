@@ -79,14 +79,14 @@ export const GuideModal: React.FC<GuideModalProps> = ({ isOpen, onClose, onSelec
     {
       id: 'batch',
       title: '6. Batch Processing',
-      tag: '1000x1000px & Remove BG',
+      tag: 'Custom Resize & Remove BG',
       color: 'teal',
       icon: Icons.Layers,
-      description: 'Kompres dan optimasi puluhan gambar sekaligus ke ukuran maksimal 148KB format PNG 1000x1000px, dukung Hapus Background otomatis, dan unduh langsung dalam 1 file ZIP.',
+      description: 'Kompres, resize bebas (1000x1000, 800x800, 1080x1080, custom px), dan dukung Hapus Background otomatis dengan ukuran di bawah batas KB format PNG, unduh dalam 1 file ZIP.',
       tips: [
-        'Tarik banyak file foto produk sekaligus ke area upload.',
+        'Atur dimensi Lebar & Tinggi sesuai keinginan atau gunakan preset (1000x1000, 800x800, Feed IG, TikTok).',
         'Aktifkan opsi "Hapus Background (Remove BG)" untuk mengisolasi produk secara otomatis.',
-        'Atur prefix nama file agar rapi dan seragam (misal: Sepatu_01, Sepatu_02).',
+        'Tarik banyak file foto produk sekaligus ke area upload.',
         'Download semua file yang telah dioptimasi dengan satu klik ZIP.'
       ]
     }

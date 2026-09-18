@@ -22,10 +22,10 @@ interface BatchItem {
   savedPercent: number;
   status: 'success' | 'error';
   blob: Blob | null;
-  dimensions: string; // '1000x1000px'
+  dimensions: string; // e.g. '1000x1000px'
   colorsUsed: number;
   isLossless: boolean;
-  withinLimit: boolean; // size <= 148 * 1024
+  withinLimit: boolean; // size <= maxAllowed
   bgRemoved: boolean;
 }
 
@@ -33,6 +33,15 @@ interface BatchPanelProps {
   activeTab: ActiveTab;
   setActiveTab: (tab: ActiveTab) => void;
 }
+
+const RESIZE_PRESETS = [
+  { label: '1000 x 1000', w: 1000, h: 1000, tag: 'Shopee/Tokopedia' },
+  { label: '800 x 800', w: 800, h: 800, tag: 'Katalog E-Comm' },
+  { label: '1080 x 1080', w: 1080, h: 1080, tag: 'Feed IG (1:1)' },
+  { label: '1080 x 1350', w: 1080, h: 1350, tag: 'Portrait (4:5)' },
+  { label: '1080 x 1920', w: 1080, h: 1920, tag: 'Story/TikTok (9:16)' },
+  { label: '500 x 500', w: 500, h: 500, tag: 'Thumbnail Mini' },
+];
 
 /**
  * Algoritma cerdas penghapus latar belakang berbasis BFS Edge-Connected Flood-Fill
@@ -214,6 +223,12 @@ export const BatchPanel: React.FC<BatchPanelProps> = () => {
   const [totalFileCount, setTotalFileCount] = useState<number>(0);
   const [overallProgress, setOverallProgress] = useState<number>(0);
   const [filePrefix, setFilePrefix] = useState<string>('Produk_Katalog');
+
+  // State Ukuran / Resize Sesuai Keinginan
+  const [targetWidth, setTargetWidth] = useState<number>(1000);
+  const [targetHeight, setTargetHeight] = useState<number>(1000);
+  const [lockRatio, setLockRatio] = useState<boolean>(true);
+
   const [fitMode, setFitMode] = useState<'contain' | 'cover'>('contain');
   const [bgColor, setBgColor] = useState<'white' | 'transparent'>('white');
   const [maxKbLimit, setMaxKbLimit] = useState<number>(148);
@@ -228,14 +243,42 @@ export const BatchPanel: React.FC<BatchPanelProps> = () => {
   const [customBgColor, setCustomBgColor] = useState<string>('#ffffff');
   const [useCustomColor, setUseCustomColor] = useState<boolean>(false);
 
+  const handleWidthChange = (val: number) => {
+    const w = Math.max(10, Math.min(4000, val || 10));
+    setTargetWidth(w);
+    if (lockRatio) {
+      setTargetHeight(w);
+    }
+  };
+
+  const handleHeightChange = (val: number) => {
+    const h = Math.max(10, Math.min(4000, val || 10));
+    setTargetHeight(h);
+    if (lockRatio) {
+      setTargetWidth(h);
+    }
+  };
+
+  const applyPreset = (w: number, h: number) => {
+    setTargetWidth(w);
+    setTargetHeight(h);
+    if (w === h) {
+      setLockRatio(true);
+    } else {
+      setLockRatio(false);
+    }
+  };
+
   /**
-   * Mengompresi file gambar ke resolusi 1000x1000px, format PNG,
-   * dengan batas ukuran maksimal ketat <= 148 KB (151.552 bytes),
+   * Mengompresi & me-resize file gambar ke resolusi sesuai keinginan (targetWidth x targetHeight),
+   * format PNG, dengan batas ukuran maksimal ketat <= 148 KB (atau sesuai maxKbLimit),
    * plus opsi hapus background studio otomatis.
    */
-  const compressToPng1000 = (
+  const compressToPng = (
     file: File,
     options: {
+      targetWidth: number;
+      targetHeight: number;
       fitMode: 'contain' | 'cover';
       bgColor: 'white' | 'transparent';
       maxBytes: number;
@@ -263,6 +306,9 @@ export const BatchPanel: React.FC<BatchPanelProps> = () => {
         img.crossOrigin = 'anonymous';
         img.onload = () => {
           try {
+            const outW = options.targetWidth || 1000;
+            const outH = options.targetHeight || 1000;
+
             // Jika fitur Remove Background aktif, olah gambar terlebih dahulu
             let sourceToDraw: CanvasImageSource = img;
             let bgWasRemoved = false;
@@ -279,8 +325,8 @@ export const BatchPanel: React.FC<BatchPanelProps> = () => {
             }
 
             const canvas = document.createElement('canvas');
-            canvas.width = 1000;
-            canvas.height = 1000;
+            canvas.width = outW;
+            canvas.height = outH;
             const ctx = canvas.getContext('2d', { willReadFrequently: true });
             if (!ctx) {
               throw new Error('Gagal menginisialisasi Canvas context');
@@ -290,10 +336,10 @@ export const BatchPanel: React.FC<BatchPanelProps> = () => {
             const srcHeight = (sourceToDraw as any).height || img.height;
 
             const renderCanvas = (scaleMultiplier = 1.0, blurNoise = false) => {
-              ctx.clearRect(0, 0, 1000, 1000);
+              ctx.clearRect(0, 0, outW, outH);
               if (options.bgColor === 'white') {
                 ctx.fillStyle = '#FFFFFF';
-                ctx.fillRect(0, 0, 1000, 1000);
+                ctx.fillRect(0, 0, outW, outH);
               }
 
               ctx.imageSmoothingEnabled = true;
@@ -301,22 +347,22 @@ export const BatchPanel: React.FC<BatchPanelProps> = () => {
 
               let baseScale = 1;
               if (options.fitMode === 'contain') {
-                baseScale = Math.min(1000 / srcWidth, 1000 / srcHeight);
+                baseScale = Math.min(outW / srcWidth, outH / srcHeight);
               } else {
-                baseScale = Math.max(1000 / srcWidth, 1000 / srcHeight);
+                baseScale = Math.max(outW / srcWidth, outH / srcHeight);
               }
 
               const finalScale = baseScale * scaleMultiplier;
               const drawW = Math.round(srcWidth * finalScale);
               const drawH = Math.round(srcHeight * finalScale);
-              const drawX = Math.round((1000 - drawW) / 2);
-              const drawY = Math.round((1000 - drawH) / 2);
+              const drawX = Math.round((outW - drawW) / 2);
+              const drawY = Math.round((outH - drawH) / 2);
 
               ctx.drawImage(sourceToDraw, drawX, drawY, drawW, drawH);
 
               if (blurNoise) {
-                // Sedikit meratakan noise pixel tinggi agar DEFLATE PNG muat di bawah 148KB
-                const imgData = ctx.getImageData(0, 0, 1000, 1000);
+                // Sedikit meratakan noise pixel tinggi agar DEFLATE PNG muat di bawah batas KB
+                const imgData = ctx.getImageData(0, 0, outW, outH);
                 const d = imgData.data;
                 for (let i = 0; i < d.length; i += 4) {
                   d[i] = (d[i] >> 3) << 3;     // Kuantisasi 5-bit
@@ -338,8 +384,8 @@ export const BatchPanel: React.FC<BatchPanelProps> = () => {
 
             const tryEncode = (cnum: number): Blob | null => {
               try {
-                const imgData = ctx.getImageData(0, 0, 1000, 1000);
-                const resBuffer = encodeFn([imgData.data.buffer], 1000, 1000, cnum);
+                const imgData = ctx.getImageData(0, 0, outW, outH);
+                const resBuffer = encodeFn([imgData.data.buffer], outW, outH, cnum);
                 return new Blob([resBuffer], { type: 'image/png' });
               } catch (err) {
                 console.warn('UPNG encoding error with cnum', cnum, err);
@@ -355,7 +401,7 @@ export const BatchPanel: React.FC<BatchPanelProps> = () => {
               isLossless = true;
             }
 
-            // Tahap 2: Jika > 148KB, kuantisasi palet warna secara progresif (TinyPNG engine)
+            // Tahap 2: Jika > maxAllowed, kuantisasi palet warna secara progresif (TinyPNG engine)
             if (!finalBlob) {
               const paletteSteps = [256, 224, 192, 160, 128, 96, 64, 48, 32, 24, 16];
               for (const cnum of paletteSteps) {
@@ -368,7 +414,7 @@ export const BatchPanel: React.FC<BatchPanelProps> = () => {
               }
             }
 
-            // Tahap 3: Jika gambar sangat kompleks/noise tinggi dan masih > 148KB
+            // Tahap 3: Jika gambar sangat kompleks/noise tinggi dan masih > maxAllowed
             if (!finalBlob) {
               renderCanvas(0.98, true);
               const lowColorSteps = [64, 48, 32, 24, 16, 8];
@@ -404,7 +450,7 @@ export const BatchPanel: React.FC<BatchPanelProps> = () => {
               url,
               sizeBytes: blobSize,
               sizeKb: +(blobSize / 1024).toFixed(1),
-              dimensions: '1000x1000px',
+              dimensions: `${outW}x${outH}px`,
               colorsUsed,
               isLossless,
               withinLimit: blobSize <= maxAllowed,
@@ -431,6 +477,8 @@ export const BatchPanel: React.FC<BatchPanelProps> = () => {
     setTotalFileCount(files.length);
     const newBatchItems: BatchItem[] = [];
     const maxBytes = maxKbLimit * 1024;
+    const curW = targetWidth;
+    const curH = targetHeight;
 
     for (let i = 0; i < files.length; i++) {
       const file = files[i];
@@ -441,7 +489,9 @@ export const BatchPanel: React.FC<BatchPanelProps> = () => {
       const originalSizeKb = +(originalSizeBytes / 1024).toFixed(1);
 
       try {
-        const processed = await compressToPng1000(file, {
+        const processed = await compressToPng(file, {
+          targetWidth: curW,
+          targetHeight: curH,
           fitMode,
           bgColor,
           maxBytes,
@@ -454,7 +504,7 @@ export const BatchPanel: React.FC<BatchPanelProps> = () => {
 
         const cleanPrefix = filePrefix.trim() || 'Produk';
         const formattedIndex = String(items.length + newBatchItems.length + 1).padStart(2, '0');
-        const sanitizedNewName = `${cleanPrefix}_${formattedIndex}_1000x1000.png`;
+        const sanitizedNewName = `${cleanPrefix}_${formattedIndex}_${curW}x${curH}.png`;
 
         const savedBytes = Math.max(0, originalSizeBytes - processed.sizeBytes);
         const savedPercent = Math.round((savedBytes / originalSizeBytes) * 100);
@@ -471,7 +521,7 @@ export const BatchPanel: React.FC<BatchPanelProps> = () => {
           savedPercent,
           status: 'success',
           blob: processed.blob,
-          dimensions: '1000x1000px',
+          dimensions: `${curW}x${curH}px`,
           colorsUsed: processed.colorsUsed,
           isLossless: processed.isLossless,
           withinLimit: processed.withinLimit,
@@ -505,7 +555,7 @@ export const BatchPanel: React.FC<BatchPanelProps> = () => {
   const handleDownloadZip = async () => {
     if (items.length === 0) return;
     const zip = new JSZip();
-    const folderName = `${filePrefix.trim() || 'MarketBoost'}_1000x1000_148KB`;
+    const folderName = `${filePrefix.trim() || 'MarketBoost'}_${targetWidth}x${targetHeight}_${maxKbLimit}KB`;
     const folder = zip.folder(folderName);
     items.forEach((item) => {
       if (item.blob) {
@@ -536,7 +586,7 @@ export const BatchPanel: React.FC<BatchPanelProps> = () => {
   return (
     <div className="flex-1 flex bg-[#0f172a] text-slate-100 overflow-hidden">
       {/* Kolom Pengaturan Kiri */}
-      <div className="w-[370px] lg:w-[400px] bg-[#1e293b] border-r border-slate-800 flex flex-col p-5 space-y-4 overflow-y-auto shrink-0 shadow-xl">
+      <div className="w-[370px] lg:w-[410px] bg-[#1e293b] border-r border-slate-800 flex flex-col p-5 space-y-4 overflow-y-auto shrink-0 shadow-xl">
         {/* Header Panel */}
         <div className="flex items-center justify-between border-b border-slate-700/80 pb-3.5">
           <div className="flex items-center gap-2.5">
@@ -545,11 +595,11 @@ export const BatchPanel: React.FC<BatchPanelProps> = () => {
             </div>
             <div>
               <h2 className="text-sm font-black text-white tracking-wide">Batch Processor</h2>
-              <p className="text-[10px] text-slate-400 font-medium">1000x1000px &bull; Max 148KB &bull; PNG</p>
+              <p className="text-[10px] text-slate-400 font-medium">{targetWidth}x{targetHeight}px &bull; Max {maxKbLimit}KB &bull; PNG</p>
             </div>
           </div>
           <span className="text-[10px] font-mono font-extrabold bg-emerald-500/10 text-emerald-400 border border-emerald-500/30 px-2 py-0.5 rounded-full">
-            &le; 148 KB
+            &le; {maxKbLimit} KB
           </span>
         </div>
 
@@ -558,20 +608,20 @@ export const BatchPanel: React.FC<BatchPanelProps> = () => {
           <div className="flex items-center justify-between text-xs font-bold text-white">
             <span className="flex items-center gap-1.5 text-indigo-300">
               <Icons.Sparkles className="w-3.5 h-3.5 text-indigo-400" />
-              Syarat Output Kompresi
+              Syarat Output Kompresi & Resize
             </span>
             <span className="text-[9px] font-mono bg-indigo-950 text-indigo-300 px-2 py-0.5 rounded border border-indigo-800/60 font-bold">
-              Marketplace Ready
+              Custom Ready
             </span>
           </div>
           <div className="grid grid-cols-3 gap-2 text-[10px] pt-1 border-t border-slate-800">
-            <div className="bg-slate-800/70 p-2 rounded-lg text-center border border-slate-700/50">
+            <div className="bg-slate-800/70 p-2 rounded-lg text-center border border-indigo-500/30">
               <span className="text-slate-400 block text-[9px]">RESOLUSI</span>
-              <strong className="text-white text-xs font-mono">1000x1000</strong>
+              <strong className="text-white text-xs font-mono">{targetWidth}x{targetHeight}</strong>
             </div>
             <div className="bg-slate-800/70 p-2 rounded-lg text-center border border-emerald-500/20">
               <span className="text-slate-400 block text-[9px]">BATAS SIZE</span>
-              <strong className="text-emerald-400 text-xs font-mono">&le; 148 KB</strong>
+              <strong className="text-emerald-400 text-xs font-mono">&le; {maxKbLimit} KB</strong>
             </div>
             <div className="bg-slate-800/70 p-2 rounded-lg text-center border border-indigo-500/20">
               <span className="text-slate-400 block text-[9px]">FORMAT</span>
@@ -580,7 +630,94 @@ export const BatchPanel: React.FC<BatchPanelProps> = () => {
           </div>
         </div>
 
-        {/* Fitur Baru: Hapus Background (Remove BG) */}
+        {/* Fitur Resize Sesuai Keinginan */}
+        <div className="space-y-3 bg-slate-900/70 border border-slate-800 p-3.5 rounded-xl">
+          <div className="flex items-center justify-between">
+            <h3 className="text-xs font-extrabold text-slate-200 uppercase tracking-wider flex items-center gap-1.5">
+              <Icons.Scaling className="w-3.5 h-3.5 text-indigo-400" /> Ukuran & Resolusi (Resize)
+            </h3>
+            <button
+              type="button"
+              onClick={() => setLockRatio(!lockRatio)}
+              className={`text-[10px] px-2 py-0.5 rounded-md font-mono font-bold flex items-center gap-1 transition-all cursor-pointer ${
+                lockRatio
+                  ? 'bg-indigo-600/30 text-indigo-300 border border-indigo-500/40'
+                  : 'bg-slate-800 text-slate-400 hover:text-slate-200'
+              }`}
+              title={lockRatio ? 'Rasio 1:1 Terkunci (Lebar = Tinggi)' : 'Rasio Bebas'}
+            >
+              {lockRatio ? <Icons.Lock className="w-3 h-3" /> : <Icons.Unlock className="w-3 h-3" />}
+              <span>{lockRatio ? 'Kunci 1:1' : 'Bebas'}</span>
+            </button>
+          </div>
+
+          {/* Input Dimensi Manual (Lebar x Tinggi) */}
+          <div className="grid grid-cols-2 gap-2">
+            <div className="space-y-1">
+              <label className="text-[10px] font-bold text-slate-400 block">Lebar (px)</label>
+              <div className="relative">
+                <input
+                  type="number"
+                  min={50}
+                  max={4000}
+                  step={10}
+                  value={targetWidth}
+                  onChange={(e) => handleWidthChange(parseInt(e.target.value, 10))}
+                  className="w-full bg-slate-800 border border-slate-700 rounded-xl pl-3 pr-8 py-2 text-xs text-white font-mono font-bold focus:outline-none focus:border-indigo-500"
+                />
+                <span className="absolute right-2.5 top-2.5 text-[10px] text-slate-400 font-mono">px</span>
+              </div>
+            </div>
+
+            <div className="space-y-1">
+              <label className="text-[10px] font-bold text-slate-400 block">Tinggi (px)</label>
+              <div className="relative">
+                <input
+                  type="number"
+                  min={50}
+                  max={4000}
+                  step={10}
+                  value={targetHeight}
+                  onChange={(e) => handleHeightChange(parseInt(e.target.value, 10))}
+                  disabled={lockRatio}
+                  className={`w-full border rounded-xl pl-3 pr-8 py-2 text-xs font-mono font-bold focus:outline-none ${
+                    lockRatio
+                      ? 'bg-slate-800/50 border-slate-800 text-slate-400 cursor-not-allowed'
+                      : 'bg-slate-800 border-slate-700 text-white focus:border-indigo-500'
+                  }`}
+                />
+                <span className="absolute right-2.5 top-2.5 text-[10px] text-slate-400 font-mono">px</span>
+              </div>
+            </div>
+          </div>
+
+          {/* Preset Resolusi Populer */}
+          <div className="space-y-1.5 pt-1">
+            <label className="text-[10px] font-bold text-slate-400 block">Pilihan Ukuran Cepat (Preset)</label>
+            <div className="grid grid-cols-3 gap-1.5">
+              {RESIZE_PRESETS.map((p) => {
+                const isActive = targetWidth === p.w && targetHeight === p.h;
+                return (
+                  <button
+                    key={p.label}
+                    type="button"
+                    onClick={() => applyPreset(p.w, p.h)}
+                    className={`p-1.5 rounded-lg text-left transition-all border cursor-pointer ${
+                      isActive
+                        ? 'bg-indigo-600/30 border-indigo-500 text-white shadow-sm'
+                        : 'bg-slate-800/70 border-slate-700/60 text-slate-400 hover:text-white hover:bg-slate-800'
+                    }`}
+                  >
+                    <span className="text-[10px] font-mono font-bold block truncate">{p.label}</span>
+                    <span className="text-[8px] text-slate-400 block truncate">{p.tag}</span>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        </div>
+
+        {/* Fitur: Hapus Background (Remove BG) */}
         <div className="space-y-3 bg-gradient-to-br from-indigo-950/40 to-slate-900/80 border border-indigo-500/30 p-3.5 rounded-xl">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
@@ -594,7 +731,7 @@ export const BatchPanel: React.FC<BatchPanelProps> = () => {
                 >
                   <span>Hapus Background (Remove BG)</span>
                   <span className="text-[9px] bg-indigo-500/20 text-indigo-300 border border-indigo-500/40 px-1.5 py-0.2 rounded font-mono font-bold">
-                    BARU
+                    AUTO
                   </span>
                 </label>
                 <span className="text-[9px] text-slate-400 block">Isolasi subjek produk otomatis sebelum kompresi</span>
@@ -737,13 +874,13 @@ export const BatchPanel: React.FC<BatchPanelProps> = () => {
               className="w-full bg-slate-800 border border-slate-700 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-indigo-500 font-medium"
             />
             <p className="text-[9px] text-slate-500 font-mono">
-              Contoh hasil: <span className="text-indigo-300">{filePrefix.trim() || 'Produk'}_01_1000x1000.png</span>
+              Contoh hasil: <span className="text-indigo-300">{filePrefix.trim() || 'Produk'}_01_{targetWidth}x{targetHeight}.png</span>
             </p>
           </div>
 
           {/* Mode Kanvas */}
           <div className="space-y-1">
-            <label className="text-[10px] font-bold text-slate-400 block">Penempatan Gambar ke 1000x1000</label>
+            <label className="text-[10px] font-bold text-slate-400 block">Penempatan Gambar ke {targetWidth}x{targetHeight}px</label>
             <div className="grid grid-cols-2 gap-1.5">
               <button
                 type="button"
@@ -773,7 +910,7 @@ export const BatchPanel: React.FC<BatchPanelProps> = () => {
             <p className="text-[9px] text-slate-500">
               {fitMode === 'contain'
                 ? 'Seluruh produk tampak utuh tanpa terpotong (disertai latar belakang pilihan).'
-                : 'Mengisi penuh kanvas persegi 1000x1000px tanpa ada sisa ruang samping.'}
+                : `Mengisi penuh kanvas ${targetWidth}x${targetHeight}px tanpa ada sisa ruang samping.`}
             </p>
           </div>
 
@@ -904,7 +1041,7 @@ export const BatchPanel: React.FC<BatchPanelProps> = () => {
           <div className="flex items-center gap-3">
             <h3 className="text-sm font-black text-white flex items-center gap-2">
               <Icons.CheckCircle2 className="w-4 h-4 text-emerald-400" />
-              Hasil Kompresi Batch (1000x1000 PNG)
+              Hasil Kompresi & Resize ({targetWidth}x{targetHeight} PNG)
             </h3>
             <span className="text-xs bg-slate-800 text-slate-300 font-mono px-2.5 py-0.5 rounded-full border border-slate-700 font-bold">
               {items.length} Berkas
@@ -915,7 +1052,7 @@ export const BatchPanel: React.FC<BatchPanelProps> = () => {
           {isProcessing && (
             <div className="flex items-center gap-3">
               <span className="text-xs text-indigo-400 font-mono font-bold animate-pulse">
-                {removeBg ? 'Menghapus BG & Kompresi' : 'Memproses'} {currentFileIndex}/{totalFileCount}... ({overallProgress}%)
+                {removeBg ? 'Hapus BG & Resize' : 'Memproses'} {currentFileIndex}/{totalFileCount}... ({overallProgress}%)
               </span>
               <div className="w-32 bg-slate-800 rounded-full h-2 overflow-hidden border border-slate-700">
                 <div
@@ -980,7 +1117,7 @@ export const BatchPanel: React.FC<BatchPanelProps> = () => {
                 <div>
                   <span className="text-[9px] font-bold text-emerald-400 block uppercase">Status Syarat</span>
                   <span className="text-xs font-black text-emerald-300">
-                    {allWithinLimit ? '✓ 100% Lolos (&le;148KB)' : 'Diproses Sesuai Target'}
+                    {allWithinLimit ? `✓ 100% Lolos (≤${maxKbLimit}KB)` : 'Diproses Sesuai Target'}
                   </span>
                 </div>
                 <Icons.ShieldCheck className="w-4 h-4 text-emerald-400" />
@@ -994,22 +1131,18 @@ export const BatchPanel: React.FC<BatchPanelProps> = () => {
           {items.length === 0 ? (
             <div className="h-full flex flex-col items-center justify-center text-center max-w-md mx-auto space-y-4">
               <div className="w-20 h-20 rounded-3xl bg-slate-900 border border-slate-800 flex items-center justify-center text-indigo-400 shadow-inner">
-                <Icons.Layers className="w-10 h-10 animate-pulse" />
+                <Icons.Scaling className="w-10 h-10 animate-pulse" />
               </div>
               <div className="space-y-2">
-                <h4 className="text-base font-bold text-slate-100">Batch Processor Gambar Siap Digunakan</h4>
+                <h4 className="text-base font-bold text-slate-100">Batch Resize & Compressor Siap Digunakan</h4>
                 <p className="text-xs text-slate-400 leading-relaxed">
-                  Unggah foto produk sekaligus. Sistem secara otomatis mendukung{' '}
-                  <strong className="text-indigo-300">Hapus Background (Remove BG)</strong>, mengatur ukuran menjadi{' '}
-                  <strong className="text-indigo-300">1000x1000 pixel</strong>, dan mengompresi ke batas{' '}
-                  <strong className="text-emerald-400">maksimal &le; 148 KB</strong> dalam format{' '}
-                  <strong className="text-indigo-300">PNG</strong>.
+                  Unggah foto produk sekaligus. Atur dimensi <strong className="text-indigo-300">Lebar & Tinggi sesuai keinginan</strong> (atau gunakan preset), aktifkan <strong className="text-indigo-300">Hapus Background (Remove BG)</strong>, dan kompresi otomatis di bawah batas <strong className="text-emerald-400">&le; {maxKbLimit} KB</strong> format <strong className="text-indigo-300">PNG</strong>.
                 </p>
                 <div className="pt-2 flex flex-wrap items-center justify-center gap-2 text-[10px] text-slate-400 font-mono">
-                  <span className="bg-slate-800 px-2.5 py-1 rounded-lg border border-indigo-700/50 text-indigo-300">✨ Support Remove BG</span>
-                  <span className="bg-slate-800 px-2.5 py-1 rounded-lg border border-slate-700">1000x1000px</span>
-                  <span className="bg-slate-800 px-2.5 py-1 rounded-lg border border-emerald-800/50 text-emerald-400">&le; 148 KB</span>
-                  <span className="bg-slate-800 px-2.5 py-1 rounded-lg border border-slate-700">Format PNG</span>
+                  <span className="bg-slate-800 px-2.5 py-1 rounded-lg border border-indigo-500/40 text-indigo-300">📐 Resize Bebas ({targetWidth}x{targetHeight}px)</span>
+                  <span className="bg-slate-800 px-2.5 py-1 rounded-lg border border-indigo-700/50 text-indigo-300">✨ Remove BG</span>
+                  <span className="bg-slate-800 px-2.5 py-1 rounded-lg border border-emerald-800/50 text-emerald-400">&le; {maxKbLimit} KB</span>
+                  <span className="bg-slate-800 px-2.5 py-1 rounded-lg border border-slate-700">PNG</span>
                 </div>
               </div>
             </div>
@@ -1038,9 +1171,9 @@ export const BatchPanel: React.FC<BatchPanelProps> = () => {
                       className="relative max-w-full max-h-full object-contain"
                     />
 
-                    {/* Badge Resolusi 1000x1000 */}
+                    {/* Badge Resolusi Aktif */}
                     <div className="absolute top-2 left-2 flex items-center gap-1 bg-slate-900/90 backdrop-blur-xs text-white text-[9px] font-mono font-bold px-2 py-0.5 rounded-md border border-slate-700">
-                      <span>1000x1000</span>
+                      <span>{item.dimensions}</span>
                     </div>
 
                     {/* Badge Remove BG jika aktif */}
@@ -1087,7 +1220,7 @@ export const BatchPanel: React.FC<BatchPanelProps> = () => {
                     <div className="flex items-center justify-between text-[9px] pt-1">
                       <span className="text-emerald-400 font-bold flex items-center gap-1">
                         <Icons.CheckCircle2 className="w-3 h-3" />
-                        Lolos Syarat (&le; 148 KB)
+                        Lolos Syarat (&le; {maxKbLimit} KB)
                       </span>
                       <span className="text-slate-400 font-mono">
                         {(item.compressedSizeBytes).toLocaleString()} B
@@ -1190,7 +1323,7 @@ export const BatchPanel: React.FC<BatchPanelProps> = () => {
               <div className="bg-slate-900 p-2.5 rounded-xl border border-emerald-500/30">
                 <span className="text-[10px] text-slate-400 block font-bold">STATUS SYARAT</span>
                 <span className="text-emerald-400 font-bold">
-                  {previewItem.withinLimit ? '✓ Lolos (&le;148 KB)' : 'Tepat Target'}
+                  {previewItem.withinLimit ? `✓ Lolos (≤${maxKbLimit} KB)` : 'Tepat Target'}
                 </span>
                 <span className="text-[9px] text-teal-400 block font-mono">Hemat {previewItem.savedPercent}%</span>
               </div>
