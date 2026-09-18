@@ -12,10 +12,13 @@ if (typeof window !== 'undefined' && !(window as any).pako) {
 
 interface BatchItem {
   id: string;
+  originalFile?: File;
   originalName: string;
   newName: string;
   originalSizeBytes: number;
   originalSizeKb: number;
+  originalWidth?: number;
+  originalHeight?: number;
   compressedUrl: string;
   compressedSizeBytes: number;
   compressedSizeKb: number;
@@ -23,10 +26,14 @@ interface BatchItem {
   status: 'success' | 'error';
   blob: Blob | null;
   dimensions: string; // e.g. '1000x1000px'
+  aspectRatio: string; // e.g. '1:1', '4:5', '3:4', '9:16', '16:9', 'Asli'
   colorsUsed: number;
   isLossless: boolean;
   withinLimit: boolean; // size <= maxAllowed
   bgRemoved: boolean;
+  fitMode?: 'contain' | 'cover';
+  bgColor?: 'white' | 'transparent';
+  customMaxKb?: number;
 }
 
 interface BatchPanelProps {
@@ -42,6 +49,37 @@ const RESIZE_PRESETS = [
   { label: '1080 x 1920', w: 1080, h: 1920, tag: 'Story/TikTok (9:16)' },
   { label: '500 x 500', w: 500, h: 500, tag: 'Thumbnail Mini' },
 ];
+
+export interface AspectRatioPreset {
+  label: string;
+  name: string;
+  ratio: number | null;
+  w: number;
+  h: number;
+  tag: string;
+}
+
+export const ASPECT_RATIO_PRESETS: AspectRatioPreset[] = [
+  { label: '1:1', name: 'Persegi', ratio: 1, w: 1000, h: 1000, tag: 'Feed IG / Marketplace' },
+  { label: '4:5', name: 'Portrait', ratio: 4 / 5, w: 1080, h: 1350, tag: 'Feed IG Vertikal' },
+  { label: '3:4', name: 'Katalog', ratio: 3 / 4, w: 900, h: 1200, tag: 'Katalog Shopee & TikTok' },
+  { label: '9:16', name: 'Story', ratio: 9 / 16, w: 1080, h: 1920, tag: 'Story & Reels' },
+  { label: '16:9', name: 'Lanskap', ratio: 16 / 9, w: 1920, h: 1080, tag: 'Banner Web / Desktop' },
+  { label: 'Bebas', name: 'Kustom', ratio: null, w: 0, h: 0, tag: 'Rasio Bebas Manual' },
+];
+
+export function getAspectRatioLabel(w: number, h: number): string {
+  if (!w || !h) return '1:1';
+  const ratio = w / h;
+  if (Math.abs(ratio - 1) < 0.04) return '1:1';
+  if (Math.abs(ratio - 4 / 5) < 0.04) return '4:5';
+  if (Math.abs(ratio - 3 / 4) < 0.04) return '3:4';
+  if (Math.abs(ratio - 9 / 16) < 0.04) return '9:16';
+  if (Math.abs(ratio - 16 / 9) < 0.04) return '16:9';
+  if (Math.abs(ratio - 2 / 3) < 0.04) return '2:3';
+  if (Math.abs(ratio - 3 / 2) < 0.04) return '3:2';
+  return `${w}:${h}`;
+}
 
 /**
  * Algoritma cerdas penghapus latar belakang berbasis BFS Edge-Connected Flood-Fill
@@ -224,16 +262,32 @@ export const BatchPanel: React.FC<BatchPanelProps> = () => {
   const [overallProgress, setOverallProgress] = useState<number>(0);
   const [filePrefix, setFilePrefix] = useState<string>('Produk_Katalog');
 
-  // State Ukuran / Resize Sesuai Keinginan
+  // Mode Ukuran: 'original' (Otomatis ikuti dimensi file upload) vs 'custom' (Resize manual / preset)
+  const [resizeMode, setResizeMode] = useState<'original' | 'custom'>('original');
+
+  // State Ukuran / Resize Sesuai Keinginan (jika mode custom)
   const [targetWidth, setTargetWidth] = useState<number>(1000);
   const [targetHeight, setTargetHeight] = useState<number>(1000);
   const [lockRatio, setLockRatio] = useState<boolean>(true);
+  const [selectedRatio, setSelectedRatio] = useState<string>('1:1');
 
   const [fitMode, setFitMode] = useState<'contain' | 'cover'>('contain');
   const [bgColor, setBgColor] = useState<'white' | 'transparent'>('white');
   const [maxKbLimit, setMaxKbLimit] = useState<number>(148);
   const [isDragging, setIsDragging] = useState<boolean>(false);
   const [previewItem, setPreviewItem] = useState<BatchItem | null>(null);
+
+  // State untuk Modal Penyesuaian Individual (Adjust Size & Rasio Per-Item)
+  const [adjustingItem, setAdjustingItem] = useState<BatchItem | null>(null);
+  const [adjWidth, setAdjWidth] = useState<number>(1000);
+  const [adjHeight, setAdjHeight] = useState<number>(1000);
+  const [adjRatio, setAdjRatio] = useState<string>('1:1');
+  const [adjLockRatio, setAdjLockRatio] = useState<boolean>(true);
+  const [adjFitMode, setAdjFitMode] = useState<'contain' | 'cover'>('contain');
+  const [adjBgColor, setAdjBgColor] = useState<'white' | 'transparent'>('white');
+  const [adjMaxKb, setAdjMaxKb] = useState<number>(148);
+  const [adjRemoveBg, setAdjRemoveBg] = useState<boolean>(false);
+  const [isAdjustingLoading, setIsAdjustingLoading] = useState<boolean>(false);
 
   // State untuk Remove Background
   const [removeBg, setRemoveBg] = useState<boolean>(false);
@@ -243,11 +297,28 @@ export const BatchPanel: React.FC<BatchPanelProps> = () => {
   const [customBgColor, setCustomBgColor] = useState<string>('#ffffff');
   const [useCustomColor, setUseCustomColor] = useState<boolean>(false);
 
+  const applyRatioPreset = (preset: AspectRatioPreset) => {
+    setSelectedRatio(preset.label);
+    if (preset.label === 'Bebas') {
+      setLockRatio(false);
+      return;
+    }
+    setTargetWidth(preset.w);
+    setTargetHeight(preset.h);
+    setLockRatio(true);
+  };
+
   const handleWidthChange = (val: number) => {
     const w = Math.max(10, Math.min(4000, val || 10));
     setTargetWidth(w);
     if (lockRatio) {
-      setTargetHeight(w);
+      const preset = ASPECT_RATIO_PRESETS.find((p) => p.label === selectedRatio);
+      if (preset && preset.ratio) {
+        setTargetHeight(Math.round(w / preset.ratio));
+      } else {
+        const ratio = targetWidth && targetHeight ? targetWidth / targetHeight : 1;
+        setTargetHeight(Math.round(w / ratio));
+      }
     }
   };
 
@@ -255,13 +326,21 @@ export const BatchPanel: React.FC<BatchPanelProps> = () => {
     const h = Math.max(10, Math.min(4000, val || 10));
     setTargetHeight(h);
     if (lockRatio) {
-      setTargetWidth(h);
+      const preset = ASPECT_RATIO_PRESETS.find((p) => p.label === selectedRatio);
+      if (preset && preset.ratio) {
+        setTargetWidth(Math.round(h * preset.ratio));
+      } else {
+        const ratio = targetWidth && targetHeight ? targetWidth / targetHeight : 1;
+        setTargetWidth(Math.round(h * ratio));
+      }
     }
   };
 
   const applyPreset = (w: number, h: number) => {
     setTargetWidth(w);
     setTargetHeight(h);
+    const label = getAspectRatioLabel(w, h);
+    setSelectedRatio(label);
     if (w === h) {
       setLockRatio(true);
     } else {
@@ -270,13 +349,16 @@ export const BatchPanel: React.FC<BatchPanelProps> = () => {
   };
 
   /**
-   * Mengompresi & me-resize file gambar ke resolusi sesuai keinginan (targetWidth x targetHeight),
-   * format PNG, dengan batas ukuran maksimal ketat <= 148 KB (atau sesuai maxKbLimit),
+   * Mengompresi & me-resize file gambar.
+   * Mendukung mode 'original' (otomatis mengikuti lebar x tinggi asli foto yang diunggah)
+   * atau mode 'custom' (targetWidth x targetHeight bebas/preset),
+   * format PNG, dengan batas ukuran maksimal bebas diatur sendiri (maxKbLimit),
    * plus opsi hapus background studio otomatis.
    */
   const compressToPng = (
     file: File,
     options: {
+      resizeMode: 'original' | 'custom';
       targetWidth: number;
       targetHeight: number;
       fitMode: 'contain' | 'cover';
@@ -294,6 +376,9 @@ export const BatchPanel: React.FC<BatchPanelProps> = () => {
     sizeKb: number;
     sizeBytes: number;
     dimensions: string;
+    aspectRatio?: string;
+    srcWidth?: number;
+    srcHeight?: number;
     colorsUsed: number;
     isLossless: boolean;
     withinLimit: boolean;
@@ -306,8 +391,12 @@ export const BatchPanel: React.FC<BatchPanelProps> = () => {
         img.crossOrigin = 'anonymous';
         img.onload = () => {
           try {
-            const outW = options.targetWidth || 1000;
-            const outH = options.targetHeight || 1000;
+            const srcWidth = img.naturalWidth || img.width;
+            const srcHeight = img.naturalHeight || img.height;
+
+            // Resolusi target: otomatis ikuti foto asli jika mode original, atau custom sesuai input
+            const outW = options.resizeMode === 'original' ? srcWidth : (options.targetWidth || 1000);
+            const outH = options.resizeMode === 'original' ? srcHeight : (options.targetHeight || 1000);
 
             // Jika fitur Remove Background aktif, olah gambar terlebih dahulu
             let sourceToDraw: CanvasImageSource = img;
@@ -332,8 +421,8 @@ export const BatchPanel: React.FC<BatchPanelProps> = () => {
               throw new Error('Gagal menginisialisasi Canvas context');
             }
 
-            const srcWidth = (sourceToDraw as any).width || img.width;
-            const srcHeight = (sourceToDraw as any).height || img.height;
+            const currentDrawW = (sourceToDraw as any).width || img.width;
+            const currentDrawH = (sourceToDraw as any).height || img.height;
 
             const renderCanvas = (scaleMultiplier = 1.0, blurNoise = false) => {
               ctx.clearRect(0, 0, outW, outH);
@@ -346,15 +435,18 @@ export const BatchPanel: React.FC<BatchPanelProps> = () => {
               ctx.imageSmoothingQuality = 'high';
 
               let baseScale = 1;
-              if (options.fitMode === 'contain') {
-                baseScale = Math.min(outW / srcWidth, outH / srcHeight);
+              if (options.resizeMode === 'original') {
+                // Mode Otomatis: Rasio dan dimensi 100% bawaan asli foto
+                baseScale = 1;
+              } else if (options.fitMode === 'contain') {
+                baseScale = Math.min(outW / currentDrawW, outH / currentDrawH);
               } else {
-                baseScale = Math.max(outW / srcWidth, outH / srcHeight);
+                baseScale = Math.max(outW / currentDrawW, outH / currentDrawH);
               }
 
               const finalScale = baseScale * scaleMultiplier;
-              const drawW = Math.round(srcWidth * finalScale);
-              const drawH = Math.round(srcHeight * finalScale);
+              const drawW = Math.round(currentDrawW * finalScale);
+              const drawH = Math.round(currentDrawH * finalScale);
               const drawX = Math.round((outW - drawW) / 2);
               const drawY = Math.round((outH - drawH) / 2);
 
@@ -451,6 +543,9 @@ export const BatchPanel: React.FC<BatchPanelProps> = () => {
               sizeBytes: blobSize,
               sizeKb: +(blobSize / 1024).toFixed(1),
               dimensions: `${outW}x${outH}px`,
+              aspectRatio: getAspectRatioLabel(outW, outH),
+              srcWidth,
+              srcHeight,
               colorsUsed,
               isLossless,
               withinLimit: blobSize <= maxAllowed,
@@ -476,7 +571,7 @@ export const BatchPanel: React.FC<BatchPanelProps> = () => {
     const files = Array.from(fileList);
     setTotalFileCount(files.length);
     const newBatchItems: BatchItem[] = [];
-    const maxBytes = maxKbLimit * 1024;
+    const maxBytes = Math.max(10, maxKbLimit || 148) * 1024;
     const curW = targetWidth;
     const curH = targetHeight;
 
@@ -490,6 +585,7 @@ export const BatchPanel: React.FC<BatchPanelProps> = () => {
 
       try {
         const processed = await compressToPng(file, {
+          resizeMode,
           targetWidth: curW,
           targetHeight: curH,
           fitMode,
@@ -504,28 +600,35 @@ export const BatchPanel: React.FC<BatchPanelProps> = () => {
 
         const cleanPrefix = filePrefix.trim() || 'Produk';
         const formattedIndex = String(items.length + newBatchItems.length + 1).padStart(2, '0');
-        const sanitizedNewName = `${cleanPrefix}_${formattedIndex}_${curW}x${curH}.png`;
+        const dimStr = processed.dimensions.replace('px', '');
+        const sanitizedNewName = `${cleanPrefix}_${formattedIndex}_${dimStr}.png`;
 
         const savedBytes = Math.max(0, originalSizeBytes - processed.sizeBytes);
         const savedPercent = Math.round((savedBytes / originalSizeBytes) * 100);
 
         newBatchItems.push({
           id: Math.random().toString(36).substring(2, 9),
+          originalFile: file,
           originalName: file.name,
           newName: sanitizedNewName,
           originalSizeBytes,
           originalSizeKb,
+          originalWidth: processed.srcWidth,
+          originalHeight: processed.srcHeight,
           compressedUrl: processed.url,
           compressedSizeBytes: processed.sizeBytes,
           compressedSizeKb: processed.sizeKb,
           savedPercent,
           status: 'success',
           blob: processed.blob,
-          dimensions: `${curW}x${curH}px`,
+          dimensions: processed.dimensions,
+          aspectRatio: processed.aspectRatio,
           colorsUsed: processed.colorsUsed,
           isLossless: processed.isLossless,
           withinLimit: processed.withinLimit,
-          bgRemoved: processed.bgRemoved
+          bgRemoved: processed.bgRemoved,
+          fitMode,
+          bgColor
         });
       } catch (err) {
         console.error('Error saat kompresi batch:', file.name, err);
@@ -535,6 +638,273 @@ export const BatchPanel: React.FC<BatchPanelProps> = () => {
     setItems((prev) => [...prev, ...newBatchItems]);
     setIsProcessing(false);
     setOverallProgress(100);
+  };
+
+  /**
+   * Buka Modal Penyesuaian Ukuran & Rasio untuk item tertentu
+   */
+  const openAdjustModal = (item: BatchItem) => {
+    setAdjustingItem(item);
+    const parts = item.dimensions.replace('px', '').split('x');
+    const w = parseInt(parts[0], 10) || targetWidth || 1000;
+    const h = parseInt(parts[1], 10) || targetHeight || 1000;
+    setAdjWidth(w);
+    setAdjHeight(h);
+    const ratioLabel = getAspectRatioLabel(w, h);
+    setAdjRatio(ratioLabel);
+    setAdjLockRatio(w === h || Math.abs(w / h - 4 / 5) < 0.04 || Math.abs(w / h - 3 / 4) < 0.04 || Math.abs(w / h - 9 / 16) < 0.04);
+    setAdjFitMode(item.fitMode || fitMode);
+    setAdjBgColor(item.bgColor || bgColor);
+    setAdjMaxKb(item.customMaxKb || maxKbLimit);
+    setAdjRemoveBg(item.bgRemoved);
+  };
+
+  const handleAdjRatioClick = (label: string) => {
+    setAdjRatio(label);
+    if (label === 'Asli' && adjustingItem?.originalWidth && adjustingItem?.originalHeight) {
+      setAdjWidth(adjustingItem.originalWidth);
+      setAdjHeight(adjustingItem.originalHeight);
+      setAdjLockRatio(true);
+      return;
+    }
+    const preset = ASPECT_RATIO_PRESETS.find((p) => p.label === label);
+    if (preset && preset.ratio) {
+      setAdjWidth(preset.w);
+      setAdjHeight(preset.h);
+      setAdjLockRatio(true);
+    } else {
+      setAdjLockRatio(false);
+    }
+  };
+
+  const handleAdjWidthChange = (val: number) => {
+    const w = Math.max(10, Math.min(4000, val || 10));
+    setAdjWidth(w);
+    if (adjLockRatio) {
+      const preset = ASPECT_RATIO_PRESETS.find((p) => p.label === adjRatio);
+      if (preset && preset.ratio) {
+        setAdjHeight(Math.round(w / preset.ratio));
+      } else {
+        const ratio = adjWidth && adjHeight ? adjWidth / adjHeight : 1;
+        setAdjHeight(Math.round(w / ratio));
+      }
+    }
+  };
+
+  const handleAdjHeightChange = (val: number) => {
+    const h = Math.max(10, Math.min(4000, val || 10));
+    setAdjHeight(h);
+    if (adjLockRatio) {
+      const preset = ASPECT_RATIO_PRESETS.find((p) => p.label === adjRatio);
+      if (preset && preset.ratio) {
+        setAdjWidth(Math.round(h * preset.ratio));
+      } else {
+        const ratio = adjWidth && adjHeight ? adjWidth / adjHeight : 1;
+        setAdjWidth(Math.round(h * ratio));
+      }
+    }
+  };
+
+  /**
+   * Proses perubahan ukuran & rasio untuk satu item
+   */
+  const processSingleItemAdjustment = async (
+    item: BatchItem,
+    opts: {
+      targetWidth: number;
+      targetHeight: number;
+      fitMode: 'contain' | 'cover';
+      bgColor: 'white' | 'transparent';
+      maxKb: number;
+      removeBg: boolean;
+    }
+  ) => {
+    const fileToUse = item.originalFile || (item.blob ? new File([item.blob], item.originalName, { type: 'image/png' }) : null);
+    if (!fileToUse) return;
+
+    setIsAdjustingLoading(true);
+    try {
+      const processed = await compressToPng(fileToUse, {
+        resizeMode: 'custom',
+        targetWidth: opts.targetWidth,
+        targetHeight: opts.targetHeight,
+        fitMode: opts.fitMode,
+        bgColor: opts.bgColor,
+        maxBytes: opts.maxKb * 1024,
+        removeBg: opts.removeBg,
+        bgTolerance,
+        bgFeather,
+        bgRemovalMode,
+        customBgColor: useCustomColor ? customBgColor : undefined
+      });
+
+      const dimStr = processed.dimensions.replace('px', '');
+      const cleanPrefix = filePrefix.trim() || 'Produk';
+      const indexPart = item.newName.split('_')[1] || '01';
+      const sanitizedNewName = `${cleanPrefix}_${indexPart}_${dimStr}.png`;
+      const savedBytes = Math.max(0, item.originalSizeBytes - processed.sizeBytes);
+      const savedPercent = Math.round((savedBytes / item.originalSizeBytes) * 100);
+
+      setItems((prev) =>
+        prev.map((it) => {
+          if (it.id === item.id) {
+            return {
+              ...it,
+              newName: sanitizedNewName,
+              compressedUrl: processed.url,
+              compressedSizeBytes: processed.sizeBytes,
+              compressedSizeKb: processed.sizeKb,
+              savedPercent,
+              blob: processed.blob,
+              dimensions: processed.dimensions,
+              aspectRatio: processed.aspectRatio,
+              colorsUsed: processed.colorsUsed,
+              isLossless: processed.isLossless,
+              withinLimit: processed.withinLimit,
+              bgRemoved: processed.bgRemoved,
+              fitMode: opts.fitMode,
+              bgColor: opts.bgColor,
+              customMaxKb: opts.maxKb
+            };
+          }
+          return it;
+        })
+      );
+      setAdjustingItem(null);
+    } catch (err) {
+      console.error('Gagal menyesuaikan gambar:', err);
+    } finally {
+      setIsAdjustingLoading(false);
+    }
+  };
+
+  /**
+   * Penyesuaian cepat batas KB untuk satu item langsung dari card
+   */
+  const quickAdjustItemKb = async (item: BatchItem, newKb: number) => {
+    const parts = item.dimensions.replace('px', '').split('x');
+    const w = parseInt(parts[0], 10) || targetWidth || 1000;
+    const h = parseInt(parts[1], 10) || targetHeight || 1000;
+    await processSingleItemAdjustment(item, {
+      targetWidth: w,
+      targetHeight: h,
+      fitMode: item.fitMode || fitMode,
+      bgColor: item.bgColor || bgColor,
+      maxKb: newKb,
+      removeBg: item.bgRemoved
+    });
+  };
+
+  /**
+   * Terapkan pengaturan ukuran & rasio ke seluruh file dalam antrean
+   */
+  const applyAdjustmentToAll = async (opts: {
+    targetWidth: number;
+    targetHeight: number;
+    fitMode: 'contain' | 'cover';
+    bgColor: 'white' | 'transparent';
+    maxKb: number;
+    removeBg: boolean;
+  }) => {
+    if (items.length === 0) return;
+    setIsAdjustingLoading(true);
+    setIsProcessing(true);
+    setOverallProgress(0);
+
+    try {
+      const updatedItems: BatchItem[] = [];
+      for (let i = 0; i < items.length; i++) {
+        const it = items[i];
+        setCurrentFileIndex(i + 1);
+        setOverallProgress(Math.round(((i + 1) / items.length) * 100));
+
+        const fileToUse = it.originalFile || (it.blob ? new File([it.blob], it.originalName, { type: 'image/png' }) : null);
+        if (!fileToUse) {
+          updatedItems.push(it);
+          continue;
+        }
+
+        const processed = await compressToPng(fileToUse, {
+          resizeMode: 'custom',
+          targetWidth: opts.targetWidth,
+          targetHeight: opts.targetHeight,
+          fitMode: opts.fitMode,
+          bgColor: opts.bgColor,
+          maxBytes: opts.maxKb * 1024,
+          removeBg: opts.removeBg,
+          bgTolerance,
+          bgFeather,
+          bgRemovalMode,
+          customBgColor: useCustomColor ? customBgColor : undefined
+        });
+
+        const dimStr = processed.dimensions.replace('px', '');
+        const cleanPrefix = filePrefix.trim() || 'Produk';
+        const formattedIndex = String(i + 1).padStart(2, '0');
+        const sanitizedNewName = `${cleanPrefix}_${formattedIndex}_${dimStr}.png`;
+        const savedBytes = Math.max(0, it.originalSizeBytes - processed.sizeBytes);
+        const savedPercent = Math.round((savedBytes / it.originalSizeBytes) * 100);
+
+        updatedItems.push({
+          ...it,
+          newName: sanitizedNewName,
+          compressedUrl: processed.url,
+          compressedSizeBytes: processed.sizeBytes,
+          compressedSizeKb: processed.sizeKb,
+          savedPercent,
+          blob: processed.blob,
+          dimensions: processed.dimensions,
+          aspectRatio: processed.aspectRatio,
+          colorsUsed: processed.colorsUsed,
+          isLossless: processed.isLossless,
+          withinLimit: processed.withinLimit,
+          bgRemoved: processed.bgRemoved,
+          fitMode: opts.fitMode,
+          bgColor: opts.bgColor
+        });
+      }
+
+      setItems(updatedItems);
+      setTargetWidth(opts.targetWidth);
+      setTargetHeight(opts.targetHeight);
+      setResizeMode('custom');
+      setAdjustingItem(null);
+    } catch (err) {
+      console.error('Gagal menerapkan ke semua foto:', err);
+    } finally {
+      setIsAdjustingLoading(false);
+      setIsProcessing(false);
+    }
+  };
+
+  /**
+   * Ubah rasio cepat langsung dari kartu item (1-klik)
+   */
+  const quickAdjustItemRatio = async (item: BatchItem, preset: AspectRatioPreset) => {
+    if (!preset || !preset.w || !preset.h) return;
+    await processSingleItemAdjustment(item, {
+      targetWidth: preset.w,
+      targetHeight: preset.h,
+      fitMode,
+      bgColor,
+      maxKb: maxKbLimit,
+      removeBg: item.bgRemoved
+    });
+  };
+
+  /**
+   * Terapkan pengaturan sidebar kiri (ukuran & rasio) ke seluruh antrean
+   */
+  const reprocessQueueWithGlobalSettings = async () => {
+    if (items.length === 0) return;
+    await applyAdjustmentToAll({
+      targetWidth,
+      targetHeight,
+      fitMode,
+      bgColor,
+      maxKb: maxKbLimit,
+      removeBg
+    });
   };
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -555,7 +925,7 @@ export const BatchPanel: React.FC<BatchPanelProps> = () => {
   const handleDownloadZip = async () => {
     if (items.length === 0) return;
     const zip = new JSZip();
-    const folderName = `${filePrefix.trim() || 'MarketBoost'}_${targetWidth}x${targetHeight}_${maxKbLimit}KB`;
+    const folderName = `${filePrefix.trim() || 'MarketBoost'}_${resizeMode === 'original' ? 'AutoOriginal' : `${targetWidth}x${targetHeight}`}_${maxKbLimit || 148}KB`;
     const folder = zip.folder(folderName);
     items.forEach((item) => {
       if (item.blob) {
@@ -595,10 +965,12 @@ export const BatchPanel: React.FC<BatchPanelProps> = () => {
             </div>
             <div>
               <h2 className="text-sm font-black text-white tracking-wide">Batch Processor</h2>
-              <p className="text-[10px] text-slate-400 font-medium">{targetWidth}x{targetHeight}px &bull; Max {maxKbLimit}KB &bull; PNG</p>
+              <p className="text-[10px] text-slate-400 font-medium">
+                {resizeMode === 'original' ? 'Resolusi Foto Asli' : `${targetWidth}x${targetHeight}px`} &bull; Max {maxKbLimit}KB &bull; PNG
+              </p>
             </div>
           </div>
-          <span className="text-[10px] font-mono font-extrabold bg-emerald-500/10 text-emerald-400 border border-emerald-500/30 px-2 py-0.5 rounded-full">
+          <span className="text-[10px] font-mono font-extrabold bg-emerald-500/10 text-emerald-400 border border-emerald-500/30 px-2.5 py-0.5 rounded-full">
             &le; {maxKbLimit} KB
           </span>
         </div>
@@ -611,13 +983,15 @@ export const BatchPanel: React.FC<BatchPanelProps> = () => {
               Syarat Output Kompresi & Resize
             </span>
             <span className="text-[9px] font-mono bg-indigo-950 text-indigo-300 px-2 py-0.5 rounded border border-indigo-800/60 font-bold">
-              Custom Ready
+              {resizeMode === 'original' ? 'Auto Size' : 'Custom Size'}
             </span>
           </div>
           <div className="grid grid-cols-3 gap-2 text-[10px] pt-1 border-t border-slate-800">
             <div className="bg-slate-800/70 p-2 rounded-lg text-center border border-indigo-500/30">
               <span className="text-slate-400 block text-[9px]">RESOLUSI</span>
-              <strong className="text-white text-xs font-mono">{targetWidth}x{targetHeight}</strong>
+              <strong className="text-white text-xs font-mono truncate block" title={resizeMode === 'original' ? 'Otomatis Ikuti Foto Asli' : `${targetWidth}x${targetHeight}`}>
+                {resizeMode === 'original' ? 'Auto Asli' : `${targetWidth}x${targetHeight}`}
+              </strong>
             </div>
             <div className="bg-slate-800/70 p-2 rounded-lg text-center border border-emerald-500/20">
               <span className="text-slate-400 block text-[9px]">BATAS SIZE</span>
@@ -630,91 +1004,241 @@ export const BatchPanel: React.FC<BatchPanelProps> = () => {
           </div>
         </div>
 
-        {/* Fitur Resize Sesuai Keinginan */}
+        {/* Fitur Resize Sesuai Keinginan & Mode Otomatis */}
         <div className="space-y-3 bg-slate-900/70 border border-slate-800 p-3.5 rounded-xl">
           <div className="flex items-center justify-between">
             <h3 className="text-xs font-extrabold text-slate-200 uppercase tracking-wider flex items-center gap-1.5">
               <Icons.Scaling className="w-3.5 h-3.5 text-indigo-400" /> Ukuran & Resolusi (Resize)
             </h3>
+            <span className="text-[10px] font-mono font-bold text-indigo-300 bg-indigo-950/70 border border-indigo-800/60 px-2 py-0.5 rounded-md">
+              {resizeMode === 'original' ? '⚡ Otomatis' : '📐 Kustom'}
+            </span>
+          </div>
+
+          {/* Mode Switcher: Otomatis Ikuti Gambar vs Kustom Sendiri */}
+          <div className="grid grid-cols-2 gap-1.5 p-1 bg-slate-950 rounded-xl border border-slate-800">
             <button
               type="button"
-              onClick={() => setLockRatio(!lockRatio)}
-              className={`text-[10px] px-2 py-0.5 rounded-md font-mono font-bold flex items-center gap-1 transition-all cursor-pointer ${
-                lockRatio
-                  ? 'bg-indigo-600/30 text-indigo-300 border border-indigo-500/40'
-                  : 'bg-slate-800 text-slate-400 hover:text-slate-200'
+              onClick={() => setResizeMode('original')}
+              className={`py-2 px-2 rounded-lg text-xs font-bold transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
+                resizeMode === 'original'
+                  ? 'bg-indigo-600 text-white shadow-md shadow-indigo-600/30'
+                  : 'text-slate-400 hover:text-white hover:bg-slate-900'
               }`}
-              title={lockRatio ? 'Rasio 1:1 Terkunci (Lebar = Tinggi)' : 'Rasio Bebas'}
             >
-              {lockRatio ? <Icons.Lock className="w-3 h-3" /> : <Icons.Unlock className="w-3 h-3" />}
-              <span>{lockRatio ? 'Kunci 1:1' : 'Bebas'}</span>
+              <Icons.Sparkles className="w-3.5 h-3.5 text-amber-300" />
+              <span>Otomatis Ikuti Gambar</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => setResizeMode('custom')}
+              className={`py-2 px-2 rounded-lg text-xs font-bold transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
+                resizeMode === 'custom'
+                  ? 'bg-indigo-600 text-white shadow-md shadow-indigo-600/30'
+                  : 'text-slate-400 hover:text-white hover:bg-slate-900'
+              }`}
+            >
+              <Icons.Sliders className="w-3.5 h-3.5" />
+              <span>Kustom Ukuran Sendiri</span>
             </button>
           </div>
 
-          {/* Input Dimensi Manual (Lebar x Tinggi) */}
-          <div className="grid grid-cols-2 gap-2">
-            <div className="space-y-1">
-              <label className="text-[10px] font-bold text-slate-400 block">Lebar (px)</label>
-              <div className="relative">
-                <input
-                  type="number"
-                  min={50}
-                  max={4000}
-                  step={10}
-                  value={targetWidth}
-                  onChange={(e) => handleWidthChange(parseInt(e.target.value, 10))}
-                  className="w-full bg-slate-800 border border-slate-700 rounded-xl pl-3 pr-8 py-2 text-xs text-white font-mono font-bold focus:outline-none focus:border-indigo-500"
-                />
-                <span className="absolute right-2.5 top-2.5 text-[10px] text-slate-400 font-mono">px</span>
+          {resizeMode === 'original' ? (
+            <div className="p-3 bg-indigo-950/30 border border-indigo-500/20 rounded-xl space-y-1.5">
+              <div className="flex items-center gap-2 text-xs font-bold text-indigo-200">
+                <Icons.CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
+                <span>Dimensi & Rasio 100% Asli</span>
               </div>
+              <p className="text-[10px] text-slate-300 leading-relaxed">
+                Setiap gambar yang di-upload akan mempertahankan resolusi, lebar, tinggi, dan rasio aslinya tanpa diubah atau dipotong.
+              </p>
             </div>
-
-            <div className="space-y-1">
-              <label className="text-[10px] font-bold text-slate-400 block">Tinggi (px)</label>
-              <div className="relative">
-                <input
-                  type="number"
-                  min={50}
-                  max={4000}
-                  step={10}
-                  value={targetHeight}
-                  onChange={(e) => handleHeightChange(parseInt(e.target.value, 10))}
-                  disabled={lockRatio}
-                  className={`w-full border rounded-xl pl-3 pr-8 py-2 text-xs font-mono font-bold focus:outline-none ${
-                    lockRatio
-                      ? 'bg-slate-800/50 border-slate-800 text-slate-400 cursor-not-allowed'
-                      : 'bg-slate-800 border-slate-700 text-white focus:border-indigo-500'
-                  }`}
-                />
-                <span className="absolute right-2.5 top-2.5 text-[10px] text-slate-400 font-mono">px</span>
+          ) : (
+            <div className="space-y-3 pt-1 border-t border-slate-800/80">
+              {/* Pilihan Rasio Cepat (Aspect Ratio) */}
+              <div className="space-y-1.5">
+                <div className="flex items-center justify-between">
+                  <span className="text-[10px] font-bold text-slate-300 flex items-center gap-1">
+                    <Icons.Ratio className="w-3.5 h-3.5 text-indigo-400" />
+                    Aspek Rasio (Aspect Ratio)
+                  </span>
+                  <span className="text-[9px] font-mono font-bold text-indigo-400 bg-indigo-950 px-1.5 py-0.5 rounded border border-indigo-800/60">
+                    {selectedRatio}
+                  </span>
+                </div>
+                <div className="grid grid-cols-3 gap-1.5">
+                  {ASPECT_RATIO_PRESETS.map((p) => {
+                    const isActive = selectedRatio === p.label;
+                    return (
+                      <button
+                        key={p.label}
+                        type="button"
+                        onClick={() => applyRatioPreset(p)}
+                        className={`p-1.5 rounded-lg text-center transition-all border cursor-pointer ${
+                          isActive
+                            ? 'bg-indigo-600 border-indigo-500 text-white shadow-sm shadow-indigo-600/30'
+                            : 'bg-slate-800/70 border-slate-700/60 text-slate-300 hover:text-white hover:bg-slate-800'
+                        }`}
+                      >
+                        <span className="text-[11px] font-mono font-black block">{p.label}</span>
+                        <span className="text-[8px] text-slate-400 block truncate">{p.name}</span>
+                      </button>
+                    );
+                  })}
+                </div>
               </div>
-            </div>
-          </div>
 
-          {/* Preset Resolusi Populer */}
-          <div className="space-y-1.5 pt-1">
-            <label className="text-[10px] font-bold text-slate-400 block">Pilihan Ukuran Cepat (Preset)</label>
-            <div className="grid grid-cols-3 gap-1.5">
-              {RESIZE_PRESETS.map((p) => {
-                const isActive = targetWidth === p.w && targetHeight === p.h;
-                return (
+              {/* Atur Resolusi Target Manual */}
+              <div className="space-y-2 pt-1 border-t border-slate-800/80">
+                <div className="flex items-center justify-between">
+                  <span className="text-[10px] font-bold text-slate-400">Dimensi Target (px)</span>
                   <button
-                    key={p.label}
                     type="button"
-                    onClick={() => applyPreset(p.w, p.h)}
-                    className={`p-1.5 rounded-lg text-left transition-all border cursor-pointer ${
-                      isActive
-                        ? 'bg-indigo-600/30 border-indigo-500 text-white shadow-sm'
-                        : 'bg-slate-800/70 border-slate-700/60 text-slate-400 hover:text-white hover:bg-slate-800'
+                    onClick={() => setLockRatio(!lockRatio)}
+                    className={`text-[10px] px-2 py-0.5 rounded-md font-mono font-bold flex items-center gap-1 transition-all cursor-pointer ${
+                      lockRatio
+                        ? 'bg-indigo-600/30 text-indigo-300 border border-indigo-500/40'
+                        : 'bg-slate-800 text-slate-400 hover:text-slate-200 border border-slate-700'
                     }`}
+                    title={lockRatio ? 'Rasio Terkunci' : 'Rasio Bebas'}
                   >
-                    <span className="text-[10px] font-mono font-bold block truncate">{p.label}</span>
-                    <span className="text-[8px] text-slate-400 block truncate">{p.tag}</span>
+                    {lockRatio ? <Icons.Lock className="w-3 h-3" /> : <Icons.Unlock className="w-3 h-3" />}
+                    <span>{lockRatio ? 'Kunci Rasio' : 'Bebas'}</span>
                   </button>
-                );
-              })}
+                </div>
+
+                {/* Input Dimensi Manual (Lebar x Tinggi) */}
+                <div className="grid grid-cols-2 gap-2">
+                  <div className="space-y-1">
+                    <label className="text-[10px] font-bold text-slate-400 block">Lebar (px)</label>
+                    <div className="relative">
+                      <input
+                        type="number"
+                        min={50}
+                        max={4000}
+                        step={10}
+                        value={targetWidth}
+                        onChange={(e) => handleWidthChange(parseInt(e.target.value, 10))}
+                        className="w-full bg-slate-800 border border-slate-700 rounded-xl pl-3 pr-8 py-2 text-xs text-white font-mono font-bold focus:outline-none focus:border-indigo-500"
+                      />
+                      <span className="absolute right-2.5 top-2.5 text-[10px] text-slate-400 font-mono">px</span>
+                    </div>
+                  </div>
+
+                  <div className="space-y-1">
+                    <label className="text-[10px] font-bold text-slate-400 block">Tinggi (px)</label>
+                    <div className="relative">
+                      <input
+                        type="number"
+                        min={50}
+                        max={4000}
+                        step={10}
+                        value={targetHeight}
+                        onChange={(e) => handleHeightChange(parseInt(e.target.value, 10))}
+                        disabled={lockRatio && selectedRatio !== 'Bebas'}
+                        className={`w-full border rounded-xl pl-3 pr-8 py-2 text-xs font-mono font-bold focus:outline-none ${
+                          lockRatio && selectedRatio !== 'Bebas'
+                            ? 'bg-slate-800/50 border-slate-800 text-slate-400'
+                            : 'bg-slate-800 border-slate-700 text-white focus:border-indigo-500'
+                        }`}
+                      />
+                      <span className="absolute right-2.5 top-2.5 text-[10px] text-slate-400 font-mono">px</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Mode Pas & Warna BG */}
+              <div className="grid grid-cols-2 gap-2 pt-1 border-t border-slate-800/80">
+                <div className="space-y-1">
+                  <label className="text-[9px] font-bold text-slate-400 block">Penempatan (Fit)</label>
+                  <div className="grid grid-cols-2 gap-1 p-0.5 bg-slate-950 rounded-lg border border-slate-800">
+                    <button
+                      type="button"
+                      onClick={() => setFitMode('contain')}
+                      className={`py-1 text-[10px] font-bold rounded cursor-pointer ${
+                        fitMode === 'contain' ? 'bg-indigo-600 text-white' : 'text-slate-400 hover:text-white'
+                      }`}
+                    >
+                      Contain
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setFitMode('cover')}
+                      className={`py-1 text-[10px] font-bold rounded cursor-pointer ${
+                        fitMode === 'cover' ? 'bg-indigo-600 text-white' : 'text-slate-400 hover:text-white'
+                      }`}
+                    >
+                      Cover
+                    </button>
+                  </div>
+                </div>
+
+                <div className="space-y-1">
+                  <label className="text-[9px] font-bold text-slate-400 block">Latar Belakang</label>
+                  <div className="grid grid-cols-2 gap-1 p-0.5 bg-slate-950 rounded-lg border border-slate-800">
+                    <button
+                      type="button"
+                      onClick={() => setBgColor('transparent')}
+                      className={`py-1 text-[10px] font-bold rounded cursor-pointer ${
+                        bgColor === 'transparent' ? 'bg-indigo-600 text-white' : 'text-slate-400 hover:text-white'
+                      }`}
+                    >
+                      Transparan
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setBgColor('white')}
+                      className={`py-1 text-[10px] font-bold rounded cursor-pointer ${
+                        bgColor === 'white' ? 'bg-indigo-600 text-white' : 'text-slate-400 hover:text-white'
+                      }`}
+                    >
+                      Putih
+                    </button>
+                  </div>
+                </div>
+              </div>
+
+              {/* Preset Resolusi Populer */}
+              <div className="space-y-1.5 pt-1 border-t border-slate-800/80">
+                <label className="text-[10px] font-bold text-slate-400 block">Pilihan Ukuran Cepat (Preset)</label>
+                <div className="grid grid-cols-3 gap-1.5">
+                  {RESIZE_PRESETS.map((p) => {
+                    const isActive = targetWidth === p.w && targetHeight === p.h;
+                    return (
+                      <button
+                        key={p.label}
+                        type="button"
+                        onClick={() => applyPreset(p.w, p.h)}
+                        className={`p-1.5 rounded-lg text-left transition-all border cursor-pointer ${
+                          isActive
+                            ? 'bg-indigo-600/30 border-indigo-500 text-white shadow-sm'
+                            : 'bg-slate-800/70 border-slate-700/60 text-slate-400 hover:text-white hover:bg-slate-800'
+                        }`}
+                      >
+                        <span className="text-[10px] font-mono font-bold block truncate">{p.label}</span>
+                        <span className="text-[8px] text-slate-400 block truncate">{p.tag}</span>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* Tombol Terapkan ke Antrean jika ada item */}
+              {items.length > 0 && (
+                <button
+                  type="button"
+                  disabled={isProcessing}
+                  onClick={reprocessQueueWithGlobalSettings}
+                  className="w-full mt-2 py-2 px-3 bg-gradient-to-r from-indigo-600 to-indigo-500 hover:from-indigo-500 hover:to-indigo-400 text-white rounded-xl text-xs font-bold transition-all shadow-md shadow-indigo-600/20 flex items-center justify-center gap-1.5 cursor-pointer disabled:opacity-50"
+                  title="Terapkan ukuran dan rasio ini ke semua gambar yang telah diupload"
+                >
+                  <Icons.RefreshCw className={`w-3.5 h-3.5 ${isProcessing ? 'animate-spin' : ''}`} />
+                  <span>Terapkan Ukuran Baru ke Antrean ({items.length} Foto)</span>
+                </button>
+              )}
             </div>
-          </div>
+          )}
         </div>
 
         {/* Fitur: Hapus Background (Remove BG) */}
@@ -874,45 +1398,55 @@ export const BatchPanel: React.FC<BatchPanelProps> = () => {
               className="w-full bg-slate-800 border border-slate-700 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-indigo-500 font-medium"
             />
             <p className="text-[9px] text-slate-500 font-mono">
-              Contoh hasil: <span className="text-indigo-300">{filePrefix.trim() || 'Produk'}_01_{targetWidth}x{targetHeight}.png</span>
+              Contoh hasil: <span className="text-indigo-300">{filePrefix.trim() || 'Produk'}_01_{resizeMode === 'original' ? 'auto' : `${targetWidth}x${targetHeight}`}.png</span>
             </p>
           </div>
 
           {/* Mode Kanvas */}
-          <div className="space-y-1">
-            <label className="text-[10px] font-bold text-slate-400 block">Penempatan Gambar ke {targetWidth}x{targetHeight}px</label>
-            <div className="grid grid-cols-2 gap-1.5">
-              <button
-                type="button"
-                onClick={() => setFitMode('contain')}
-                className={`px-2.5 py-2 rounded-lg text-xs font-semibold flex items-center justify-center gap-1.5 transition-all cursor-pointer ${
-                  fitMode === 'contain'
-                    ? 'bg-indigo-600 text-white shadow-md shadow-indigo-600/30'
-                    : 'bg-slate-800 text-slate-400 hover:text-white hover:bg-slate-700'
-                }`}
-              >
-                <Icons.Maximize2 className="w-3.5 h-3.5" />
-                <span>Pas Tengah (Fit)</span>
-              </button>
-              <button
-                type="button"
-                onClick={() => setFitMode('cover')}
-                className={`px-2.5 py-2 rounded-lg text-xs font-semibold flex items-center justify-center gap-1.5 transition-all cursor-pointer ${
-                  fitMode === 'cover'
-                    ? 'bg-indigo-600 text-white shadow-md shadow-indigo-600/30'
-                    : 'bg-slate-800 text-slate-400 hover:text-white hover:bg-slate-700'
-                }`}
-              >
-                <Icons.Crop className="w-3.5 h-3.5" />
-                <span>Penuhi (Cover)</span>
-              </button>
+          {resizeMode === 'custom' ? (
+            <div className="space-y-1">
+              <label className="text-[10px] font-bold text-slate-400 block">Penempatan Gambar ke {targetWidth}x{targetHeight}px</label>
+              <div className="grid grid-cols-2 gap-1.5">
+                <button
+                  type="button"
+                  onClick={() => setFitMode('contain')}
+                  className={`px-2.5 py-2 rounded-lg text-xs font-semibold flex items-center justify-center gap-1.5 transition-all cursor-pointer ${
+                    fitMode === 'contain'
+                      ? 'bg-indigo-600 text-white shadow-md shadow-indigo-600/30'
+                      : 'bg-slate-800 text-slate-400 hover:text-white hover:bg-slate-700'
+                  }`}
+                >
+                  <Icons.Maximize2 className="w-3.5 h-3.5" />
+                  <span>Pas Tengah (Fit)</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setFitMode('cover')}
+                  className={`px-2.5 py-2 rounded-lg text-xs font-semibold flex items-center justify-center gap-1.5 transition-all cursor-pointer ${
+                    fitMode === 'cover'
+                      ? 'bg-indigo-600 text-white shadow-md shadow-indigo-600/30'
+                      : 'bg-slate-800 text-slate-400 hover:text-white hover:bg-slate-700'
+                  }`}
+                >
+                  <Icons.Crop className="w-3.5 h-3.5" />
+                  <span>Penuhi (Cover)</span>
+                </button>
+              </div>
+              <p className="text-[9px] text-slate-500">
+                {fitMode === 'contain'
+                  ? 'Seluruh produk tampak utuh tanpa terpotong (disertai latar belakang pilihan).'
+                  : `Mengisi penuh kanvas ${targetWidth}x${targetHeight}px tanpa ada sisa ruang samping.`}
+              </p>
             </div>
-            <p className="text-[9px] text-slate-500">
-              {fitMode === 'contain'
-                ? 'Seluruh produk tampak utuh tanpa terpotong (disertai latar belakang pilihan).'
-                : `Mengisi penuh kanvas ${targetWidth}x${targetHeight}px tanpa ada sisa ruang samping.`}
-            </p>
-          </div>
+          ) : (
+            <div className="p-2.5 bg-slate-800/40 border border-slate-700/60 rounded-xl flex items-center justify-between text-[10px]">
+              <span className="text-slate-400 flex items-center gap-1.5">
+                <Icons.Maximize2 className="w-3 h-3 text-indigo-400" />
+                Penempatan Gambar:
+              </span>
+              <span className="text-indigo-300 font-bold font-mono">100% Rasio Bawaan Asli</span>
+            </div>
+          )}
 
           {/* Warna Latar Belakang Hasil Akhir */}
           <div className="space-y-1">
@@ -952,27 +1486,67 @@ export const BatchPanel: React.FC<BatchPanelProps> = () => {
             </p>
           </div>
 
-          {/* Batas Maksimal KB */}
-          <div className="space-y-1 pt-1 border-t border-slate-800">
+          {/* Batas Maksimal KB Bebas Diatur */}
+          <div className="space-y-2.5 pt-2 border-t border-slate-800">
             <div className="flex items-center justify-between">
-              <label className="text-[10px] font-bold text-slate-400">Batas Ukuran Maksimal</label>
-              <span className="text-[10px] font-mono font-bold text-emerald-400">{maxKbLimit} KB</span>
+              <label className="text-[10px] font-bold text-slate-300 flex items-center gap-1.5">
+                <Icons.HardDrive className="w-3.5 h-3.5 text-emerald-400" />
+                <span>Batas Ukuran Maksimal (Bebas Diatur)</span>
+              </label>
+              <span className="text-[10px] font-mono font-bold text-emerald-400 bg-emerald-950/60 border border-emerald-800/60 px-2 py-0.5 rounded">
+                &le; {maxKbLimit} KB
+              </span>
             </div>
-            <div className="grid grid-cols-3 gap-1.5 text-center">
-              {[100, 120, 148].map((kb) => (
-                <button
-                  key={kb}
-                  type="button"
-                  onClick={() => setMaxKbLimit(kb)}
-                  className={`py-1 rounded text-[11px] font-mono font-bold transition-all cursor-pointer ${
-                    maxKbLimit === kb
-                      ? 'bg-emerald-600 text-white shadow-md shadow-emerald-600/25'
-                      : 'bg-slate-800 text-slate-400 hover:text-white'
-                  }`}
-                >
-                  {kb === 148 ? '148 KB (Maks)' : `${kb} KB`}
-                </button>
-              ))}
+
+            {/* Input Bebas Angka KB Berapa Saja */}
+            <div className="relative">
+              <input
+                type="number"
+                min={10}
+                max={50000}
+                step={1}
+                value={maxKbLimit || ''}
+                onChange={(e) => {
+                  const val = parseInt(e.target.value, 10);
+                  setMaxKbLimit(isNaN(val) ? 0 : Math.max(1, val));
+                }}
+                placeholder="Isi bebas batas KB (cth: 148)"
+                className="w-full bg-slate-800 border border-slate-700 rounded-xl pl-3 pr-12 py-2 text-xs text-white font-mono font-bold focus:outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500/40"
+              />
+              <span className="absolute right-3 top-2 text-[10px] text-emerald-400 font-mono font-bold">
+                KB
+              </span>
+            </div>
+
+            {/* Detail konversi byte & MB */}
+            <div className="flex items-center justify-between text-[9px] text-slate-400 font-mono px-1">
+              <span>Maks: {(maxKbLimit * 1024).toLocaleString('id-ID')} Bytes</span>
+              {maxKbLimit >= 1024 && (
+                <span className="text-emerald-400 font-bold">
+                  ({(maxKbLimit / 1024).toFixed(2)} MB)
+                </span>
+              )}
+            </div>
+
+            {/* Tombol Pilihan Cepat Preset KB */}
+            <div className="space-y-1">
+              <span className="text-[9px] font-bold text-slate-500 block">Pilihan Cepat (Preset):</span>
+              <div className="grid grid-cols-3 gap-1.5 text-center">
+                {[50, 100, 148, 200, 500, 1024].map((kb) => (
+                  <button
+                    key={kb}
+                    type="button"
+                    onClick={() => setMaxKbLimit(kb)}
+                    className={`py-1 rounded text-[10px] font-mono font-bold transition-all cursor-pointer border ${
+                      maxKbLimit === kb
+                        ? 'bg-emerald-600 border-emerald-500 text-white shadow-md shadow-emerald-600/25'
+                        : 'bg-slate-800 border-slate-700/60 text-slate-400 hover:text-white hover:bg-slate-700'
+                    }`}
+                  >
+                    {kb === 148 ? '148 KB (Std)' : kb === 1024 ? '1 MB' : `${kb} KB`}
+                  </button>
+                ))}
+              </div>
             </div>
           </div>
         </div>
@@ -1041,7 +1615,7 @@ export const BatchPanel: React.FC<BatchPanelProps> = () => {
           <div className="flex items-center gap-3">
             <h3 className="text-sm font-black text-white flex items-center gap-2">
               <Icons.CheckCircle2 className="w-4 h-4 text-emerald-400" />
-              Hasil Kompresi & Resize ({targetWidth}x{targetHeight} PNG)
+              Hasil Kompresi & Resize ({resizeMode === 'original' ? 'Resolusi Foto Asli' : `${targetWidth}x${targetHeight}px`} &bull; &le; {maxKbLimit}KB &bull; PNG)
             </h3>
             <span className="text-xs bg-slate-800 text-slate-300 font-mono px-2.5 py-0.5 rounded-full border border-slate-700 font-bold">
               {items.length} Berkas
@@ -1136,10 +1710,12 @@ export const BatchPanel: React.FC<BatchPanelProps> = () => {
               <div className="space-y-2">
                 <h4 className="text-base font-bold text-slate-100">Batch Resize & Compressor Siap Digunakan</h4>
                 <p className="text-xs text-slate-400 leading-relaxed">
-                  Unggah foto produk sekaligus. Atur dimensi <strong className="text-indigo-300">Lebar & Tinggi sesuai keinginan</strong> (atau gunakan preset), aktifkan <strong className="text-indigo-300">Hapus Background (Remove BG)</strong>, dan kompresi otomatis di bawah batas <strong className="text-emerald-400">&le; {maxKbLimit} KB</strong> format <strong className="text-indigo-300">PNG</strong>.
+                  Unggah foto produk sekaligus. Ukuran dan resolusi <strong className="text-indigo-300">otomatis mengikuti foto asli</strong> atau bebas di-resize manual, batas ukuran <strong className="text-emerald-400">bebas ditentukan (&le; {maxKbLimit} KB)</strong>, plus dukungan <strong className="text-indigo-300">Hapus Background (Remove BG)</strong> dan format murni <strong className="text-indigo-300">PNG</strong>.
                 </p>
                 <div className="pt-2 flex flex-wrap items-center justify-center gap-2 text-[10px] text-slate-400 font-mono">
-                  <span className="bg-slate-800 px-2.5 py-1 rounded-lg border border-indigo-500/40 text-indigo-300">📐 Resize Bebas ({targetWidth}x{targetHeight}px)</span>
+                  <span className="bg-slate-800 px-2.5 py-1 rounded-lg border border-indigo-500/40 text-indigo-300">
+                    {resizeMode === 'original' ? '⚡ Auto Ikuti Foto Asli' : `📐 Resize Bebas (${targetWidth}x${targetHeight}px)`}
+                  </span>
                   <span className="bg-slate-800 px-2.5 py-1 rounded-lg border border-indigo-700/50 text-indigo-300">✨ Remove BG</span>
                   <span className="bg-slate-800 px-2.5 py-1 rounded-lg border border-emerald-800/50 text-emerald-400">&le; {maxKbLimit} KB</span>
                   <span className="bg-slate-800 px-2.5 py-1 rounded-lg border border-slate-700">PNG</span>
@@ -1151,7 +1727,7 @@ export const BatchPanel: React.FC<BatchPanelProps> = () => {
               {items.map((item) => (
                 <div
                   key={item.id}
-                  className="bg-[#161f31] border border-slate-800 rounded-2xl p-3.5 flex flex-col justify-between gap-3 shadow-lg hover:border-slate-700 transition-all group"
+                  className="bg-[#161f31] border border-slate-800 hover:border-indigo-500/60 rounded-2xl p-3.5 flex flex-col justify-between gap-3 shadow-lg hover:shadow-indigo-500/10 hover:shadow-xl transition-all group relative"
                 >
                   {/* Preview Thumbnail */}
                   <div className="relative aspect-square w-full rounded-xl overflow-hidden border border-slate-700/80 bg-slate-950 flex items-center justify-center">
@@ -1171,9 +1747,10 @@ export const BatchPanel: React.FC<BatchPanelProps> = () => {
                       className="relative max-w-full max-h-full object-contain"
                     />
 
-                    {/* Badge Resolusi Aktif */}
-                    <div className="absolute top-2 left-2 flex items-center gap-1 bg-slate-900/90 backdrop-blur-xs text-white text-[9px] font-mono font-bold px-2 py-0.5 rounded-md border border-slate-700">
+                    {/* Badge Resolusi & Rasio Aktif */}
+                    <div className="absolute top-2 left-2 flex items-center gap-1.5 bg-slate-900/90 backdrop-blur-xs text-white text-[9px] font-mono font-bold px-2 py-0.5 rounded-md border border-slate-700 shadow">
                       <span>{item.dimensions}</span>
+                      <span className="text-indigo-400 font-extrabold">&bull; {item.aspectRatio || '1:1'}</span>
                     </div>
 
                     {/* Badge Remove BG jika aktif */}
@@ -1189,15 +1766,25 @@ export const BatchPanel: React.FC<BatchPanelProps> = () => {
                       PNG
                     </div>
 
-                    {/* Hover Zoom Overlay */}
-                    <button
-                      type="button"
-                      onClick={() => setPreviewItem(item)}
-                      className="absolute inset-0 bg-slate-950/60 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-1.5 text-white text-xs font-bold cursor-pointer"
-                    >
-                      <Icons.Eye className="w-4 h-4 text-indigo-400" />
-                      <span>Lihat Detail</span>
-                    </button>
+                    {/* Hover Overlay with Action Buttons */}
+                    <div className="absolute inset-0 bg-slate-950/80 opacity-0 group-hover:opacity-100 transition-opacity flex flex-col items-center justify-center gap-2 p-3 text-white text-xs font-bold">
+                      <button
+                        type="button"
+                        onClick={() => openAdjustModal(item)}
+                        className="w-full py-2 bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl flex items-center justify-center gap-1.5 shadow-md cursor-pointer transition-all"
+                      >
+                        <Icons.Sliders className="w-3.5 h-3.5" />
+                        <span>Adjust Size & Rasio</span>
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setPreviewItem(item)}
+                        className="w-full py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-200 rounded-xl flex items-center justify-center gap-1 text-[11px] cursor-pointer"
+                      >
+                        <Icons.Eye className="w-3.5 h-3.5 text-indigo-400" />
+                        <span>Lihat Detail</span>
+                      </button>
+                    </div>
                   </div>
 
                   {/* Info Details */}
@@ -1208,19 +1795,101 @@ export const BatchPanel: React.FC<BatchPanelProps> = () => {
                       </span>
                     </div>
 
-                    <div className="flex items-center justify-between text-[10px] font-mono bg-slate-900/80 px-2.5 py-1.5 rounded-lg border border-slate-800">
+                    {/* Target element for custom size: clickable with clear custom size indicator */}
+                    <div
+                      onClick={() => openAdjustModal(item)}
+                      className="flex items-center justify-between text-[10px] font-mono bg-slate-900/90 hover:bg-slate-800/90 px-2.5 py-1.5 rounded-lg border border-slate-800 hover:border-indigo-500/70 transition-all cursor-pointer group/size shadow-xs"
+                      title="Klik untuk Custom Ukuran (Dimensi px & Batas KB) Foto Ini"
+                    >
                       <div className="flex items-center gap-1.5">
                         <span className="text-slate-500 line-through">{item.originalSizeKb} KB</span>
                         <Icons.ArrowRight className="w-3 h-3 text-slate-600" />
                         <span className="text-emerald-400 font-extrabold">{item.compressedSizeKb} KB</span>
+                        <span className="text-[9px] text-indigo-300 font-sans font-semibold ml-0.5">
+                          (&le;{item.customMaxKb || maxKbLimit}k)
+                        </span>
                       </div>
-                      <span className="text-teal-400 font-bold">-{item.savedPercent}%</span>
+                      <div className="flex items-center gap-1.5">
+                        <span className="text-teal-400 font-bold">-{item.savedPercent}%</span>
+                        <span className="text-[9px] bg-indigo-600/30 group-hover/size:bg-indigo-600 text-indigo-300 group-hover/size:text-white px-1.5 py-0.5 rounded font-sans font-bold transition-all flex items-center gap-0.5">
+                          <Icons.Sliders className="w-2.5 h-2.5" />
+                          Custom Size
+                        </span>
+                      </div>
                     </div>
 
-                    <div className="flex items-center justify-between text-[9px] pt-1">
+                    {/* Bar Custom Size Cepat (Batas KB Per-Item) */}
+                    <div className="flex items-center justify-between gap-1 pt-0.5 text-[9px]">
+                      <span className="text-slate-400 font-bold">Batas Size:</span>
+                      <div className="flex items-center gap-1">
+                        {[50, 100, 148, 200].map((kb) => {
+                          const isCurrent = (item.customMaxKb || maxKbLimit) === kb;
+                          return (
+                            <button
+                              key={kb}
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                quickAdjustItemKb(item, kb);
+                              }}
+                              className={`px-1.5 py-0.5 rounded font-mono font-bold transition-all cursor-pointer border ${
+                                isCurrent
+                                  ? 'bg-emerald-600 border-emerald-500 text-white shadow-xs'
+                                  : 'bg-slate-900/80 border-slate-800 text-slate-400 hover:text-white hover:bg-slate-800'
+                              }`}
+                              title={`Ubah batas ukuran file ke ≤ ${kb} KB`}
+                            >
+                              {kb}k
+                            </button>
+                          );
+                        })}
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            openAdjustModal(item);
+                          }}
+                          className="px-1.5 py-0.5 rounded font-bold transition-all cursor-pointer bg-slate-900/80 hover:bg-indigo-950 border border-slate-800 hover:border-indigo-600/50 text-indigo-300 flex items-center gap-0.5"
+                          title="Custom ukuran dan dimensi bebas"
+                        >
+                          <Icons.Edit3 className="w-2.5 h-2.5" />
+                          Atur
+                        </button>
+                      </div>
+                    </div>
+
+                    {/* Bar Pilihan Rasio Cepat */}
+                    <div className="flex items-center justify-between gap-1 pt-0.5">
+                      <span className="text-[9px] font-bold text-slate-400">Rasio:</span>
+                      <div className="flex items-center gap-1">
+                        {(['1:1', '4:5', '3:4', '9:16'] as const).map((r) => {
+                          const isCurrent = item.aspectRatio === r;
+                          return (
+                            <button
+                              key={r}
+                              type="button"
+                              onClick={() => {
+                                const preset = ASPECT_RATIO_PRESETS.find((p) => p.label === r);
+                                if (preset) quickAdjustItemRatio(item, preset);
+                              }}
+                              className={`px-1.5 py-0.5 rounded text-[9px] font-mono font-bold transition-all cursor-pointer border ${
+                                isCurrent
+                                  ? 'bg-indigo-600 border-indigo-500 text-white shadow-xs'
+                                  : 'bg-slate-900/80 border-slate-800 text-slate-400 hover:text-white hover:bg-slate-800'
+                              }`}
+                              title={`Ubah langsung ke Rasio ${r}`}
+                            >
+                              {r}
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
+
+                    <div className="flex items-center justify-between text-[9px] pt-0.5">
                       <span className="text-emerald-400 font-bold flex items-center gap-1">
                         <Icons.CheckCircle2 className="w-3 h-3" />
-                        Lolos Syarat (&le; {maxKbLimit} KB)
+                        Lolos Syarat (&le; {item.customMaxKb || maxKbLimit} KB)
                       </span>
                       <span className="text-slate-400 font-mono">
                         {(item.compressedSizeBytes).toLocaleString()} B
@@ -1229,32 +1898,43 @@ export const BatchPanel: React.FC<BatchPanelProps> = () => {
                   </div>
 
                   {/* Actions */}
-                  <div className="flex items-center gap-1.5 pt-2 border-t border-slate-800/80">
+                  <div className="flex flex-col gap-1.5 pt-2 border-t border-slate-800/80">
                     <button
                       type="button"
-                      onClick={() => setPreviewItem(item)}
-                      className="flex-1 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-200 rounded-lg text-xs font-semibold transition-all flex items-center justify-center gap-1 cursor-pointer"
-                      title="Lihat Pratinjau Ukuran Penuh"
+                      onClick={() => openAdjustModal(item)}
+                      className="w-full py-1.5 px-2 bg-gradient-to-r from-indigo-600 to-indigo-500 hover:from-indigo-500 hover:to-indigo-400 text-white rounded-xl text-xs font-bold transition-all shadow-sm flex items-center justify-center gap-1.5 cursor-pointer"
+                      title="Ubah & Sesuaikan Ukuran (px) dan Rasio Foto Ini"
                     >
-                      <Icons.Eye className="w-3.5 h-3.5 text-indigo-400" />
-                      <span>Detail</span>
+                      <Icons.Sliders className="w-3.5 h-3.5" />
+                      <span>Adjust Size & Rasio</span>
                     </button>
-                    <a
-                      href={item.compressedUrl}
-                      download={item.newName}
-                      className="p-1.5 bg-indigo-600 hover:bg-indigo-500 text-white rounded-lg transition-all shadow-md cursor-pointer flex items-center justify-center"
-                      title="Unduh File PNG ini"
-                    >
-                      <Icons.Download className="w-4 h-4" />
-                    </a>
-                    <button
-                      type="button"
-                      onClick={() => removeItem(item.id)}
-                      className="p-1.5 hover:bg-rose-950/40 text-rose-400 rounded-lg transition-all cursor-pointer"
-                      title="Hapus dari antrean"
-                    >
-                      <Icons.Trash2 className="w-4 h-4" />
-                    </button>
+                    <div className="flex items-center gap-1.5">
+                      <button
+                        type="button"
+                        onClick={() => setPreviewItem(item)}
+                        className="flex-1 py-1 bg-slate-800 hover:bg-slate-700 text-slate-200 rounded-lg text-xs font-semibold transition-all flex items-center justify-center gap-1 cursor-pointer"
+                        title="Lihat Pratinjau Ukuran Penuh"
+                      >
+                        <Icons.Eye className="w-3.5 h-3.5 text-indigo-400" />
+                        <span>Detail</span>
+                      </button>
+                      <a
+                        href={item.compressedUrl}
+                        download={item.newName}
+                        className="p-1.5 bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white rounded-lg transition-all cursor-pointer flex items-center justify-center"
+                        title="Unduh File PNG ini"
+                      >
+                        <Icons.Download className="w-4 h-4 text-emerald-400" />
+                      </a>
+                      <button
+                        type="button"
+                        onClick={() => removeItem(item.id)}
+                        className="p-1.5 hover:bg-rose-950/40 text-rose-400 rounded-lg transition-all cursor-pointer"
+                        title="Hapus dari antrean"
+                      >
+                        <Icons.Trash2 className="w-4 h-4" />
+                      </button>
+                    </div>
                   </div>
                 </div>
               ))}
@@ -1262,6 +1942,371 @@ export const BatchPanel: React.FC<BatchPanelProps> = () => {
           )}
         </div>
       </div>
+
+      {/* Modal Adjust Size & Rasio Per-Item */}
+      {adjustingItem && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-xs animate-fade-in">
+          <div className="bg-[#161f31] border border-slate-700 rounded-2xl max-w-2xl w-full p-6 space-y-5 shadow-2xl flex flex-col max-h-[92vh] overflow-y-auto">
+            {/* Header */}
+            <div className="flex items-center justify-between border-b border-slate-700 pb-3">
+              <div className="flex items-center gap-2.5">
+                <div className="p-2 bg-indigo-600/20 text-indigo-400 rounded-xl border border-indigo-500/30">
+                  <Icons.Sliders className="w-5 h-5" />
+                </div>
+                <div>
+                  <h3 className="text-sm font-bold text-white flex items-center gap-2">
+                    <span>Adjust Ukuran (Size) & Rasio</span>
+                    <span className="text-[10px] font-mono font-bold bg-indigo-950 text-indigo-300 border border-indigo-800/80 px-2 py-0.5 rounded-full">
+                      {adjWidth}x{adjHeight}px ({adjRatio})
+                    </span>
+                  </h3>
+                  <p className="text-[11px] text-slate-400 truncate max-w-sm">{adjustingItem.originalName}</p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setAdjustingItem(null)}
+                className="p-1 hover:bg-slate-800 text-slate-400 hover:text-white rounded-lg transition-colors cursor-pointer"
+              >
+                <Icons.X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {/* Grid Pratinjau Kanvas & Pengaturan */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-5 items-center">
+              {/* Kolom Pratinjau Proporsi Frame */}
+              <div className="space-y-2.5 flex flex-col items-center">
+                <div className="relative w-full max-w-[260px] aspect-square rounded-2xl border-2 border-dashed border-indigo-500/40 bg-slate-950/90 flex items-center justify-center p-2 overflow-hidden shadow-inner">
+                  {/* Checkerboard pattern */}
+                  <div
+                    className="absolute inset-0 opacity-20"
+                    style={{
+                      backgroundImage:
+                        'linear-gradient(45deg, #334155 25%, transparent 25%), linear-gradient(-45deg, #334155 25%, transparent 25%), linear-gradient(45deg, transparent 75%, #334155 75%), linear-gradient(-45deg, transparent 75%, #334155 75%)',
+                      backgroundSize: '16px 16px',
+                      backgroundPosition: '0 0, 0 8px, 8px -8px, -8px 0px'
+                    }}
+                  />
+                  {/* Dynamic aspect frame */}
+                  <div
+                    className="relative rounded-xl overflow-hidden border-2 border-indigo-400 shadow-2xl transition-all duration-200 flex items-center justify-center"
+                    style={{
+                      width: adjWidth >= adjHeight ? '100%' : `${Math.max(20, Math.round((adjWidth / adjHeight) * 100))}%`,
+                      height: adjHeight >= adjWidth ? '100%' : `${Math.max(20, Math.round((adjHeight / adjWidth) * 100))}%`,
+                      backgroundColor: adjBgColor === 'white' ? '#ffffff' : 'transparent'
+                    }}
+                  >
+                    <img
+                      src={adjustingItem.compressedUrl}
+                      alt="Pratinjau Rasio"
+                      className={`w-full h-full ${adjFitMode === 'contain' ? 'object-contain' : 'object-cover'}`}
+                    />
+                    <div className="absolute bottom-1 right-1 bg-black/75 text-[8px] font-mono font-bold text-white px-1.5 py-0.5 rounded shadow">
+                      {adjRatio}
+                    </div>
+                  </div>
+                </div>
+
+                <div className="text-center space-y-0.5">
+                  <span className="text-[11px] font-mono font-bold text-indigo-300 block">
+                    Target: {adjWidth} x {adjHeight} px ({adjRatio})
+                  </span>
+                  <span className="text-[9px] text-slate-400 block">
+                    Mode: {adjFitMode === 'contain' ? 'Pas Tengah (Contain)' : 'Penuh (Cover)'} &bull; BG: {adjBgColor}
+                  </span>
+                </div>
+              </div>
+
+              {/* Kolom Pengaturan Ukuran & Rasio */}
+              <div className="space-y-3.5">
+                {/* 1. Preset Aspek Rasio */}
+                <div className="space-y-1.5">
+                  <label className="text-[10px] font-bold text-slate-300 uppercase tracking-wider block">
+                    1. Pilih Aspek Rasio (Aspect Ratio)
+                  </label>
+                  <div className="grid grid-cols-3 gap-1.5">
+                    {ASPECT_RATIO_PRESETS.map((p) => {
+                      const isActive = adjRatio === p.label;
+                      return (
+                        <button
+                          key={p.label}
+                          type="button"
+                          onClick={() => handleAdjRatioClick(p.label)}
+                          className={`py-1.5 px-2 rounded-xl text-center border transition-all cursor-pointer ${
+                            isActive
+                              ? 'bg-indigo-600 border-indigo-500 text-white shadow-md shadow-indigo-600/30'
+                              : 'bg-slate-900 border-slate-700/80 text-slate-300 hover:bg-slate-800'
+                          }`}
+                        >
+                          <span className="text-xs font-mono font-extrabold block">{p.label}</span>
+                          <span className="text-[8px] text-slate-400 block truncate">{p.name}</span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+
+                {/* 2. Dimensi Target (px) */}
+                <div className="space-y-1.5">
+                  <div className="flex items-center justify-between">
+                    <label className="text-[10px] font-bold text-slate-300 uppercase tracking-wider">
+                      2. Dimensi Piksel Target (px)
+                    </label>
+                    <button
+                      type="button"
+                      onClick={() => setAdjLockRatio(!adjLockRatio)}
+                      className={`text-[9px] font-mono font-bold px-2 py-0.5 rounded-md flex items-center gap-1 border transition-all cursor-pointer ${
+                        adjLockRatio
+                          ? 'bg-indigo-950 text-indigo-300 border-indigo-700/60'
+                          : 'bg-slate-800 text-slate-400 border-slate-700'
+                      }`}
+                    >
+                      {adjLockRatio ? <Icons.Lock className="w-2.5 h-2.5" /> : <Icons.Unlock className="w-2.5 h-2.5" />}
+                      <span>{adjLockRatio ? 'Kunci Rasio' : 'Bebas'}</span>
+                    </button>
+                  </div>
+                  <div className="grid grid-cols-2 gap-2">
+                    <div>
+                      <span className="text-[9px] font-semibold text-slate-400 block mb-0.5">Lebar</span>
+                      <div className="relative">
+                        <input
+                          type="number"
+                          min={50}
+                          max={4000}
+                          step={10}
+                          value={adjWidth}
+                          onChange={(e) => handleAdjWidthChange(parseInt(e.target.value, 10))}
+                          className="w-full bg-slate-900 border border-slate-700 rounded-xl px-2.5 py-1.5 text-xs text-white font-mono font-bold focus:outline-none focus:border-indigo-500"
+                        />
+                        <span className="absolute right-2 top-2 text-[9px] text-slate-500 font-mono">px</span>
+                      </div>
+                    </div>
+                    <div>
+                      <span className="text-[9px] font-semibold text-slate-400 block mb-0.5">Tinggi</span>
+                      <div className="relative">
+                        <input
+                          type="number"
+                          min={50}
+                          max={4000}
+                          step={10}
+                          value={adjHeight}
+                          onChange={(e) => handleAdjHeightChange(parseInt(e.target.value, 10))}
+                          className="w-full bg-slate-900 border border-slate-700 rounded-xl px-2.5 py-1.5 text-xs text-white font-mono font-bold focus:outline-none focus:border-indigo-500"
+                        />
+                        <span className="absolute right-2 top-2 text-[9px] text-slate-500 font-mono">px</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Preset Dimensi Cepat */}
+                  <div className="flex items-center gap-1 overflow-x-auto pt-1 pb-0.5">
+                    <span className="text-[8px] text-slate-500 font-bold shrink-0">Preset:</span>
+                    {[
+                      { w: 500, h: 500, label: '500px' },
+                      { w: 800, h: 800, label: '800px' },
+                      { w: 1000, h: 1000, label: '1000px' },
+                      { w: 1080, h: 1080, label: '1080px' },
+                      { w: 1080, h: 1350, label: '1080x1350' },
+                      { w: 1080, h: 1920, label: '1080x1920' },
+                    ].map((p) => (
+                      <button
+                        key={p.label}
+                        type="button"
+                        onClick={() => {
+                          setAdjWidth(p.w);
+                          setAdjHeight(p.h);
+                          setAdjRatio(getAspectRatioLabel(p.w, p.h));
+                        }}
+                        className={`px-1.5 py-0.5 rounded text-[8px] font-mono font-bold border shrink-0 transition-all cursor-pointer ${
+                          adjWidth === p.w && adjHeight === p.h
+                            ? 'bg-indigo-600 border-indigo-500 text-white'
+                            : 'bg-slate-900 border-slate-800 text-slate-400 hover:text-white'
+                        }`}
+                      >
+                        {p.label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {/* 3. Batas Ukuran Berkas Maksimal (Max KB) Bebas Kustom */}
+                <div className="space-y-1.5 pt-1 border-t border-slate-800">
+                  <div className="flex items-center justify-between">
+                    <label className="text-[10px] font-bold text-slate-300 uppercase tracking-wider flex items-center gap-1.5">
+                      <Icons.HardDrive className="w-3.5 h-3.5 text-emerald-400" />
+                      <span>3. Batas Ukuran File (Max KB Bebas Kustom)</span>
+                    </label>
+                    <span className="text-[9px] font-mono text-emerald-400 font-bold bg-emerald-950/80 px-2 py-0.5 rounded border border-emerald-800/60">
+                      &le; {adjMaxKb} KB
+                    </span>
+                  </div>
+
+                  <div className="flex items-center gap-2">
+                    <div className="relative">
+                      <input
+                        type="number"
+                        min={10}
+                        max={50000}
+                        step={1}
+                        value={adjMaxKb}
+                        onChange={(e) => setAdjMaxKb(Math.max(5, parseInt(e.target.value, 10) || 5))}
+                        placeholder="Kustom angka KB..."
+                        style={{ width: '90.6836px' }}
+                        className="bg-slate-900 border border-slate-700 rounded-xl px-2.5 py-1.5 text-xs text-white font-mono font-bold focus:outline-none focus:border-emerald-500"
+                      />
+                      <span className="absolute right-2 top-2 text-[9px] text-emerald-400 font-mono font-bold">KB Max</span>
+                    </div>
+                    <div className="flex items-center gap-1">
+                      {[50, 100, 148, 200, 500].map((kb) => (
+                        <button
+                          key={kb}
+                          type="button"
+                          onClick={() => setAdjMaxKb(kb)}
+                          className={`px-2 py-1.5 rounded-lg text-[9px] font-mono font-bold transition-all cursor-pointer border ${
+                            adjMaxKb === kb
+                              ? 'bg-emerald-600 border-emerald-500 text-white shadow-xs'
+                              : 'bg-slate-900 border-slate-800 text-slate-400 hover:text-white hover:bg-slate-800'
+                          }`}
+                        >
+                          {kb === 148 ? '148k (Std)' : `${kb}k`}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+
+                {/* 4. Penempatan & Latar Belakang */}
+                <div className="grid grid-cols-2 gap-2 pt-1 border-t border-slate-800">
+                  <div>
+                    <label className="text-[9px] font-bold text-slate-400 block mb-1">Penempatan (Fit)</label>
+                    <div className="grid grid-cols-2 gap-1 p-0.5 bg-slate-900 rounded-lg border border-slate-800">
+                      <button
+                        type="button"
+                        onClick={() => setAdjFitMode('contain')}
+                        className={`py-1 text-[10px] font-bold rounded cursor-pointer ${
+                          adjFitMode === 'contain' ? 'bg-indigo-600 text-white' : 'text-slate-400 hover:text-white'
+                        }`}
+                      >
+                        Contain
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setAdjFitMode('cover')}
+                        className={`py-1 text-[10px] font-bold rounded cursor-pointer ${
+                          adjFitMode === 'cover' ? 'bg-indigo-600 text-white' : 'text-slate-400 hover:text-white'
+                        }`}
+                      >
+                        Cover
+                      </button>
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="text-[9px] font-bold text-slate-400 block mb-1">Warna Background</label>
+                    <div className="grid grid-cols-2 gap-1 p-0.5 bg-slate-900 rounded-lg border border-slate-800">
+                      <button
+                        type="button"
+                        onClick={() => setAdjBgColor('transparent')}
+                        className={`py-1 text-[10px] font-bold rounded cursor-pointer ${
+                          adjBgColor === 'transparent' ? 'bg-indigo-600 text-white' : 'text-slate-400 hover:text-white'
+                        }`}
+                      >
+                        Transparan
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setAdjBgColor('white')}
+                        className={`py-1 text-[10px] font-bold rounded cursor-pointer ${
+                          adjBgColor === 'white' ? 'bg-indigo-600 text-white' : 'text-slate-400 hover:text-white'
+                        }`}
+                      >
+                        Putih
+                      </button>
+                    </div>
+                  </div>
+                </div>
+
+                {/* 4. Remove Background Toggle */}
+                <div className="pt-1 flex items-center justify-between bg-slate-900/60 p-2 rounded-xl border border-slate-800">
+                  <div className="flex items-center gap-2">
+                    <Icons.Wand2 className="w-3.5 h-3.5 text-indigo-400" />
+                    <span className="text-[10px] font-bold text-slate-300">Hapus Background Foto</span>
+                  </div>
+                  <input
+                    type="checkbox"
+                    checked={adjRemoveBg}
+                    onChange={(e) => setAdjRemoveBg(e.target.checked)}
+                    className="accent-indigo-600 cursor-pointer w-4 h-4"
+                  />
+                </div>
+              </div>
+            </div>
+
+            {/* Modal Actions */}
+            <div className="flex items-center justify-between gap-2 pt-3 border-t border-slate-700">
+              <button
+                type="button"
+                onClick={() => setAdjustingItem(null)}
+                className="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-xl text-xs font-semibold transition-colors cursor-pointer"
+              >
+                Batal
+              </button>
+
+              <div className="flex items-center gap-2">
+                {items.length > 1 && (
+                  <button
+                    type="button"
+                    disabled={isAdjustingLoading}
+                    onClick={() =>
+                      applyAdjustmentToAll({
+                        targetWidth: adjWidth,
+                        targetHeight: adjHeight,
+                        fitMode: adjFitMode,
+                        bgColor: adjBgColor,
+                        maxKb: adjMaxKb,
+                        removeBg: adjRemoveBg
+                      })
+                    }
+                    className="px-3.5 py-2 bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer disabled:opacity-50"
+                    title="Terapkan ukuran dan rasio ini ke semua foto dalam antrean"
+                  >
+                    <Icons.Layers className="w-3.5 h-3.5 text-indigo-400" />
+                    <span>Terapkan ke Semua ({items.length})</span>
+                  </button>
+                )}
+
+                <button
+                  type="button"
+                  disabled={isAdjustingLoading}
+                  onClick={() =>
+                    processSingleItemAdjustment(adjustingItem, {
+                      targetWidth: adjWidth,
+                      targetHeight: adjHeight,
+                      fitMode: adjFitMode,
+                      bgColor: adjBgColor,
+                      maxKb: adjMaxKb,
+                      removeBg: adjRemoveBg
+                    })
+                  }
+                  className="px-4 py-2 bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl text-xs font-bold transition-all shadow-md shadow-indigo-600/25 flex items-center gap-1.5 cursor-pointer disabled:opacity-50"
+                >
+                  {isAdjustingLoading ? (
+                    <>
+                      <Icons.Loader2 className="w-4 h-4 animate-spin" />
+                      <span>Memproses...</span>
+                    </>
+                  ) : (
+                    <>
+                      <Icons.Check className="w-4 h-4" />
+                      <span>Terapkan ke Foto Ini</span>
+                    </>
+                  )}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Modal Preview Detail */}
       {previewItem && (
