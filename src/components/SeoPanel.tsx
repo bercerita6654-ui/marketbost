@@ -451,9 +451,9 @@ SEKARANG, BUATKAN TEKS OUTPUT SIAP SALIN PERSIS MENGIKUTI CONTOH FORMAT DI ATAS 
       <button
         type="button"
         onClick={handleGenerate}
-        className="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-3.5 px-4 rounded-xl shadow-md hover:shadow-lg transition-all flex items-center justify-center space-x-2 group outline-none"
+        className="w-full bg-gradient-to-r from-emerald-600 via-teal-600 to-cyan-500 hover:from-emerald-500 hover:to-cyan-400 text-white font-extrabold py-3.5 px-4 rounded-xl shadow-lg shadow-emerald-500/25 hover:shadow-emerald-500/40 transition-all flex items-center justify-center space-x-2 group outline-none cursor-pointer active:scale-[0.98] border border-white/20"
       >
-        <Icons.Sparkles className="w-5 h-5 group-hover:animate-pulse" />
+        <Icons.Sparkles className="w-5 h-5 text-amber-300 group-hover:rotate-12 transition-transform" />
         <span>Generate Prompt SEO</span>
       </button>
     </div>

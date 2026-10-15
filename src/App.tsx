@@ -264,30 +264,33 @@ export default function App() {
     setKeywords(preset.kw);
   };
 
-  const navItems: { id: ActiveTab; label: string; sub: string; icon: any; color: string; activeColor: string }[] = [
-    { id: 'visual', label: 'Visual AI Prompt', sub: 'Midjourney & Flux', icon: Icons.Sparkles, color: 'text-blue-400', activeColor: 'bg-blue-600 text-white shadow-lg shadow-blue-500/25' },
-    { id: 'caption', label: 'Caption Sosmed', sub: 'Instagram & TikTok', icon: Icons.MessageSquareText, color: 'text-pink-400', activeColor: 'bg-pink-600 text-white shadow-lg shadow-pink-500/25' },
-    { id: 'seo', label: 'SEO Copywriter', sub: 'Shopee & Tokopedia', icon: Icons.ShoppingBag, color: 'text-emerald-400', activeColor: 'bg-emerald-600 text-white shadow-lg shadow-emerald-500/25' },
-    { id: 'broadcast', label: 'Broadcast Chat', sub: 'Keranjang, Promo & Baru', icon: Icons.Radio, color: 'text-purple-400', activeColor: 'bg-purple-600 text-white shadow-lg shadow-purple-500/25' },
-    { id: 'grid', label: '9-Grid Splitter', sub: '1000px, Kolase & Video', icon: Icons.LayoutGrid, color: 'text-indigo-400', activeColor: 'bg-indigo-600 text-white shadow-lg shadow-indigo-500/25' },
-    { id: 'batch', label: 'Batch Processor', sub: 'Multi-Foto Max 148KB', icon: Icons.Layers, color: 'text-amber-400', activeColor: 'bg-amber-600 text-white shadow-lg shadow-amber-500/25' }
+  const navItems: { id: ActiveTab; label: string; sub: string; icon: any; color: string; activeColor: string; accentGlow: string }[] = [
+    { id: 'visual', label: 'Visual AI Prompt', sub: 'Midjourney & Flux', icon: Icons.Sparkles, color: 'text-blue-400', activeColor: 'bg-gradient-to-r from-blue-600 via-blue-500 to-indigo-600 text-white shadow-lg shadow-blue-500/25 border border-blue-400/40', accentGlow: 'bg-blue-500/20 text-blue-300' },
+    { id: 'caption', label: 'Caption Sosmed', sub: 'Instagram & TikTok', icon: Icons.MessageSquareText, color: 'text-pink-400', activeColor: 'bg-gradient-to-r from-pink-600 via-rose-500 to-red-500 text-white shadow-lg shadow-pink-500/25 border border-pink-400/40', accentGlow: 'bg-pink-500/20 text-pink-300' },
+    { id: 'seo', label: 'SEO Copywriter', sub: 'Shopee & Tokopedia', icon: Icons.ShoppingBag, color: 'text-emerald-400', activeColor: 'bg-gradient-to-r from-emerald-600 via-teal-500 to-cyan-600 text-white shadow-lg shadow-emerald-500/25 border border-emerald-400/40', accentGlow: 'bg-emerald-500/20 text-emerald-300' },
+    { id: 'broadcast', label: 'Broadcast Chat', sub: 'Keranjang, Promo & Baru', icon: Icons.Radio, color: 'text-purple-400', activeColor: 'bg-gradient-to-r from-purple-600 via-indigo-600 to-blue-600 text-white shadow-lg shadow-purple-500/25 border border-purple-400/40', accentGlow: 'bg-purple-500/20 text-purple-300' },
+    { id: 'grid', label: '9-Grid Splitter', sub: '1000px, Kolase & Video', icon: Icons.LayoutGrid, color: 'text-indigo-400', activeColor: 'bg-gradient-to-r from-indigo-600 via-violet-600 to-purple-600 text-white shadow-lg shadow-indigo-500/25 border border-indigo-400/40', accentGlow: 'bg-indigo-500/20 text-indigo-300' },
+    { id: 'batch', label: 'Batch Processor', sub: 'Multi-Foto Max KB/MB', icon: Icons.Layers, color: 'text-amber-400', activeColor: 'bg-gradient-to-r from-amber-600 via-orange-500 to-rose-600 text-white shadow-lg shadow-amber-500/25 border border-amber-400/40', accentGlow: 'bg-amber-500/20 text-amber-300' }
   ];
 
   return (
     <div className="flex flex-col h-screen bg-[#f8fafc] text-slate-800 font-sans overflow-hidden select-none">
       
-      {/* Top Application Header */}
-      <header className="h-14 bg-[#0f172a] border-b border-slate-800 flex items-center justify-between px-4 text-white shrink-0 shadow-sm z-30">
+      {/* Top Application Header - Ultra Modern Glass Studio Bar */}
+      <header className="h-14 bg-[#0a0f1d]/95 backdrop-blur-xl border-b border-slate-800/80 flex items-center justify-between px-4 text-white shrink-0 shadow-md shadow-black/25 z-30">
         <div className="flex items-center gap-3">
-          <div className="bg-gradient-to-tr from-indigo-500 via-blue-500 to-teal-400 p-2 rounded-xl flex items-center justify-center shadow-md shadow-indigo-500/20">
-            <Icons.Zap className="w-5 h-5 text-white" />
+          <div className="relative group">
+            <div className="absolute -inset-0.5 bg-gradient-to-r from-indigo-500 via-blue-500 to-teal-400 rounded-xl blur-xs opacity-75 group-hover:opacity-100 transition duration-300" />
+            <div className="relative bg-gradient-to-tr from-indigo-600 via-blue-600 to-teal-400 p-2 rounded-xl flex items-center justify-center shadow-md">
+              <Icons.Zap className="w-5 h-5 text-white" />
+            </div>
           </div>
           <div>
             <div className="flex items-center gap-2">
               <h1 className="text-sm font-black tracking-tight text-white flex items-center gap-1.5">
-                MARKETBOOST <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-teal-400 font-extrabold text-xs">STUDIO AI</span>
+                MARKETBOOST <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-400 via-teal-300 to-emerald-400 font-extrabold text-xs">STUDIO AI</span>
               </h1>
-              <span className="text-[9px] font-bold px-1.5 py-0.5 rounded bg-blue-500/20 text-blue-400 border border-blue-500/30">
+              <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-full bg-blue-500/15 text-blue-400 border border-blue-500/30 shadow-xs">
                 v2.5 PRO
               </span>
             </div>
@@ -297,15 +300,15 @@ export default function App() {
               {activeTab === 'seo' && 'Generator Judul 100-125 Karakter & Deskripsi Tokopedia/Shopee'}
               {activeTab === 'broadcast' && 'Pesan Siaran Pengingat Keranjang, Produk Baru & Promo 9.9'}
               {activeTab === 'grid' && 'Pemotong 9 Grid Feed 1:1, Kolase Banner, & Video Slideshow'}
-              {activeTab === 'batch' && 'Kompresi & Optimasi Multi-Gambar Otomatis Maks 148KB'}
+              {activeTab === 'batch' && 'Kompresi & Optimasi Multi-Gambar Otomatis (KB / MB)'}
             </p>
           </div>
         </div>
 
         {/* Global Product Presets Quick Bar (Center) */}
-        <div className="hidden lg:flex items-center gap-2 bg-slate-900/90 border border-slate-800/80 rounded-xl px-3 py-1.5">
+        <div className="hidden lg:flex items-center gap-2 bg-slate-900/90 backdrop-blur-md border border-slate-800 rounded-xl px-3 py-1.5 shadow-inner">
           <div className="flex items-center gap-1.5 text-xs text-slate-400 font-bold">
-            <Icons.Sparkles className="w-3.5 h-3.5 text-amber-400" />
+            <Icons.Sparkles className="w-3.5 h-3.5 text-amber-400 animate-pulse" />
             <span className="text-[11px] text-slate-400">Contoh Cepat:</span>
           </div>
           <div className="flex items-center gap-1.5">
@@ -314,7 +317,7 @@ export default function App() {
                 key={idx}
                 type="button"
                 onClick={() => handleApplyPreset(preset)}
-                className="px-2.5 py-1 rounded-lg text-[11px] font-medium bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white transition-all cursor-pointer border border-slate-700/50"
+                className="px-2.5 py-1 rounded-lg text-[11px] font-semibold bg-slate-800/80 hover:bg-slate-700/90 text-slate-300 hover:text-white transition-all cursor-pointer border border-slate-700/60 hover:border-slate-600 shadow-2xs hover:shadow-xs active:scale-95"
                 title={`Gunakan contoh "${preset.name}"`}
               >
                 {preset.label}
@@ -324,15 +327,15 @@ export default function App() {
         </div>
 
         {/* Action buttons on the right */}
-        <div className="flex items-center gap-2.5">
+        <div className="flex items-center gap-2">
           {/* Guide Modal Trigger */}
           <button
             type="button"
             onClick={() => setGuideOpen(true)}
-            className="flex items-center gap-1.5 px-3 py-1.5 bg-slate-800/90 hover:bg-indigo-600 text-slate-200 hover:text-white rounded-xl text-xs font-bold transition-all outline-none border border-slate-700/80 cursor-pointer shadow-xs"
+            className="flex items-center gap-1.5 px-3 py-1.5 bg-slate-800/80 hover:bg-indigo-600 text-slate-200 hover:text-white rounded-xl text-xs font-bold transition-all outline-none border border-slate-700/80 hover:border-indigo-500 cursor-pointer shadow-xs active:scale-95 group"
             title="Panduan penggunaan fitur"
           >
-            <Icons.BookOpen className="w-3.5 h-3.5 text-indigo-400 group-hover:text-white" />
+            <Icons.BookOpen className="w-3.5 h-3.5 text-indigo-400 group-hover:text-white transition-colors" />
             <span className="hidden md:inline text-[11px]">Panduan</span>
           </button>
 
@@ -340,20 +343,20 @@ export default function App() {
           <button
             type="button"
             onClick={() => setHistoryDrawerOpen(true)}
-            className="flex items-center gap-1.5 px-3 py-1.5 bg-slate-800/90 hover:bg-slate-700 text-slate-200 hover:text-white rounded-xl text-xs font-bold transition-all outline-none border border-slate-700/80 cursor-pointer shadow-xs relative"
+            className="flex items-center gap-1.5 px-3 py-1.5 bg-slate-800/80 hover:bg-slate-700 text-slate-200 hover:text-white rounded-xl text-xs font-bold transition-all outline-none border border-slate-700/80 hover:border-slate-600 cursor-pointer shadow-xs active:scale-95 relative"
             title="Lihat riwayat salinan"
           >
             <Icons.ClipboardList className="w-3.5 h-3.5 text-blue-400" />
             <span className="hidden md:inline text-[11px]">Riwayat Salin</span>
             {recentCopies.length > 0 && (
-              <span className="bg-rose-500 text-white text-[9px] px-1.5 py-0.5 rounded-full font-extrabold leading-none">
+              <span className="bg-gradient-to-r from-rose-500 to-pink-500 text-white text-[9px] px-1.5 py-0.5 rounded-full font-extrabold leading-none shadow-xs">
                 {recentCopies.length}
               </span>
             )}
           </button>
 
           {/* Server / Engine Status indicator */}
-          <div className="hidden sm:flex items-center gap-1.5 text-[11px] text-emerald-400 font-medium bg-emerald-950/40 px-2.5 py-1 rounded-xl border border-emerald-800/40">
+          <div className="hidden sm:flex items-center gap-1.5 text-[11px] text-emerald-400 font-semibold bg-emerald-950/40 px-2.5 py-1 rounded-xl border border-emerald-800/50 shadow-2xs">
             <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
             <span>Studio Siap</span>
           </div>
@@ -364,20 +367,20 @@ export default function App() {
       <div className="flex-1 flex overflow-hidden">
         
         {/* Left Navigation Sidebar */}
-        <nav className={`${sidebarCollapsed ? 'w-16' : 'w-60'} bg-[#0f172a] flex flex-col justify-between py-3 border-r border-slate-800 shrink-0 transition-all duration-300 select-none z-20`}>
+        <nav className={`${sidebarCollapsed ? 'w-16' : 'w-60'} bg-[#0a0f1d] flex flex-col justify-between py-3 border-r border-slate-800/90 shrink-0 transition-all duration-300 select-none z-20`}>
           
-          <div className="space-y-1 px-2">
+          <div className="space-y-1.5 px-2">
             {/* Collapse toggle */}
-            <div className="flex items-center justify-between px-2 py-1 mb-2 text-slate-400">
+            <div className="flex items-center justify-between px-2.5 py-1 mb-1 text-slate-400">
               {!sidebarCollapsed && (
-                <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">
+                <span className="text-[10px] font-extrabold uppercase tracking-wider text-slate-400">
                   Alat & Fitur
                 </span>
               )}
               <button
                 type="button"
                 onClick={() => setSidebarCollapsed(!sidebarCollapsed)}
-                className="p-1 hover:bg-slate-800 text-slate-400 hover:text-white rounded-lg transition-colors cursor-pointer ml-auto"
+                className="p-1.5 hover:bg-slate-800/80 text-slate-400 hover:text-white rounded-lg transition-colors cursor-pointer ml-auto"
                 title={sidebarCollapsed ? 'Perluas Menu' : 'Persempit Menu'}
               >
                 <Icons.PanelLeft className={`w-4 h-4 transition-transform ${sidebarCollapsed ? 'rotate-180' : ''}`} />
@@ -396,10 +399,10 @@ export default function App() {
                   className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all cursor-pointer outline-none relative group text-left ${
                     isActive
                       ? item.activeColor
-                      : 'text-slate-300 hover:text-white hover:bg-slate-800/60'
+                      : 'text-slate-300 hover:text-white hover:bg-slate-800/50'
                   }`}
                 >
-                  <div className={`p-1.5 rounded-lg shrink-0 ${isActive ? 'bg-white/20' : 'bg-slate-800/80 text-slate-300'}`}>
+                  <div className={`p-1.5 rounded-lg shrink-0 transition-all ${isActive ? 'bg-white/20 shadow-xs' : 'bg-slate-800/80 text-slate-300 group-hover:text-white group-hover:bg-slate-700/80'}`}>
                     <IconComp className="w-4 h-4" />
                   </div>
                   
@@ -417,9 +420,12 @@ export default function App() {
 
                   {/* Tooltip in collapsed mode */}
                   {sidebarCollapsed && (
-                    <div className="absolute left-16 top-1/2 -translate-y-1/2 bg-slate-900 text-white text-xs px-3 py-1.5 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap pointer-events-none z-50 shadow-xl border border-slate-700">
-                      <div className="font-bold">{item.label}</div>
-                      <div className="text-[10px] text-slate-400">{item.sub}</div>
+                    <div className="absolute left-16 top-1/2 -translate-y-1/2 bg-slate-900/95 backdrop-blur-md text-white text-xs px-3 py-2 rounded-xl opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap pointer-events-none z-50 shadow-2xl border border-slate-700">
+                      <div className="font-bold flex items-center gap-1.5">
+                        <IconComp className={`w-3.5 h-3.5 ${item.color}`} />
+                        <span>{item.label}</span>
+                      </div>
+                      <div className="text-[10px] text-slate-400 mt-0.5">{item.sub}</div>
                     </div>
                   )}
                 </button>
@@ -429,20 +435,22 @@ export default function App() {
 
           {/* Bottom Sidebar Info */}
           {!sidebarCollapsed ? (
-            <div className="p-3 mx-2 bg-slate-900/80 border border-slate-800/80 rounded-xl space-y-2">
-              <div className="flex items-center gap-2 text-xs font-bold text-slate-300">
-                <Icons.ShieldCheck className="w-4 h-4 text-teal-400 shrink-0" />
+            <div className="p-3.5 mx-2 bg-gradient-to-b from-slate-900/90 to-slate-950/90 border border-slate-800/90 rounded-2xl space-y-2.5 shadow-md">
+              <div className="flex items-center gap-2 text-xs font-bold text-slate-200">
+                <div className="p-1 rounded-md bg-teal-500/15 text-teal-400">
+                  <Icons.ShieldCheck className="w-4 h-4 shrink-0" />
+                </div>
                 <span>Format Standar 1:1</span>
               </div>
               <p className="text-[10px] text-slate-400 leading-relaxed">
-                Rasio 1000x1000px & batas download dioptimalkan &le; 148KB per gambar.
+                Rasio 1000x1000px & batas file dioptimalkan &le; 148KB per gambar (support konversi dinamis MB).
               </p>
               <button
                 type="button"
                 onClick={() => setGuideOpen(true)}
-                className="w-full py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white rounded-lg text-[11px] font-semibold transition-colors flex items-center justify-center gap-1 cursor-pointer"
+                className="w-full py-1.5 bg-slate-800/90 hover:bg-slate-700 text-slate-200 hover:text-white rounded-xl text-[11px] font-semibold transition-all flex items-center justify-center gap-1.5 cursor-pointer border border-slate-700/60 shadow-2xs active:scale-95"
               >
-                <Icons.HelpCircle className="w-3 h-3 text-indigo-400" />
+                <Icons.HelpCircle className="w-3.5 h-3.5 text-indigo-400" />
                 <span>Pelajari Tips</span>
               </button>
             </div>
@@ -451,7 +459,7 @@ export default function App() {
               <button
                 type="button"
                 onClick={() => setGuideOpen(true)}
-                className="w-full p-2.5 text-slate-400 hover:text-white hover:bg-slate-800 rounded-xl transition-colors flex justify-center cursor-pointer"
+                className="w-full p-2.5 text-slate-400 hover:text-white hover:bg-slate-800/80 rounded-xl transition-colors flex justify-center cursor-pointer shadow-2xs"
                 title="Buka Panduan"
               >
                 <Icons.HelpCircle className="w-5 h-5 text-indigo-400" />
@@ -485,41 +493,58 @@ export default function App() {
             ) : (
               <>
                 {/* PANEL KIRI: Controls & Form */}
-                <aside className="w-[360px] lg:w-[380px] bg-white border-r border-slate-200 flex flex-col overflow-y-auto shrink-0 p-4 space-y-4 shadow-xs">
+                <aside className="w-[370px] lg:w-[395px] bg-slate-50/80 backdrop-blur-md border-r border-slate-200/90 flex flex-col overflow-y-auto shrink-0 p-4 space-y-4 shadow-xs">
               
                   {/* Product Global Identifier input - disembunyikan saat tab Broadcast Chat */}
                   {activeTab !== 'broadcast' && (
-                    <div className="bg-slate-50 border border-slate-200 rounded-xl p-3.5 space-y-2 shadow-2xs">
-                      <div className="flex items-center justify-between text-[11px] font-bold text-slate-500 uppercase tracking-wider">
-                        <div className="flex items-center gap-1.5 text-slate-700">
-                          <Icons.Package className="w-4 h-4 text-indigo-600" />
-                          <span>Nama Utama Produk</span>
+                    <div className="bg-white border border-slate-200/90 rounded-2xl p-4 space-y-3 shadow-xs hover:border-slate-300 transition-all">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                          <div className="p-1.5 rounded-lg bg-indigo-50 text-indigo-600">
+                            <Icons.Package className="w-4 h-4" />
+                          </div>
+                          <div>
+                            <span className="text-[11px] font-extrabold text-slate-800 uppercase tracking-wider block">Nama Utama Produk</span>
+                            <span className="text-[10px] text-slate-400">Sinkron otomatis ke semua prompt</span>
+                          </div>
                         </div>
-                        <span className="text-[10px] text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-full flex items-center gap-1 font-bold">
+                        <span className="text-[10px] text-emerald-700 bg-emerald-50 px-2.5 py-0.5 rounded-full flex items-center gap-1.5 font-bold border border-emerald-200/70 shadow-2xs">
                           <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
-                          Sinkron Otomatis
+                          Sinkron
                         </span>
                       </div>
                       
-                      <input
-                        type="text"
-                        value={productName}
-                        onChange={(e) => setProductName(e.target.value)}
-                        placeholder="Contoh: Sepatu sneakers putih pria"
-                        className="w-full px-3 py-2 bg-white border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none text-xs font-semibold text-slate-800 shadow-2xs transition-all"
-                      />
+                      <div className="relative">
+                        <input
+                          type="text"
+                          value={productName}
+                          onChange={(e) => setProductName(e.target.value)}
+                          placeholder="Contoh: Sepatu sneakers putih pria casual"
+                          className="w-full px-3.5 py-2.5 bg-slate-50/80 hover:bg-white focus:bg-white border border-slate-200 focus:border-indigo-500 focus:ring-3 focus:ring-indigo-500/15 rounded-xl outline-none text-xs font-semibold text-slate-800 placeholder:text-slate-400 shadow-2xs transition-all"
+                        />
+                        {productName && (
+                          <button
+                            type="button"
+                            onClick={() => setProductName('')}
+                            className="absolute right-2.5 top-1/2 -translate-y-1/2 p-1 text-slate-400 hover:text-slate-600 rounded-md transition-colors cursor-pointer"
+                            title="Bersihkan nama produk"
+                          >
+                            <Icons.X className="w-3.5 h-3.5" />
+                          </button>
+                        )}
+                      </div>
 
                       {/* Quick Preset helper pills */}
-                      <div className="flex items-center gap-1.5 pt-1 overflow-x-auto pb-0.5 text-[10px]">
-                        <span className="text-slate-400 shrink-0 font-medium">Contoh:</span>
-                        {samplePresets.slice(0, 3).map((p, idx) => (
+                      <div className="flex items-center gap-1.5 pt-0.5 overflow-x-auto pb-0.5 text-[10px]">
+                        <span className="text-slate-400 shrink-0 font-semibold text-[10px]">Pilih Cepat:</span>
+                        {samplePresets.map((p, idx) => (
                           <button
                             key={idx}
                             type="button"
                             onClick={() => handleApplyPreset(p)}
-                            className="px-2 py-0.5 rounded-md bg-white border border-slate-200 hover:border-indigo-400 hover:text-indigo-600 text-slate-600 font-medium transition-all shrink-0 cursor-pointer"
+                            className="px-2.5 py-1 rounded-lg bg-slate-100 hover:bg-indigo-50 border border-slate-200/80 hover:border-indigo-300 hover:text-indigo-700 text-slate-600 font-semibold transition-all shrink-0 cursor-pointer shadow-2xs active:scale-95"
                           >
-                            {p.label.split(' ')[1]}
+                            {p.label}
                           </button>
                         ))}
                       </div>
@@ -562,21 +587,25 @@ export default function App() {
                 </aside>
 
                 {/* PANEL KANAN: Real-time Snapshot Outputs / Workspace Result */}
-                <main className="flex-1 bg-[#0b1120] flex flex-col text-white p-5 overflow-y-auto relative min-w-[300px]">
+                <main className="flex-1 bg-[#090d16] flex flex-col text-white p-5 overflow-y-auto relative min-w-[300px]">
                   
+                  {/* Ambient Background Glows */}
+                  <div className="pointer-events-none absolute -top-24 -right-24 w-96 h-96 bg-blue-500/10 rounded-full blur-3xl" />
+                  <div className="pointer-events-none absolute -bottom-24 -left-24 w-96 h-96 bg-indigo-500/10 rounded-full blur-3xl" />
+
                   {/* Output Tab-Headers & Actions Toolbar */}
-                  <div className="flex flex-wrap justify-between items-center gap-3 border-b border-slate-800 pb-3 mb-4">
-                    <div className="flex items-center gap-2">
+                  <div className="flex flex-wrap justify-between items-center gap-3 border-b border-slate-800/80 pb-3.5 mb-4 z-10">
+                    <div className="flex items-center gap-1.5 p-1 bg-slate-950/70 border border-slate-800/90 rounded-2xl backdrop-blur-md">
                       <button
                         type="button"
                         onClick={() => setActiveTab('visual')}
                         className={`flex items-center space-x-1.5 px-3 py-1.5 rounded-xl text-xs font-bold transition-all outline-none cursor-pointer ${
                           activeTab === 'visual'
-                            ? 'bg-blue-500/20 text-blue-400 border border-blue-500/40 shadow-sm'
+                            ? 'bg-blue-500/20 text-blue-300 border border-blue-500/40 shadow-xs shadow-blue-500/20'
                             : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/60'
                         }`}
                       >
-                        <Icons.Sparkles className="w-3.5 h-3.5" />
+                        <Icons.Sparkles className="w-3.5 h-3.5 text-blue-400" />
                         <span>Prompt Visual</span>
                       </button>
 
@@ -585,11 +614,11 @@ export default function App() {
                         onClick={() => setActiveTab('caption')}
                         className={`flex items-center space-x-1.5 px-3 py-1.5 rounded-xl text-xs font-bold transition-all outline-none cursor-pointer ${
                           activeTab === 'caption'
-                            ? 'bg-pink-500/20 text-pink-400 border border-pink-500/40 shadow-sm'
+                            ? 'bg-pink-500/20 text-pink-300 border border-pink-500/40 shadow-xs shadow-pink-500/20'
                             : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/60'
                         }`}
                       >
-                        <Icons.MessageSquareText className="w-3.5 h-3.5" />
+                        <Icons.MessageSquareText className="w-3.5 h-3.5 text-pink-400" />
                         <span>Prompt Caption</span>
                       </button>
 
@@ -598,11 +627,11 @@ export default function App() {
                         onClick={() => setActiveTab('seo')}
                         className={`flex items-center space-x-1.5 px-3 py-1.5 rounded-xl text-xs font-bold transition-all outline-none cursor-pointer ${
                           activeTab === 'seo'
-                            ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/40 shadow-sm'
+                            ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 shadow-xs shadow-emerald-500/20'
                             : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/60'
                         }`}
                       >
-                        <Icons.ShoppingBag className="w-3.5 h-3.5" />
+                        <Icons.ShoppingBag className="w-3.5 h-3.5 text-emerald-400" />
                         <span>Prompt SEO</span>
                       </button>
 
@@ -611,11 +640,11 @@ export default function App() {
                         onClick={() => setActiveTab('broadcast')}
                         className={`flex items-center space-x-1.5 px-3 py-1.5 rounded-xl text-xs font-bold transition-all outline-none cursor-pointer ${
                           activeTab === 'broadcast'
-                            ? 'bg-purple-500/20 text-purple-400 border border-purple-500/40 shadow-sm'
+                            ? 'bg-purple-500/20 text-purple-300 border border-purple-500/40 shadow-xs shadow-purple-500/20'
                             : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/60'
                         }`}
                       >
-                        <Icons.Radio className="w-3.5 h-3.5" />
+                        <Icons.Radio className="w-3.5 h-3.5 text-purple-400" />
                         <span>Prompt Broadcast</span>
                       </button>
 
@@ -624,11 +653,11 @@ export default function App() {
                         onClick={() => setActiveTab('grid')}
                         className={`flex items-center space-x-1.5 px-3 py-1.5 rounded-xl text-xs font-bold transition-all outline-none cursor-pointer ${
                           activeTab === 'grid'
-                            ? 'bg-indigo-500/20 text-indigo-400 border border-indigo-500/40 shadow-sm'
+                            ? 'bg-indigo-500/20 text-indigo-300 border border-indigo-500/40 shadow-xs shadow-indigo-500/20'
                             : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/60'
                         }`}
                       >
-                        <Icons.LayoutGrid className="w-3.5 h-3.5" />
+                        <Icons.LayoutGrid className="w-3.5 h-3.5 text-indigo-400" />
                         <span>Grid & Video</span>
                       </button>
                     </div>
@@ -640,10 +669,10 @@ export default function App() {
                         href="https://chatgpt.com"
                         target="_blank"
                         rel="noreferrer"
-                        className="flex items-center gap-1 px-2.5 py-1.5 bg-slate-800/80 hover:bg-slate-700 text-slate-300 hover:text-white rounded-lg text-xs font-medium transition-colors border border-slate-700/60"
+                        className="flex items-center gap-1.5 px-2.5 py-1.5 bg-slate-900/90 hover:bg-slate-800 text-slate-300 hover:text-emerald-300 rounded-xl text-xs font-semibold transition-all border border-slate-800 hover:border-emerald-500/40 shadow-2xs group"
                         title="Buka ChatGPT di tab baru untuk paste prompt"
                       >
-                        <Icons.ExternalLink className="w-3 h-3 text-emerald-400" />
+                        <Icons.ExternalLink className="w-3 h-3 text-emerald-400 group-hover:scale-110 transition-transform" />
                         <span className="hidden sm:inline">ChatGPT</span>
                       </a>
 
@@ -651,10 +680,10 @@ export default function App() {
                         href="https://gemini.google.com"
                         target="_blank"
                         rel="noreferrer"
-                        className="flex items-center gap-1 px-2.5 py-1.5 bg-slate-800/80 hover:bg-slate-700 text-slate-300 hover:text-white rounded-lg text-xs font-medium transition-colors border border-slate-700/60"
+                        className="flex items-center gap-1.5 px-2.5 py-1.5 bg-slate-900/90 hover:bg-slate-800 text-slate-300 hover:text-blue-300 rounded-xl text-xs font-semibold transition-all border border-slate-800 hover:border-blue-500/40 shadow-2xs group"
                         title="Buka Google Gemini di tab baru untuk paste prompt"
                       >
-                        <Icons.Sparkles className="w-3 h-3 text-blue-400" />
+                        <Icons.Sparkles className="w-3 h-3 text-blue-400 group-hover:scale-110 transition-transform" />
                         <span className="hidden sm:inline">Gemini</span>
                       </a>
 
@@ -663,11 +692,11 @@ export default function App() {
                         <button
                           type="button"
                           onClick={() => handleCopyText(visualPrompt, 'visual')}
-                          className="flex items-center gap-1.5 px-3 py-1.5 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white rounded-lg text-xs font-bold transition-all shadow-md shadow-blue-500/20 cursor-pointer active:scale-95"
+                          className="flex items-center gap-1.5 px-3.5 py-1.5 bg-gradient-to-r from-blue-600 via-indigo-600 to-teal-500 hover:from-blue-500 hover:to-teal-400 text-white rounded-xl text-xs font-bold transition-all shadow-md shadow-blue-500/25 cursor-pointer active:scale-95 border border-white/20"
                         >
                           {visualCopied ? (
                             <>
-                              <Icons.CheckCircle className="w-3.5 h-3.5 text-white" />
+                              <Icons.CheckCircle className="w-3.5 h-3.5 text-white animate-bounce" />
                               <span>Tersalin!</span>
                             </>
                           ) : (
@@ -683,11 +712,11 @@ export default function App() {
                         <button
                           type="button"
                           onClick={() => handleCopyText(captionPrompt, 'caption')}
-                          className="flex items-center gap-1.5 px-3 py-1.5 bg-gradient-to-r from-pink-600 to-rose-600 hover:from-pink-500 hover:to-rose-500 text-white rounded-lg text-xs font-bold transition-all shadow-md shadow-pink-500/20 cursor-pointer active:scale-95"
+                          className="flex items-center gap-1.5 px-3.5 py-1.5 bg-gradient-to-r from-pink-600 via-rose-600 to-orange-500 hover:from-pink-500 hover:to-orange-400 text-white rounded-xl text-xs font-bold transition-all shadow-md shadow-pink-500/25 cursor-pointer active:scale-95 border border-white/20"
                         >
                           {captionCopied ? (
                             <>
-                              <Icons.CheckCircle className="w-3.5 h-3.5 text-white" />
+                              <Icons.CheckCircle className="w-3.5 h-3.5 text-white animate-bounce" />
                               <span>Tersalin!</span>
                             </>
                           ) : (
@@ -703,11 +732,11 @@ export default function App() {
                         <button
                           type="button"
                           onClick={() => handleCopyText(seoPrompt, 'seo')}
-                          className="flex items-center gap-1.5 px-3 py-1.5 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white rounded-lg text-xs font-bold transition-all shadow-md shadow-emerald-500/20 cursor-pointer active:scale-95"
+                          className="flex items-center gap-1.5 px-3.5 py-1.5 bg-gradient-to-r from-emerald-600 via-teal-600 to-cyan-500 hover:from-emerald-500 hover:to-cyan-400 text-white rounded-xl text-xs font-bold transition-all shadow-md shadow-emerald-500/25 cursor-pointer active:scale-95 border border-white/20"
                         >
                           {seoCopied ? (
                             <>
-                              <Icons.CheckCircle className="w-3.5 h-3.5 text-white" />
+                              <Icons.CheckCircle className="w-3.5 h-3.5 text-white animate-bounce" />
                               <span>Tersalin!</span>
                             </>
                           ) : (
@@ -723,11 +752,11 @@ export default function App() {
                         <button
                           type="button"
                           onClick={() => handleCopyText(broadcastPrompt, 'broadcast')}
-                          className="flex items-center gap-1.5 px-3 py-1.5 bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white rounded-lg text-xs font-bold transition-all shadow-md shadow-purple-500/20 cursor-pointer active:scale-95"
+                          className="flex items-center gap-1.5 px-3.5 py-1.5 bg-gradient-to-r from-purple-600 via-indigo-600 to-blue-500 hover:from-purple-500 hover:to-blue-400 text-white rounded-xl text-xs font-bold transition-all shadow-md shadow-purple-500/25 cursor-pointer active:scale-95 border border-white/20"
                         >
                           {broadcastCopied ? (
                             <>
-                              <Icons.CheckCircle className="w-3.5 h-3.5 text-white" />
+                              <Icons.CheckCircle className="w-3.5 h-3.5 text-white animate-bounce" />
                               <span>Tersalin!</span>
                             </>
                           ) : (
@@ -778,48 +807,65 @@ export default function App() {
 
                   {/* TAB CONTENT: Visual AI Prompt Textarea */}
                   {activeTab === 'visual' && (
-                    <div className="flex-1 flex flex-col">
+                    <div className="flex-1 flex flex-col z-10">
                       {visualPrompt ? (
-                        <div className="flex-1 flex flex-col space-y-2">
+                        <div className="flex-1 flex flex-col space-y-2.5">
                           <div className="flex items-center justify-between">
-                            <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider flex items-center gap-1.5">
-                              <Icons.Sparkles className="w-3.5 h-3.5 text-blue-400" />
+                            <span className="text-[11px] font-extrabold text-blue-300 uppercase tracking-wider flex items-center gap-2">
+                              <span className="p-1 rounded-md bg-blue-500/20 text-blue-400">
+                                <Icons.Sparkles className="w-3.5 h-3.5" />
+                              </span>
                               Prompt Visual Hasil Racikan Studio
                             </span>
-                            <button
-                              type="button"
-                              onClick={() => setVisualPrompt('')}
-                              className="text-[11px] text-slate-500 hover:text-rose-400 transition-colors flex items-center gap-1 cursor-pointer"
-                            >
-                              <Icons.Trash2 className="w-3 h-3" />
-                              <span>Bersihkan</span>
-                            </button>
+                            <div className="flex items-center gap-2">
+                              <button
+                                type="button"
+                                onClick={() => handleCopyText(visualPrompt, 'visual')}
+                                className="text-[11px] bg-blue-950/80 hover:bg-blue-900/90 text-blue-300 border border-blue-700/60 hover:border-blue-500 px-2.5 py-1 rounded-lg transition-all flex items-center gap-1.5 cursor-pointer font-semibold shadow-xs"
+                              >
+                                {visualCopied ? <Icons.Check className="w-3 h-3 text-emerald-400" /> : <Icons.Copy className="w-3 h-3 text-blue-400" />}
+                                <span>{visualCopied ? 'Tersalin!' : 'Salin Cepat'}</span>
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => setVisualPrompt('')}
+                                className="text-[11px] text-slate-400 hover:text-rose-400 transition-colors flex items-center gap-1 cursor-pointer px-2 py-1"
+                              >
+                                <Icons.Trash2 className="w-3 h-3" />
+                                <span>Bersihkan</span>
+                              </button>
+                            </div>
                           </div>
 
-                          <textarea
-                            value={visualPrompt}
-                            onChange={(e) => setVisualPrompt(e.target.value)}
-                            className="w-full flex-1 min-h-[350px] bg-slate-900/80 text-slate-100 border border-slate-800 rounded-xl p-4 focus:outline-none font-mono text-[12px] leading-relaxed resize-none shadow-inner focus:border-blue-500/50"
-                          />
+                          <div className="relative group flex-1 flex flex-col rounded-2xl border border-slate-800/90 bg-slate-950/80 backdrop-blur-md shadow-2xl focus-within:border-blue-500/50 focus-within:ring-2 focus-within:ring-blue-500/10 transition-all overflow-hidden">
+                            <textarea
+                              value={visualPrompt}
+                              onChange={(e) => setVisualPrompt(e.target.value)}
+                              className="w-full flex-1 min-h-[360px] bg-transparent text-slate-100 p-5 focus:outline-none font-mono text-[12.5px] leading-relaxed resize-none dark-scrollbar selection:bg-blue-500/30 selection:text-white"
+                            />
+                          </div>
 
-                          <div className="flex flex-wrap justify-between items-center text-[10px] text-slate-400 font-mono mt-1 bg-slate-950/50 px-3 py-2 rounded-xl border border-slate-800/60 gap-2">
+                          <div className="flex flex-wrap justify-between items-center text-[10px] text-slate-400 font-mono mt-1 bg-slate-950/70 backdrop-blur-md px-4 py-2.5 rounded-xl border border-slate-800/70 gap-2 shadow-inner">
                             <div className="flex gap-4">
-                              <span>Characters: <strong className="text-blue-400 font-bold">{visualPrompt.length}</strong></span>
-                              <span>Words: <strong className="text-blue-400 font-bold">{visualPrompt.trim() ? visualPrompt.trim().split(/\s+/).length : 0}</strong></span>
+                              <span>Karakter: <strong className="text-blue-400 font-bold">{visualPrompt.length}</strong></span>
+                              <span>Kata: <strong className="text-blue-400 font-bold">{visualPrompt.trim() ? visualPrompt.trim().split(/\s+/).length : 0}</strong></span>
                             </div>
-                            <span className="text-[9px] text-slate-400 font-bold uppercase tracking-wider bg-slate-800/60 px-2 py-0.5 rounded border border-slate-700">
+                            <span className="text-[9px] text-slate-300 font-bold uppercase tracking-wider bg-slate-900/90 px-2.5 py-1 rounded-md border border-slate-700/80 shadow-2xs">
                               Midjourney &bull; Flux &bull; Bing Image Creator
                             </span>
                           </div>
                         </div>
                       ) : (
-                        <div className="flex-1 flex flex-col items-center justify-center text-slate-500 space-y-4 py-12">
-                          <div className="p-4 rounded-2xl bg-blue-500/10 border border-blue-500/20 text-blue-400">
-                            <Icons.Wand2 className="w-12 h-12 animate-pulse" />
+                        <div className="flex-1 flex flex-col items-center justify-center text-slate-400 space-y-4 py-16">
+                          <div className="relative group">
+                            <div className="absolute -inset-3 bg-blue-500/20 rounded-full blur-xl group-hover:bg-blue-500/30 transition-all duration-500" />
+                            <div className="relative p-5 rounded-3xl bg-gradient-to-b from-slate-800/90 to-slate-900/90 border border-blue-500/30 text-blue-400 shadow-xl ring-1 ring-white/10 group-hover:scale-105 transition-transform">
+                              <Icons.Wand2 className="w-12 h-12" />
+                            </div>
                           </div>
                           <div className="text-center max-w-sm">
-                            <h4 className="text-base font-bold text-slate-200">Belum Ada Prompt Visual</h4>
-                            <p className="text-xs text-slate-400 mt-1 leading-relaxed">
+                            <h4 className="text-lg font-black text-slate-100 tracking-tight">Belum Ada Prompt Visual</h4>
+                            <p className="text-xs text-slate-400 mt-1.5 leading-relaxed">
                               Atur gaya fotografi, background estetik, atau model pada form di sebelah kiri lalu klik tombol <strong>Generate Prompt</strong>.
                             </p>
                             <button
@@ -828,9 +874,9 @@ export default function App() {
                                 const sampleName = productName.trim() || 'Sepatu sneakers kulit putih pria casual';
                                 setVisualPrompt(`Commercial product photography of ${sampleName}, placed elegantly on a luxurious minimalist marble pedestal, surrounded by subtle natural palm shadows, soft studio lighting with warm golden hour highlights, eye-level shot, ultra sharp focus, 8k resolution, photorealistic texture, masterpiece --ar 1:1 --v 6.0 --style raw`);
                               }}
-                              className="mt-4 px-4 py-2 bg-blue-600 hover:bg-blue-500 text-white rounded-xl text-xs font-bold transition-all shadow-md shadow-blue-500/25 inline-flex items-center gap-1.5 cursor-pointer"
+                              className="mt-5 px-5 py-2.5 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white rounded-xl text-xs font-bold transition-all shadow-lg shadow-blue-500/25 inline-flex items-center gap-2 cursor-pointer active:scale-95 border border-white/20"
                             >
-                              <Icons.Sparkles className="w-3.5 h-3.5" />
+                              <Icons.Sparkles className="w-4 h-4 text-amber-300" />
                               <span>Muat Contoh Prompt Visual</span>
                             </button>
                           </div>
@@ -841,53 +887,70 @@ export default function App() {
 
                   {/* TAB CONTENT: Social Media Caption Prompt Textarea */}
                   {activeTab === 'caption' && (
-                    <div className="flex-1 flex flex-col">
+                    <div className="flex-1 flex flex-col z-10">
                       {captionPrompt ? (
-                        <div className="flex-1 flex flex-col space-y-2">
+                        <div className="flex-1 flex flex-col space-y-2.5">
                           <div className="flex items-center justify-between">
-                            <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider flex items-center gap-1.5">
-                              <Icons.MessageSquareText className="w-3.5 h-3.5 text-pink-400" />
+                            <span className="text-[11px] font-extrabold text-pink-300 uppercase tracking-wider flex items-center gap-2">
+                              <span className="p-1 rounded-md bg-pink-500/20 text-pink-400">
+                                <Icons.MessageSquareText className="w-3.5 h-3.5" />
+                              </span>
                               Prompt Caption Hasil Racikan Studio
                             </span>
-                            <button
-                              type="button"
-                              onClick={() => setCaptionPrompt('')}
-                              className="text-[11px] text-slate-500 hover:text-rose-400 transition-colors flex items-center gap-1 cursor-pointer"
-                            >
-                              <Icons.Trash2 className="w-3 h-3" />
-                              <span>Bersihkan</span>
-                            </button>
+                            <div className="flex items-center gap-2">
+                              <button
+                                type="button"
+                                onClick={() => handleCopyText(captionPrompt, 'caption')}
+                                className="text-[11px] bg-pink-950/80 hover:bg-pink-900/90 text-pink-300 border border-pink-700/60 hover:border-pink-500 px-2.5 py-1 rounded-lg transition-all flex items-center gap-1.5 cursor-pointer font-semibold shadow-xs"
+                              >
+                                {captionCopied ? <Icons.Check className="w-3 h-3 text-emerald-400" /> : <Icons.Copy className="w-3 h-3 text-pink-400" />}
+                                <span>{captionCopied ? 'Tersalin!' : 'Salin Cepat'}</span>
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => setCaptionPrompt('')}
+                                className="text-[11px] text-slate-400 hover:text-rose-400 transition-colors flex items-center gap-1 cursor-pointer px-2 py-1"
+                              >
+                                <Icons.Trash2 className="w-3 h-3" />
+                                <span>Bersihkan</span>
+                              </button>
+                            </div>
                           </div>
 
-                          <textarea
-                            value={captionPrompt}
-                            onChange={(e) => setCaptionPrompt(e.target.value)}
-                            className="w-full flex-1 min-h-[350px] bg-slate-900/80 text-slate-100 border border-slate-800 rounded-xl p-4 focus:outline-none font-mono text-[12px] leading-relaxed resize-none shadow-inner focus:border-pink-500/50"
-                          />
+                          <div className="relative group flex-1 flex flex-col rounded-2xl border border-slate-800/90 bg-slate-950/80 backdrop-blur-md shadow-2xl focus-within:border-pink-500/50 focus-within:ring-2 focus-within:ring-pink-500/10 transition-all overflow-hidden">
+                            <textarea
+                              value={captionPrompt}
+                              onChange={(e) => setCaptionPrompt(e.target.value)}
+                              className="w-full flex-1 min-h-[360px] bg-transparent text-slate-100 p-5 focus:outline-none font-mono text-[12.5px] leading-relaxed resize-none dark-scrollbar selection:bg-pink-500/30 selection:text-white"
+                            />
+                          </div>
 
-                          <div className="flex flex-wrap justify-between items-center text-[10px] text-slate-400 font-mono mt-1 bg-slate-950/50 px-3 py-2 rounded-xl border border-slate-800/60 gap-2">
+                          <div className="flex flex-wrap justify-between items-center text-[10px] text-slate-400 font-mono mt-1 bg-slate-950/70 backdrop-blur-md px-4 py-2.5 rounded-xl border border-slate-800/70 gap-2 shadow-inner">
                             <div className="flex gap-4">
-                              <span>Characters: <strong className="text-pink-400 font-bold">{captionPrompt.length}</strong></span>
-                              <span>Words: <strong className="text-pink-400 font-bold">{captionPrompt.trim() ? captionPrompt.trim().split(/\s+/).length : 0}</strong></span>
+                              <span>Karakter: <strong className="text-pink-400 font-bold">{captionPrompt.length}</strong></span>
+                              <span>Kata: <strong className="text-pink-400 font-bold">{captionPrompt.trim() ? captionPrompt.trim().split(/\s+/).length : 0}</strong></span>
                             </div>
                             <div className="flex items-center gap-3">
-                              <span className={`px-2 py-0.5 rounded font-bold ${captionPrompt.length > 2200 ? 'bg-rose-950/50 text-rose-400 border border-rose-800/50' : 'bg-emerald-950/50 text-emerald-400 border border-emerald-800/50'}`}>
+                              <span className={`px-2.5 py-0.5 rounded-md font-bold shadow-2xs ${captionPrompt.length > 2200 ? 'bg-rose-950/60 text-rose-400 border border-rose-800/60' : 'bg-emerald-950/60 text-emerald-400 border border-emerald-800/60'}`}>
                                 {captionPrompt.length > 2200 ? '⚠️ Instagram Melebihi Batas' : '✓ Instagram Pas (Max 2.200)'}
                               </span>
-                              <span className={`px-2 py-0.5 rounded font-bold ${captionPrompt.length > 2000 ? 'bg-rose-950/50 text-rose-400 border border-rose-800/50' : 'bg-emerald-950/50 text-emerald-400 border border-emerald-800/50'}`}>
+                              <span className={`px-2.5 py-0.5 rounded-md font-bold shadow-2xs ${captionPrompt.length > 2000 ? 'bg-rose-950/60 text-rose-400 border border-rose-800/60' : 'bg-emerald-950/60 text-emerald-400 border border-emerald-800/60'}`}>
                                 {captionPrompt.length > 2000 ? '⚠️ TikTok Melebihi Batas' : '✓ TikTok Pas (Max 2.000)'}
                               </span>
                             </div>
                           </div>
                         </div>
                       ) : (
-                        <div className="flex-1 flex flex-col items-center justify-center text-slate-500 space-y-4 py-12">
-                          <div className="p-4 rounded-2xl bg-pink-500/10 border border-pink-500/20 text-pink-400">
-                            <Icons.MessageSquareDashed className="w-12 h-12 animate-pulse" />
+                        <div className="flex-1 flex flex-col items-center justify-center text-slate-400 space-y-4 py-16">
+                          <div className="relative group">
+                            <div className="absolute -inset-3 bg-pink-500/20 rounded-full blur-xl group-hover:bg-pink-500/30 transition-all duration-500" />
+                            <div className="relative p-5 rounded-3xl bg-gradient-to-b from-slate-800/90 to-slate-900/90 border border-pink-500/30 text-pink-400 shadow-xl ring-1 ring-white/10 group-hover:scale-105 transition-transform">
+                              <Icons.MessageSquareDashed className="w-12 h-12" />
+                            </div>
                           </div>
                           <div className="text-center max-w-sm">
-                            <h4 className="text-base font-bold text-slate-200">Belum Ada Prompt Caption</h4>
-                            <p className="text-xs text-slate-400 mt-1 leading-relaxed">
+                            <h4 className="text-lg font-black text-slate-100 tracking-tight">Belum Ada Prompt Caption</h4>
+                            <p className="text-xs text-slate-400 mt-1.5 leading-relaxed">
                               Tentukan platform target, gaya bahasa, dan promo pada form di sebelah kiri lalu klik tombol <strong>Generate Prompt</strong>.
                             </p>
                             <button
@@ -896,9 +959,9 @@ export default function App() {
                                 const sampleName = productName.trim() || 'Sepatu Sneakers Pria Premium';
                                 setCaptionPrompt(`🔥 UPGRADE GAYA KAMU HARI INI!\n\nLagi cari ${sampleName} yang super empuk, anti-pegal dipakai seharian, tapi tetap kelihatan maskulin dan stylish? Ini pilihan paling tepat buat kamu!\n\n✨ Kenapa Kamu Wajib Punya:\n- Bahan breathable, kaki tetap adem bebas gerah\n- Sol anti-slip kokoh & fleksibel di segala permukaan\n- Jahitan rapi presisi standar pabrik ekspor\n\n⚡ SPECIAL OFFER BULAN INI:\nKlaim diskon s.d 40% + Voucher Gratis Ongkir Ekstra! Stok warna favorit cepat habis, yuk checkout sekarang sebelum kehabisan promo.\n\n👉 Klik link di bio / keranjang kuning di bawah!\n\n#sneakerspria #sepatukasual #ootdindo #racuntiktok #promospesial`);
                               }}
-                              className="mt-4 px-4 py-2 bg-pink-600 hover:bg-pink-500 text-white rounded-xl text-xs font-bold transition-all shadow-md shadow-pink-500/25 inline-flex items-center gap-1.5 cursor-pointer"
+                              className="mt-5 px-5 py-2.5 bg-gradient-to-r from-pink-600 via-rose-600 to-red-500 hover:from-pink-500 hover:to-red-400 text-white rounded-xl text-xs font-bold transition-all shadow-lg shadow-pink-500/25 inline-flex items-center gap-2 cursor-pointer active:scale-95 border border-white/20"
                             >
-                              <Icons.Sparkles className="w-3.5 h-3.5" />
+                              <Icons.Sparkles className="w-4 h-4 text-amber-300" />
                               <span>Muat Contoh Prompt Caption</span>
                             </button>
                           </div>
@@ -909,12 +972,14 @@ export default function App() {
 
                   {/* TAB CONTENT: Marketplace SEO Copywriting Prompt Textarea */}
                   {activeTab === 'seo' && (
-                    <div className="flex-1 flex flex-col">
+                    <div className="flex-1 flex flex-col z-10">
                       {seoPrompt ? (
-                        <div className="flex-1 flex flex-col space-y-2">
+                        <div className="flex-1 flex flex-col space-y-2.5">
                           <div className="flex items-center justify-between">
-                            <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider flex items-center gap-1.5">
-                              <Icons.ShoppingBag className="w-3.5 h-3.5 text-emerald-400" />
+                            <span className="text-[11px] font-extrabold text-emerald-300 uppercase tracking-wider flex items-center gap-2">
+                              <span className="p-1 rounded-md bg-emerald-500/20 text-emerald-400">
+                                <Icons.ShoppingBag className="w-3.5 h-3.5" />
+                              </span>
                               Prompt SEO Hasil Racikan Studio
                             </span>
                             <div className="flex items-center gap-2">
@@ -928,16 +993,24 @@ export default function App() {
                                     setTimeout(() => setSeoFormattedToast(false), 2500);
                                   }
                                 }}
-                                className="text-[11px] bg-emerald-950/80 hover:bg-emerald-900/90 text-emerald-300 border border-emerald-700/60 hover:border-emerald-500 px-2.5 py-1 rounded-lg transition-all flex items-center gap-1.5 cursor-pointer font-semibold shadow-xs"
+                                className="text-[11px] bg-emerald-950/80 hover:bg-emerald-900/90 text-emerald-300 border border-emerald-700/60 hover:border-emerald-500 px-3 py-1 rounded-lg transition-all flex items-center gap-1.5 cursor-pointer font-semibold shadow-xs"
                                 title="Rapikan otomatis: hilangkan tanda bintang (**), bersihkan bullet (•/-/*), dan rapatkan baris Spesifikasi serta Catatan Toko"
                               >
-                                <Icons.Sparkles className="w-3 h-3 text-emerald-400" />
+                                <Icons.Sparkles className="w-3.5 h-3.5 text-emerald-400" />
                                 <span>{seoFormattedToast ? '✓ Format Rapi!' : 'Rapikan Format'}</span>
                               </button>
                               <button
                                 type="button"
+                                onClick={() => handleCopyText(seoPrompt, 'seo')}
+                                className="text-[11px] bg-emerald-950/80 hover:bg-emerald-900/90 text-emerald-300 border border-emerald-700/60 hover:border-emerald-500 px-2.5 py-1 rounded-lg transition-all flex items-center gap-1.5 cursor-pointer font-semibold shadow-xs"
+                              >
+                                {seoCopied ? <Icons.Check className="w-3 h-3 text-emerald-400" /> : <Icons.Copy className="w-3 h-3 text-emerald-400" />}
+                                <span>{seoCopied ? 'Tersalin!' : 'Salin Cepat'}</span>
+                              </button>
+                              <button
+                                type="button"
                                 onClick={() => setSeoPrompt('')}
-                                className="text-[11px] text-slate-500 hover:text-rose-400 transition-colors flex items-center gap-1 cursor-pointer px-1.5 py-1"
+                                className="text-[11px] text-slate-400 hover:text-rose-400 transition-colors flex items-center gap-1 cursor-pointer px-2 py-1"
                               >
                                 <Icons.Trash2 className="w-3 h-3" />
                                 <span>Bersihkan</span>
@@ -945,30 +1018,35 @@ export default function App() {
                             </div>
                           </div>
 
-                          <textarea
-                            value={seoPrompt}
-                            onChange={(e) => setSeoPrompt(e.target.value)}
-                            className="w-full flex-1 min-h-[350px] bg-slate-900/80 text-slate-100 border border-slate-800 rounded-xl p-4 focus:outline-none font-mono text-[12px] leading-relaxed resize-none shadow-inner focus:border-emerald-500/50"
-                          />
+                          <div className="relative group flex-1 flex flex-col rounded-2xl border border-slate-800/90 bg-slate-950/80 backdrop-blur-md shadow-2xl focus-within:border-emerald-500/50 focus-within:ring-2 focus-within:ring-emerald-500/10 transition-all overflow-hidden">
+                            <textarea
+                              value={seoPrompt}
+                              onChange={(e) => setSeoPrompt(e.target.value)}
+                              className="w-full flex-1 min-h-[360px] bg-transparent text-slate-100 p-5 focus:outline-none font-mono text-[12.5px] leading-relaxed resize-none dark-scrollbar selection:bg-emerald-500/30 selection:text-white"
+                            />
+                          </div>
 
-                          <div className="flex flex-wrap justify-between items-center text-[10px] text-slate-400 font-mono mt-1 bg-slate-950/50 px-3 py-2 rounded-xl border border-slate-800/60 gap-2">
+                          <div className="flex flex-wrap justify-between items-center text-[10px] text-slate-400 font-mono mt-1 bg-slate-950/70 backdrop-blur-md px-4 py-2.5 rounded-xl border border-slate-800/70 gap-2 shadow-inner">
                             <div className="flex gap-4">
-                              <span>Characters: <strong className="text-emerald-400 font-bold">{seoPrompt.length}</strong></span>
-                              <span>Words: <strong className="text-emerald-400 font-bold">{seoPrompt.trim() ? seoPrompt.trim().split(/\s+/).length : 0}</strong></span>
+                              <span>Karakter: <strong className="text-emerald-400 font-bold">{seoPrompt.length}</strong></span>
+                              <span>Kata: <strong className="text-emerald-400 font-bold">{seoPrompt.trim() ? seoPrompt.trim().split(/\s+/).length : 0}</strong></span>
                             </div>
-                            <span className={`px-2 py-0.5 rounded font-bold ${seoPrompt.length > 3000 ? 'bg-rose-950/50 text-rose-400 border border-rose-800/50' : 'bg-emerald-950/50 text-emerald-400 border border-emerald-800/50'}`}>
+                            <span className={`px-2.5 py-0.5 rounded-md font-bold shadow-2xs ${seoPrompt.length > 3000 ? 'bg-rose-950/60 text-rose-400 border border-rose-800/60' : 'bg-emerald-950/60 text-emerald-400 border border-emerald-800/60'}`}>
                               {seoPrompt.length > 3000 ? '⚠️ Tokopedia / Shopee Melebihi Batas' : '✓ Tokopedia & Shopee Pas (Max 3.000)'}
                             </span>
                           </div>
                         </div>
                       ) : (
-                        <div className="flex-1 flex flex-col items-center justify-center text-slate-500 space-y-4 py-12">
-                          <div className="p-4 rounded-2xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-400">
-                            <Icons.ShoppingBag className="w-12 h-12 animate-pulse" />
+                        <div className="flex-1 flex flex-col items-center justify-center text-slate-400 space-y-4 py-16">
+                          <div className="relative group">
+                            <div className="absolute -inset-3 bg-emerald-500/20 rounded-full blur-xl group-hover:bg-emerald-500/30 transition-all duration-500" />
+                            <div className="relative p-5 rounded-3xl bg-gradient-to-b from-slate-800/90 to-slate-900/90 border border-emerald-500/30 text-emerald-400 shadow-xl ring-1 ring-white/10 group-hover:scale-105 transition-transform">
+                              <Icons.ShoppingBag className="w-12 h-12" />
+                            </div>
                           </div>
                           <div className="text-center max-w-sm">
-                            <h4 className="text-base font-bold text-slate-200">Belum Ada Prompt SEO</h4>
-                            <p className="text-xs text-slate-400 mt-1 leading-relaxed">
+                            <h4 className="text-lg font-black text-slate-100 tracking-tight">Belum Ada Prompt SEO</h4>
+                            <p className="text-xs text-slate-400 mt-1.5 leading-relaxed">
                               Lengkapi spesifikasi produk, keunggulan USP, dan keyword pencarian di sebelah kiri lalu klik tombol <strong>Generate Prompt</strong>.
                             </p>
                             <button
@@ -976,9 +1054,9 @@ export default function App() {
                               onClick={() => {
                                 setSeoPrompt(`REKOMENDASI JUDUL SEO:\n\nName Tag Holder Plastik jepit/ ID Card Nametag Plastik Jepit Multi/Sakura No. 101 / 30-A/301 9x5.5cm name holder murah\n\nName Tag Holder Plastik jepit/ ID Card Nametag Plastik Jepit Multi/Sakura No. 101 / 30-A/301 9x5.5cm name jepit bening\n\nName Tag Holder Plastik jepit/ ID Card Nametag Plastik Jepit Multi/Sakura No. 101 / 30-A/301 9x5.5cm tag holder kantor\n\nDETAIL SPESIFIKASI:\nMerk   : Multi/Sakura\nTipe   : No. 101 / 30-A/301\nHarga  : Harga Tertera (1 PCS)\nUkuran : 9x5.5cm\n\nKEUNGGULAN UTAMA:\nTerbuat dari material plastik transparan yang tebal sehingga kartu identitas tetap aman, tidak mudah terlipat, dan terbaca jelas.\n\nDilengkapi dengan klip jepit yang kuat dan kokoh, memastikan name holder terpasang aman di saku baju tanpa takut mudah lepas.\n\nDesain simpel dan ringan yang sangat praktis digunakan untuk pemakaian harian tanpa membuat kain pakaian rusak atau tertarik.\n\nPENGALAMAN PEMAKAIAN:\nPernah ngerasa repot karena name tag sering jatuh atau posisinya miring saat lagi sibuk kerja? Dengan name tag holder plastik jepit ini, urusan identitas diri jadi super rapi dan aman seharian penuh. Jepitannya benar-benar mencengkeram kuat di saku atau kerah baju, jadi kamu bisa bebas beraktivitas, jalan cepat, atau sibuk di lapangan tanpa perlu bolak-balik membetulkan posisi ID card. Selain itu, bahan plastiknya yang bening bikin kartu kamu selalu bersih dari debu atau cipratan air, menjaga penampilan kamu tetap profesional dan meyakinkan di depan klien atau atasan.\n\nSANGAT COCOK UNTUK:\nKebutuhan identitas karyawan kantoran, panitia event, guru, mahasiswa, atau tenaga medis yang butuh kartu selalu terlihat jelas.\nMelindungi kartu akses gedung, kartu peserta seminar, atau kartu pelajar agar tidak cepat kusam, patah, atau hilang saat beraktivitas.\n\nCATATAN TOKO:\nProduk yang kami jual dijamin Original & Baru.\nCover/kemasan/motif/warna dikirim sesuai stock yang tersedia.\nMohon sertakan video unboxing untuk klaim produk.`);
                               }}
-                              className="mt-4 px-4 py-2 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl text-xs font-bold transition-all shadow-md shadow-emerald-500/25 inline-flex items-center gap-1.5 cursor-pointer"
+                              className="mt-5 px-5 py-2.5 bg-gradient-to-r from-emerald-600 via-teal-600 to-cyan-500 hover:from-emerald-500 hover:to-cyan-400 text-white rounded-xl text-xs font-bold transition-all shadow-lg shadow-emerald-500/25 inline-flex items-center gap-2 cursor-pointer active:scale-95 border border-white/20"
                             >
-                              <Icons.Sparkles className="w-3.5 h-3.5" />
+                              <Icons.Sparkles className="w-4 h-4 text-amber-300" />
                               <span>Muat Contoh Prompt SEO</span>
                             </button>
                           </div>
@@ -989,50 +1067,67 @@ export default function App() {
 
                   {/* TAB CONTENT: Broadcast Chat Copywriting Prompt Textarea */}
                   {activeTab === 'broadcast' && (
-                    <div className="flex-1 flex flex-col">
+                    <div className="flex-1 flex flex-col z-10">
                       {broadcastPrompt ? (
-                        <div className="flex-1 flex flex-col space-y-2">
+                        <div className="flex-1 flex flex-col space-y-2.5">
                           <div className="flex items-center justify-between">
-                            <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider flex items-center gap-1.5">
-                              <Icons.Radio className="w-3.5 h-3.5 text-purple-400" />
+                            <span className="text-[11px] font-extrabold text-purple-300 uppercase tracking-wider flex items-center gap-2">
+                              <span className="p-1 rounded-md bg-purple-500/20 text-purple-400">
+                                <Icons.Radio className="w-3.5 h-3.5" />
+                              </span>
                               Prompt Broadcast Chat Hasil Racikan Studio
                             </span>
-                            <button
-                              type="button"
-                              onClick={() => setBroadcastPrompt('')}
-                              className="text-[11px] text-slate-500 hover:text-rose-400 transition-colors flex items-center gap-1 cursor-pointer"
-                            >
-                              <Icons.Trash2 className="w-3 h-3" />
-                              <span>Bersihkan</span>
-                            </button>
+                            <div className="flex items-center gap-2">
+                              <button
+                                type="button"
+                                onClick={() => handleCopyText(broadcastPrompt, 'broadcast')}
+                                className="text-[11px] bg-purple-950/80 hover:bg-purple-900/90 text-purple-300 border border-purple-700/60 hover:border-purple-500 px-2.5 py-1 rounded-lg transition-all flex items-center gap-1.5 cursor-pointer font-semibold shadow-xs"
+                              >
+                                {broadcastCopied ? <Icons.Check className="w-3 h-3 text-emerald-400" /> : <Icons.Copy className="w-3 h-3 text-purple-400" />}
+                                <span>{broadcastCopied ? 'Tersalin!' : 'Salin Cepat'}</span>
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => setBroadcastPrompt('')}
+                                className="text-[11px] text-slate-400 hover:text-rose-400 transition-colors flex items-center gap-1 cursor-pointer px-2 py-1"
+                              >
+                                <Icons.Trash2 className="w-3 h-3" />
+                                <span>Bersihkan</span>
+                              </button>
+                            </div>
                           </div>
 
-                          <textarea
-                            value={broadcastPrompt}
-                            onChange={(e) => setBroadcastPrompt(e.target.value)}
-                            className="w-full flex-1 min-h-[350px] bg-slate-900/80 text-slate-100 border border-slate-800 rounded-xl p-4 focus:outline-none font-mono text-[12px] leading-relaxed resize-none shadow-inner focus:border-purple-500/50"
-                          />
+                          <div className="relative group flex-1 flex flex-col rounded-2xl border border-slate-800/90 bg-slate-950/80 backdrop-blur-md shadow-2xl focus-within:border-purple-500/50 focus-within:ring-2 focus-within:ring-purple-500/10 transition-all overflow-hidden">
+                            <textarea
+                              value={broadcastPrompt}
+                              onChange={(e) => setBroadcastPrompt(e.target.value)}
+                              className="w-full flex-1 min-h-[360px] bg-transparent text-slate-100 p-5 focus:outline-none font-mono text-[12.5px] leading-relaxed resize-none dark-scrollbar selection:bg-purple-500/30 selection:text-white"
+                            />
+                          </div>
 
-                          <div className="flex flex-wrap justify-between items-center text-[10px] text-slate-400 font-mono mt-1 bg-slate-950/50 px-3 py-2 rounded-xl border border-slate-800/60 gap-2">
+                          <div className="flex flex-wrap justify-between items-center text-[10px] text-slate-400 font-mono mt-1 bg-slate-950/70 backdrop-blur-md px-4 py-2.5 rounded-xl border border-slate-800/70 gap-2 shadow-inner">
                             <div className="flex gap-4">
-                              <span>Characters: <strong className="text-purple-400 font-bold">{broadcastPrompt.length}</strong></span>
-                              <span>Words: <strong className="text-purple-400 font-bold">{broadcastPrompt.trim() ? broadcastPrompt.trim().split(/\s+/).length : 0}</strong></span>
+                              <span>Karakter: <strong className="text-purple-400 font-bold">{broadcastPrompt.length}</strong></span>
+                              <span>Kata: <strong className="text-purple-400 font-bold">{broadcastPrompt.trim() ? broadcastPrompt.trim().split(/\s+/).length : 0}</strong></span>
                             </div>
                             <div className="flex items-center gap-2">
-                              <span className="text-[9px] text-purple-300 bg-purple-950/60 px-2 py-0.5 rounded border border-purple-800/50 font-bold">
+                              <span className="text-[9px] text-purple-300 bg-purple-950/80 px-2.5 py-1 rounded-md border border-purple-800/60 font-bold shadow-2xs">
                                 3 Variasi Pesan Siaran (Ringkas & CTR Tinggi)
                               </span>
                             </div>
                           </div>
                         </div>
                       ) : (
-                        <div className="flex-1 flex flex-col items-center justify-center text-slate-500 space-y-4 py-12">
-                          <div className="p-4 rounded-2xl bg-purple-500/10 border border-purple-500/20 text-purple-400">
-                            <Icons.Radio className="w-12 h-12 animate-pulse" />
+                        <div className="flex-1 flex flex-col items-center justify-center text-slate-400 space-y-4 py-16">
+                          <div className="relative group">
+                            <div className="absolute -inset-3 bg-purple-500/20 rounded-full blur-xl group-hover:bg-purple-500/30 transition-all duration-500" />
+                            <div className="relative p-5 rounded-3xl bg-gradient-to-b from-slate-800/90 to-slate-900/90 border border-purple-500/30 text-purple-400 shadow-xl ring-1 ring-white/10 group-hover:scale-105 transition-transform">
+                              <Icons.Radio className="w-12 h-12" />
+                            </div>
                           </div>
                           <div className="text-center max-w-sm">
-                            <h4 className="text-base font-bold text-slate-200">Belum Ada Prompt Broadcast Chat</h4>
-                            <p className="text-xs text-slate-400 mt-1 leading-relaxed">
+                            <h4 className="text-lg font-black text-slate-100 tracking-tight">Belum Ada Prompt Broadcast Chat</h4>
+                            <p className="text-xs text-slate-400 mt-1.5 leading-relaxed">
                               Pilih template (Pengingat Keranjang, Update Produk Baru, atau Promo), tentukan tema seperti <strong>Event 9.9</strong>, lalu klik <strong>Generate Prompt Broadcast Chat</strong>.
                             </p>
                             <button
@@ -1040,9 +1135,9 @@ export default function App() {
                               onClick={() => {
                                 setBroadcastPrompt(`📢 REKOMENDASI 3 VARIASI PESAN BROADCAST CHAT (EVENT 9.9 SUPER SHOPPING DAY)\nKategori: Pengingat Keranjang Belanja (Abandoned Cart) | Platform: SHOPEE & TOKOPEDIA\n═════════════════════════════════════════════════════\n\n🎯 VARIASI 1: PENDEK, PADAT & LANGSUNG PADA INTI (Punchy & Direct)\n\nAda yang ketinggalan di keranjangmu nih! 🛒\n\nKhusus event 9.9 hari ini, nikmati DISKON EKSTRA 25% + GRATIS ONGKIR XTRA untuk barang impian yang ada di keranjang belanjamu!\n\n⚡ Masukkan Kode: HEMAT99 saat checkout.\nSisa 15 kuota lagi sebelum promo berakhir malam ini pukul 23:59 WIB!\n\n👉 Amankan sekarang sebelum kehabisan!\n\n─────────────────────────────────────────────────────\n\n❤️ VARIASI 2: RAMAH & PERSONAL (Friendly & Engaging)\n\nHalo kak! Masih naksir sama produk pilihan yang masih tersimpan di keranjang belanjamu? 😊\n\nKabar baik! Sekarang lagi berlangsung Promo 9.9 Super Shopping Day di toko kami. Kamu bisa checkout dengan Diskon Tambahan 25% + Potongan Ongkir langsung!\n\nYuk checkout sekarang selagi stok & varian incaranmu masih ready ya kak ✨\n\n─────────────────────────────────────────────────────\n\n⚡ VARIASI 3: URGENSI TINGGI & KUOTA MENIPIS (FOMO Booster)\n\n⚠️ PERINGATAN PROMO 9.9 SEGERA BERAKHIR!\n\nStok produk pilihan di keranjang belanjamu tinggal tersisa sedikit lagi kak!\n\nGunakan Voucher: HEMAT99 untuk hemat hingga 25% sekarang juga. Kesempatan hanya sampai 23:59 WIB hari ini!\n\n🔥 Jangan sampai keduluan pembeli lain ya!`);
                               }}
-                              className="mt-4 px-4 py-2 bg-purple-600 hover:bg-purple-500 text-white rounded-xl text-xs font-bold transition-all shadow-md shadow-purple-500/25 inline-flex items-center gap-1.5 cursor-pointer"
+                              className="mt-5 px-5 py-2.5 bg-gradient-to-r from-purple-600 via-indigo-600 to-blue-500 hover:from-purple-500 hover:to-blue-400 text-white rounded-xl text-xs font-bold transition-all shadow-lg shadow-purple-500/25 inline-flex items-center gap-2 cursor-pointer active:scale-95 border border-white/20"
                             >
-                              <Icons.Sparkles className="w-3.5 h-3.5" />
+                              <Icons.Sparkles className="w-4 h-4 text-amber-300" />
                               <span>Muat Contoh Prompt Broadcast</span>
                             </button>
                           </div>

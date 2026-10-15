@@ -1013,9 +1013,9 @@ export const VisualPanel: React.FC<VisualPanelProps> = ({ productName, onGenerat
       <button
         type="button"
         onClick={handleGenerate}
-        className="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3.5 px-4 rounded-xl shadow-md hover:shadow-lg transition-all flex items-center justify-center space-x-2 group outline-none"
+        className="w-full bg-gradient-to-r from-blue-600 via-indigo-600 to-teal-500 hover:from-blue-500 hover:to-teal-400 text-white font-extrabold py-3.5 px-4 rounded-xl shadow-lg shadow-blue-500/25 hover:shadow-blue-500/40 transition-all flex items-center justify-center space-x-2 group outline-none cursor-pointer active:scale-[0.98] border border-white/20"
       >
-        <Icons.Sparkles className="w-5 h-5 group-hover:animate-pulse" />
+        <Icons.Sparkles className="w-5 h-5 text-amber-300 group-hover:rotate-12 transition-transform" />
         <span>Generate Prompt Visual</span>
       </button>
     </div>

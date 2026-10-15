@@ -225,9 +225,9 @@ Berikan 2 (dua) opsi variasi caption yang berbeda (Opsi 1 dan Opsi 2) agar saya 
       <button
         type="button"
         onClick={handleGenerate}
-        className="w-full bg-pink-600 hover:bg-pink-700 text-white font-bold py-3.5 px-4 rounded-xl shadow-md hover:shadow-lg transition-all flex items-center justify-center space-x-2 group outline-none"
+        className="w-full bg-gradient-to-r from-pink-600 via-rose-600 to-red-500 hover:from-pink-500 hover:to-red-400 text-white font-extrabold py-3.5 px-4 rounded-xl shadow-lg shadow-pink-500/25 hover:shadow-pink-500/40 transition-all flex items-center justify-center space-x-2 group outline-none cursor-pointer active:scale-[0.98] border border-white/20"
       >
-        <Icons.Sparkles className="w-5 h-5 group-hover:animate-pulse" />
+        <Icons.Sparkles className="w-5 h-5 text-amber-300 group-hover:rotate-12 transition-transform" />
         <span>Generate Prompt Caption</span>
       </button>
     </div>

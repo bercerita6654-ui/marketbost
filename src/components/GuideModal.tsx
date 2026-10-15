@@ -93,57 +93,57 @@ export const GuideModal: React.FC<GuideModalProps> = ({ isOpen, onClose, onSelec
   ];
 
   return (
-    <div className="fixed inset-0 z-[200] flex items-center justify-center p-4 bg-black/75 backdrop-blur-xs animate-fade-in">
-      <div className="bg-[#161f31] border border-slate-700/80 rounded-2xl w-full max-w-3xl max-h-[90vh] flex flex-col shadow-2xl overflow-hidden text-slate-100">
+    <div className="fixed inset-0 z-[200] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-fade-in">
+      <div className="bg-[#0b101d]/95 border border-slate-800 rounded-3xl w-full max-w-3xl max-h-[90vh] flex flex-col shadow-2xl overflow-hidden text-slate-100 ring-1 ring-white/10">
         
         {/* Header */}
-        <div className="px-6 py-4 border-b border-slate-800 flex items-center justify-between bg-[#1e293b]">
+        <div className="px-6 py-4 border-b border-slate-800/90 flex items-center justify-between bg-slate-900/80 backdrop-blur-md">
           <div className="flex items-center gap-3">
-            <div className="p-2 bg-indigo-500/20 text-indigo-400 rounded-xl border border-indigo-500/30">
+            <div className="p-2 bg-gradient-to-tr from-indigo-600 to-blue-500 text-white rounded-xl shadow-md shadow-indigo-500/20">
               <Icons.BookOpen className="w-5 h-5" />
             </div>
             <div>
-              <h3 className="text-base font-black text-white">Panduan Penggunaan MarketBoost AI</h3>
+              <h3 className="text-base font-black text-white tracking-tight">Panduan Penggunaan MarketBoost AI</h3>
               <p className="text-xs text-slate-400">Tips & trik memaksimalkan konversi penjualan produk Anda</p>
             </div>
           </div>
           <button
             type="button"
             onClick={onClose}
-            className="p-2 text-slate-400 hover:text-white hover:bg-slate-800 rounded-xl transition-colors cursor-pointer"
+            className="p-2 text-slate-400 hover:text-white hover:bg-slate-800/80 rounded-xl transition-colors cursor-pointer"
           >
             <Icons.X className="w-5 h-5" />
           </button>
         </div>
 
         {/* Body Cards */}
-        <div className="p-6 overflow-y-auto space-y-4">
+        <div className="p-6 overflow-y-auto space-y-4 dark-scrollbar">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             {features.map((f) => {
               const IconComp = f.icon;
               return (
                 <div
                   key={f.id}
-                  className="bg-[#0f172a] border border-slate-800 hover:border-slate-700 rounded-xl p-4 flex flex-col justify-between space-y-3 transition-all group"
+                  className="bg-slate-900/60 border border-slate-800/80 hover:border-slate-700 rounded-2xl p-4.5 flex flex-col justify-between space-y-3.5 transition-all group hover:bg-slate-900/90 shadow-sm"
                 >
-                  <div className="space-y-2">
+                  <div className="space-y-2.5">
                     <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-2">
-                        <div className="p-2 rounded-lg bg-slate-800 text-indigo-400 group-hover:scale-105 transition-transform">
+                      <div className="flex items-center gap-2.5">
+                        <div className="p-2 rounded-xl bg-slate-800/90 text-indigo-400 group-hover:scale-105 transition-transform shadow-xs">
                           <IconComp className="w-4 h-4" />
                         </div>
                         <h4 className="text-xs font-bold text-white">{f.title}</h4>
                       </div>
-                      <span className="text-[9px] font-mono font-bold bg-slate-800 px-2 py-0.5 rounded-full text-slate-300 border border-slate-700">
+                      <span className="text-[9px] font-mono font-bold bg-slate-800/80 px-2.5 py-0.5 rounded-full text-slate-300 border border-slate-700/80">
                         {f.tag}
                       </span>
                     </div>
                     <p className="text-[11px] text-slate-400 leading-relaxed">
                       {f.description}
                     </p>
-                    <div className="bg-slate-900/80 rounded-lg p-2.5 space-y-1 text-[10px] text-slate-300 border border-slate-800/80">
-                      <div className="font-bold text-indigo-300 flex items-center gap-1">
-                        <Icons.CheckCircle2 className="w-3 h-3 text-indigo-400" /> Tips Efektif:
+                    <div className="bg-slate-950/70 rounded-xl p-3 space-y-1.5 text-[10px] text-slate-300 border border-slate-800/80 shadow-inner">
+                      <div className="font-bold text-indigo-300 flex items-center gap-1.5">
+                        <Icons.CheckCircle2 className="w-3.5 h-3.5 text-indigo-400" /> Tips Efektif:
                       </div>
                       <ul className="list-disc list-inside space-y-0.5 text-slate-400">
                         {f.tips.map((t, idx) => (
@@ -159,7 +159,7 @@ export const GuideModal: React.FC<GuideModalProps> = ({ isOpen, onClose, onSelec
                       onSelectTab(f.id);
                       onClose();
                     }}
-                    className="w-full py-1.5 bg-slate-800 hover:bg-indigo-600 text-slate-200 hover:text-white rounded-lg text-xs font-bold transition-all flex items-center justify-center gap-1.5 cursor-pointer"
+                    className="w-full py-2 bg-slate-800/90 hover:bg-indigo-600 text-slate-200 hover:text-white rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-2 cursor-pointer shadow-xs active:scale-95 border border-slate-700/60"
                   >
                     <span>Buka Fitur Ini</span>
                     <Icons.ArrowRight className="w-3.5 h-3.5" />
@@ -171,12 +171,12 @@ export const GuideModal: React.FC<GuideModalProps> = ({ isOpen, onClose, onSelec
         </div>
 
         {/* Footer */}
-        <div className="px-6 py-3 border-t border-slate-800 bg-[#1e293b] flex items-center justify-between text-xs text-slate-400">
-          <span>Semua prompt & setelan tersimpan otomatis di browser lokal Anda.</span>
+        <div className="px-6 py-3.5 border-t border-slate-800/90 bg-slate-900/80 flex items-center justify-between text-xs text-slate-400">
+          <span className="text-[11px]">Semua prompt & setelan tersimpan otomatis di browser lokal Anda.</span>
           <button
             type="button"
             onClick={onClose}
-            className="px-4 py-1.5 bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl font-bold transition-all cursor-pointer text-xs"
+            className="px-4 py-2 bg-gradient-to-r from-indigo-600 to-blue-600 hover:from-indigo-500 hover:to-blue-500 text-white rounded-xl font-bold transition-all cursor-pointer text-xs shadow-md shadow-indigo-500/20 active:scale-95 border border-white/20"
           >
             Mengerti & Tutup
           </button>
