@@ -174,3 +174,140 @@ export function extractKeywordsFromProductName(name: string): string[] {
   return result.slice(0, 5);
 }
 
+/**
+ * Cleans and standardizes raw copy or AI output (e.g. from Gemini) to match
+ * the clean plain text marketplace standard requested by users:
+ * - Strips Markdown bold (**) and headers (###)
+ * - Removes bullets (•, -, *, +, numbers) from titles, specs, advantages, and store notes
+ * - Ensures DETAIL SPESIFIKASI and CATATAN TOKO are tightly packed with single newlines
+ * - Ensures 1 blank line between titles, advantages, and major sections
+ */
+export function cleanSeoFormatting(input: string): string {
+  if (!input || !input.trim()) return input;
+
+  // 1. Remove markdown bold/italic asterisks, hash headers & divider lines
+  let text = input
+    .replace(/\r\n/g, '\n')
+    .replace(/\*\*(.*?)\*\*/g, '$1')
+    .replace(/\*(.*?)\*/g, '$1')
+    .replace(/^#{1,6}\s+/gm, '')
+    .replace(/^-{3,}\s*$/gm, '');
+
+  const stripBullet = (line: string): string => {
+    return line.replace(/^[\s•\-*+]+/, '').replace(/^\d+[\.\)]\s+/, '').trim();
+  };
+
+  // Normalize known section headers
+  text = text.replace(/REKOMENDASI JUDUL SEO(\s*\([^)]*\))?:?/gi, 'REKOMENDASI JUDUL SEO:');
+  text = text.replace(/DETAIL SPESIFIKASI:?/gi, 'DETAIL SPESIFIKASI:');
+  text = text.replace(/KEUNGGULAN UTAMA:?/gi, 'KEUNGGULAN UTAMA:');
+  text = text.replace(/PENGALAMAN PEMAKAIAN:?/gi, 'PENGALAMAN PEMAKAIAN:');
+  text = text.replace(/SANGAT COCOK UNTUK:?/gi, 'SANGAT COCOK UNTUK:');
+  text = text.replace(/CATATAN TOKO:?/gi, 'CATATAN TOKO:');
+
+  const getSectionContent = (startHeader: string, nextHeaders: string[]): string => {
+    const idx = text.indexOf(startHeader);
+    if (idx === -1) return '';
+    const startPos = idx + startHeader.length;
+    let endPos = text.length;
+    for (const nh of nextHeaders) {
+      const nIdx = text.indexOf(nh, startPos);
+      if (nIdx !== -1 && nIdx < endPos) {
+        endPos = nIdx;
+      }
+    }
+    return text.substring(startPos, endPos).trim();
+  };
+
+  const rawJudul = getSectionContent('REKOMENDASI JUDUL SEO:', ['DETAIL SPESIFIKASI:', 'KEUNGGULAN UTAMA:']);
+  const rawSpesifikasi = getSectionContent('DETAIL SPESIFIKASI:', ['KEUNGGULAN UTAMA:', 'PENGALAMAN PEMAKAIAN:']);
+  const rawKeunggulan = getSectionContent('KEUNGGULAN UTAMA:', ['PENGALAMAN PEMAKAIAN:', 'SANGAT COCOK UNTUK:']);
+  const rawPengalaman = getSectionContent('PENGALAMAN PEMAKAIAN:', ['SANGAT COCOK UNTUK:', 'CATATAN TOKO:']);
+  const rawCocok = getSectionContent('SANGAT COCOK UNTUK:', ['CATATAN TOKO:']);
+  const rawCatatan = getSectionContent('CATATAN TOKO:', []);
+
+  const hasAnySection = [rawJudul, rawSpesifikasi, rawKeunggulan, rawPengalaman, rawCocok, rawCatatan].some(Boolean);
+  if (!hasAnySection) {
+    return text
+      .split('\n')
+      .map(l => stripBullet(l))
+      .join('\n')
+      .trim();
+  }
+
+  // Format Judul SEO: separated by 1 blank line, no bullets
+  const cleanJudul = rawJudul
+    ? rawJudul
+        .split('\n')
+        .map(l => stripBullet(l))
+        .filter(l => l.length > 0)
+        .join('\n\n')
+    : '';
+
+  // Format Detail Spesifikasi: tightly packed (single newline), no bullets
+  const cleanSpesifikasi = rawSpesifikasi
+    ? rawSpesifikasi
+        .split('\n')
+        .map(l => stripBullet(l))
+        .filter(l => l.length > 0)
+        .join('\n')
+    : '';
+
+  // Format Keunggulan Utama: separated by 1 blank line, no bullets
+  const cleanKeunggulan = rawKeunggulan
+    ? rawKeunggulan
+        .split('\n')
+        .map(l => stripBullet(l))
+        .filter(l => l.length > 0)
+        .join('\n\n')
+    : '';
+
+  // Format Pengalaman Pemakaian: single flowing paragraph / paragraphs
+  const cleanPengalaman = rawPengalaman
+    ? rawPengalaman
+        .split('\n')
+        .map(l => stripBullet(l))
+        .filter(l => l.length > 0)
+        .join('\n\n')
+    : '';
+
+  // Format Sangat Cocok Untuk: tightly packed
+  const cleanCocok = rawCocok
+    ? rawCocok
+        .split('\n')
+        .map(l => stripBullet(l))
+        .filter(l => l.length > 0)
+        .join('\n')
+    : '';
+
+  // Format Catatan Toko: tightly packed (single newline), no bullets
+  const cleanCatatan = rawCatatan
+    ? rawCatatan
+        .split('\n')
+        .map(l => stripBullet(l))
+        .filter(l => l.length > 0)
+        .join('\n')
+    : '';
+
+  const blocks: string[] = [];
+  if (cleanJudul) {
+    blocks.push(`REKOMENDASI JUDUL SEO:\n\n${cleanJudul}`);
+  }
+  if (cleanSpesifikasi) {
+    blocks.push(`DETAIL SPESIFIKASI:\n${cleanSpesifikasi}`);
+  }
+  if (cleanKeunggulan) {
+    blocks.push(`KEUNGGULAN UTAMA:\n${cleanKeunggulan}`);
+  }
+  if (cleanPengalaman) {
+    blocks.push(`PENGALAMAN PEMAKAIAN:\n${cleanPengalaman}`);
+  }
+  if (cleanCocok) {
+    blocks.push(`SANGAT COCOK UNTUK:\n${cleanCocok}`);
+  }
+  if (cleanCatatan) {
+    blocks.push(`CATATAN TOKO:\n${cleanCatatan}`);
+  }
+
+  return blocks.length > 0 ? blocks.join('\n\n') : text.trim();
+}

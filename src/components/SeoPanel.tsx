@@ -135,55 +135,95 @@ export const SeoPanel: React.FC<SeoPanelProps> = ({
 
     const audienceData = AUDIENCES.find(a => a.id === audience) || AUDIENCES[0];
 
-    const systemPrompt = `Anda adalah pakar SEO Marketplace Indonesia (Shopee & Tokopedia). Buat deskripsi produk yang SANGAT RAPI, BERSIH, dan SIAP SALIN (PLAIN TEXT) sesuai format standar berikut.
+    const systemPrompt = `Anda adalah pakar SEO Marketplace Indonesia (Shopee, Tokopedia, TikTok Shop).
+TUGAS ANDA: Buat deskripsi produk yang SANGAT RAPI, BERSIH, dan SIAP SALIN (PURE PLAIN TEXT) dengan struktur dan kerapatan baris yang PERSIS mengikuti contoh di bawah.
 GAYA BAHASA: ${audienceData.promptMod}
 
-TUGAS ANDA:
-1. Buat 3 variasi rekomendasi judul SEO friendly (100-125 karakter). Gunakan format nama produk utama: "${formulaResult}" sebagai basis utama dikombinasikan dengan kata kunci SEO secara alami. Wajib diawali tanda strip (-) di setiap judul dan pisahkan setiap judul dengan 1 baris kosong (ENTER).
-2. Buat deskripsi produk dalam SATU BLOK TEKS siap salin dengan pemisah 1 baris kosong (ENTER) di antara setiap pokok bahasan (DILARANG menggunakan garis pembatas tanda hubung/strip seperti --- atau --------------------- agar format teks tetap normal dan tidak berubah ukuran saat disalin).
+ATURAN STRUKTUR & TATA LETAK BARIS (WAJIB DIIKUTI PERSIS):
 
-IKUTI STRUKTUR FORMAT DI BAWAH INI SECARA PERSIS:
+1. REKOMENDASI JUDUL SEO:
+- Buat 3 variasi rekomendasi judul SEO friendly (panjang 100-125 karakter).
+- Gunakan kombinasi nama produk utama: "${formulaResult}" dengan kata kunci SEO secara alami.
+- Tulis teks judul LANGSUNG tanpa tanda strip (-), tanpa tanda bullet (•), dan tanpa nomor urut (1., 2., 3.).
+- Pisahkan setiap judul dengan 1 baris kosong (ENTER 2x).
 
-REKOMENDASI JUDUL SEO (100-125 Karakter):
-- (Judul 1 dengan panjang 100-125 karakter)
+2. DETAIL SPESIFIKASI:
+- Tulis tepat di bawah header dengan ENTER 1x.
+- Tulis baris demi baris RAPAT (ENTER 1x). DILARANG ADA BARIS KOSONG di antara baris spesifikasi!
+- DILARANG menggunakan tanda bullet apapun (•, -, *, angka).
+- Format:
+Merk   : ${brandVal}
+Tipe   : ${typeVal}
+Harga  : Harga Tertera (${unitVal})${packVal ? `\nKemasan: ${packVal}` : ''}
+Ukuran : ${sizeVal}
 
-- (Judul 2 dengan panjang 100-125 karakter)
+3. KEUNGGULAN UTAMA:
+- Tulis 3 poin keunggulan utama dalam kalimat mengalir yang kuat dan jelas.
+- DILARANG menggunakan tanda bullet (•, -, *, atau angka).
+- Pisahkan setiap poin keunggulan dengan 1 baris kosong (ENTER 2x).
 
-- (Judul 3 dengan panjang 100-125 karakter)
+4. PENGALAMAN PEMAKAIAN:
+- Tulis 1 paragraf mengalir tanpa bullet yang menceritakan kenyamanan, rasa tenang, dan manfaat nyata saat menggunakan produk ini.
+
+5. SANGAT COCOK UNTUK:
+- Tulis 2 poin kebutuhan atau penggunaan produk secara langsung berbaris rapat (ENTER 1x) tanpa baris kosong dan tanpa tanda bullet.
+
+6. CATATAN TOKO:
+- Tulis 3 baris catatan toko RAPAT baris demi baris (ENTER 1x).
+- DILARANG ADA BARIS KOSONG di antara baris catatan toko dan DILARANG pakai bullet:
+Produk yang kami jual dijamin Original & Baru.
+Cover/kemasan/motif/warna dikirim sesuai stock yang tersedia.
+Mohon sertakan video unboxing untuk klaim produk.
+
+ATURAN ANTI-BERANTAKAN (SANGAT KRUSIAL):
+- PURE PLAIN TEXT: DILARANG KERAS menggunakan format Markdown apapun (TIDAK BOLEH ADA simbol ** atau * atau # atau garis strip ---).
+- TIDAK BOLEH ADA SIMBOL BULLET APAPUN (•, -, *, +, 1., 2., 3.) di seluruh teks output.
+- RATA KIRI MUTLAK: Jangan ada spasi indentasi di awal baris.
+- AMAN DARI PELANGGARAN ALGORITMA: Jangan cantumkan nomor HP/WA, ajakan transaksi di luar platform, atau janji klaim berlebihan yang dibatasi oleh algoritma marketplace.
+
+CONTOH HASIL OUTPUT YANG WAJIB ANDA TIRU PERSIS:
+
+REKOMENDASI JUDUL SEO:
+
+Name Tag Holder Plastik jepit/ ID Card Nametag Plastik Jepit Multi/Sakura No. 101 / 30-A/301 9x5.5cm name holder murah
+
+Name Tag Holder Plastik jepit/ ID Card Nametag Plastik Jepit Multi/Sakura No. 101 / 30-A/301 9x5.5cm name jepit bening
+
+Name Tag Holder Plastik jepit/ ID Card Nametag Plastik Jepit Multi/Sakura No. 101 / 30-A/301 9x5.5cm tag holder kantor
 
 DETAIL SPESIFIKASI:
-• Merk   : ${brandVal}
-• Tipe   : ${typeVal}
-• Harga  : Harga Tertera (${unitVal})${packVal ? `\n• Kemasan: ${packVal}` : ''}
-• Ukuran : ${sizeVal}
+Merk   : Multi/Sakura
+Tipe   : No. 101 / 30-A/301
+Harga  : Harga Tertera (1 PCS)
+Ukuran : 9x5.5cm
 
 KEUNGGULAN UTAMA:
-• (Poin keunggulan 1 yang kuat dan jelas)
-• (Poin keunggulan 2)
-• (Poin keunggulan 3)
+Terbuat dari material plastik transparan yang tebal sehingga kartu identitas tetap aman, tidak mudah terlipat, dan terbaca jelas.
+
+Dilengkapi dengan klip jepit yang kuat dan kokoh, memastikan name holder terpasang aman di saku baju tanpa takut mudah lepas.
+
+Desain simpel dan ringan yang sangat praktis digunakan untuk pemakaian harian tanpa membuat kain pakaian rusak atau tertarik.
 
 PENGALAMAN PEMAKAIAN:
-(Paragraf ringkas yang menjelaskan secara mengalir kenyamanan, rasa tenang, dan manfaat nyata yang dirasakan pembeli saat menggunakan produk ini)
+Pernah ngerasa repot karena name tag sering jatuh atau posisinya miring saat lagi sibuk kerja? Dengan name tag holder plastik jepit ini, urusan identitas diri jadi super rapi dan aman seharian penuh. Jepitannya benar-benar mencengkeram kuat di saku atau kerah baju, jadi kamu bisa bebas beraktivitas, jalan cepat, atau sibuk di lapangan tanpa perlu bolak-balik membetulkan posisi ID card. Selain itu, bahan plastiknya yang bening bikin kartu kamu selalu bersih dari debu atau cipratan air, menjaga penampilan kamu tetap profesional dan meyakinkan di depan klien atau atasan.
 
 SANGAT COCOK UNTUK:
-(Poin kebutuhan / penggunaan 1)
-(Poin kebutuhan / penggunaan 2)
+Kebutuhan identitas karyawan kantoran, panitia event, guru, mahasiswa, atau tenaga medis yang butuh kartu selalu terlihat jelas.
+Melindungi kartu akses gedung, kartu peserta seminar, atau kartu pelajar agar tidak cepat kusam, patah, atau hilang saat beraktivitas.
 
 CATATAN TOKO:
-• Produk yang kami jual dijamin Original & Baru.
-• Cover/kemasan/motif/warna dikirim sesuai stock yang tersedia.
-• Mohon sertakan video unboxing untuk klaim produk.
-
-ATURAN "ANTI-BERANTAKAN" (SANGAT PENTING):
-1. JANGAN gunakan format Markdown berlebihan (TIDAK BOLEH ADA simbol ** atau * atau # atau garis strip berderet --- di dalam teks deskripsi).
-2. WAJIB gunakan 1 baris kosong (ENTER) yang bersih sebelum setiap pokok bahasan baru.
-3. RATA KIRI MUTLAK: Jangan ada spasi (indentasi) di awal baris.
-4. AMAN DARI PELANGGARAN: Sangat penting! HINDARI penggunaan kata/kalimat yang dilarang atau dibatasi oleh algoritma Shopee, Tokopedia, dan TikTok Shop (seperti ajakan transaksi di luar platform, nomor HP/WA, kata-kata kasar, janji/klaim medis berlebihan, atau kata kunci terlarang lainnya).
+Produk yang kami jual dijamin Original & Baru.
+Cover/kemasan/motif/warna dikirim sesuai stock yang tersedia.
+Mohon sertakan video unboxing untuk klaim produk.
 
 DATA INPUT PRODUK:
-Nama Produk Utama (Sesuai Formula): ${formulaResult}
+Nama Produk Utama: ${formulaResult}
 Keywords: ${effectiveKeywords.join(', ')}
-USP / Keunggulan Unik: ${uspVal}`;
+${brand.trim() ? `Merk: ${brand.trim()}\n` : ''}${type.trim() ? `Tipe: ${type.trim()}\n` : ''}Ukuran: ${sizeVal}
+Harga: Harga Tertera (${unitVal})${packVal ? `\nKemasan: ${packVal}` : ''}
+USP / Keunggulan Unik: ${uspVal}
+
+SEKARANG, BUATKAN TEKS OUTPUT SIAP SALIN PERSIS MENGIKUTI CONTOH FORMAT DI ATAS UNTUK DATA INPUT PRODUK:`;
 
     onGenerate(systemPrompt);
   };

@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { ActiveTab, CopiedPrompt } from './types';
 import { CSV_COMPANY_URL, CSV_BRAND_URL } from './data';
-import { fetchCSVDatabase, copyToClipboard } from './utils';
+import { fetchCSVDatabase, copyToClipboard, cleanSeoFormatting } from './utils';
 import { VisualPanel } from './components/VisualPanel';
 import { CaptionPanel } from './components/CaptionPanel';
 import { SeoPanel } from './components/SeoPanel';
@@ -130,6 +130,7 @@ export default function App() {
   const [captionCopied, setCaptionCopied] = useState(false);
   const [seoCopied, setSeoCopied] = useState(false);
   const [broadcastCopied, setBroadcastCopied] = useState(false);
+  const [seoFormattedToast, setSeoFormattedToast] = useState(false);
 
   // Time & Latency indicators for Terminal Style
   const [systemTime, setSystemTime] = useState('');
@@ -916,14 +917,32 @@ export default function App() {
                               <Icons.ShoppingBag className="w-3.5 h-3.5 text-emerald-400" />
                               Prompt SEO Hasil Racikan Studio
                             </span>
-                            <button
-                              type="button"
-                              onClick={() => setSeoPrompt('')}
-                              className="text-[11px] text-slate-500 hover:text-rose-400 transition-colors flex items-center gap-1 cursor-pointer"
-                            >
-                              <Icons.Trash2 className="w-3 h-3" />
-                              <span>Bersihkan</span>
-                            </button>
+                            <div className="flex items-center gap-2">
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  if (seoPrompt) {
+                                    const cleaned = cleanSeoFormatting(seoPrompt);
+                                    setSeoPrompt(cleaned);
+                                    setSeoFormattedToast(true);
+                                    setTimeout(() => setSeoFormattedToast(false), 2500);
+                                  }
+                                }}
+                                className="text-[11px] bg-emerald-950/80 hover:bg-emerald-900/90 text-emerald-300 border border-emerald-700/60 hover:border-emerald-500 px-2.5 py-1 rounded-lg transition-all flex items-center gap-1.5 cursor-pointer font-semibold shadow-xs"
+                                title="Rapikan otomatis: hilangkan tanda bintang (**), bersihkan bullet (•/-/*), dan rapatkan baris Spesifikasi serta Catatan Toko"
+                              >
+                                <Icons.Sparkles className="w-3 h-3 text-emerald-400" />
+                                <span>{seoFormattedToast ? '✓ Format Rapi!' : 'Rapikan Format'}</span>
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => setSeoPrompt('')}
+                                className="text-[11px] text-slate-500 hover:text-rose-400 transition-colors flex items-center gap-1 cursor-pointer px-1.5 py-1"
+                              >
+                                <Icons.Trash2 className="w-3 h-3" />
+                                <span>Bersihkan</span>
+                              </button>
+                            </div>
                           </div>
 
                           <textarea
@@ -955,8 +974,7 @@ export default function App() {
                             <button
                               type="button"
                               onClick={() => {
-                                const sampleName = productName.trim() || 'Sepatu Sneakers Pria Casual';
-                                setSeoPrompt(`REKOMENDASI JUDUL SEO (100-125 Karakter):\n- ${sampleName} Deli NO. 107 E38565 19mm Binder Klip Hitam Clip Klip Dokumen Tebal Awet\n\n- ${sampleName} Deli NO. 107 E38565 19mm Binder Kertas Dokumen Kecil Jepitan Besi Kuat\n\n- ${sampleName} Deli NO. 107 E38565 19mm Clip Klip Kertas 1 Pak Binder Klip ATK Kantor\n\nDETAIL SPESIFIKASI:\n• Merk   : Deli\n• Tipe   : NO. 107 E38565\n• Harga  : Harga Tertera (1 PAK : 12 PCS)\n• Ukuran : 19mm\n\nKEUNGGULAN UTAMA:\n• Daya jepit yang sangat presisi untuk menahan tumpukan kertas tipis maupun sedang tanpa mudah lepas\n• Material logam berkualitas tinggi yang awet, anti karat, dan tidak mudah patah untuk pemakaian lama\n• Desain gagang yang nyaman ditekan saat membuka clip klip sehingga sangat praktis untuk digunakan sehari-hari\n\nPENGALAMAN PEMAKAIAN:\nKamu bakal ngerasain tenangnya bekerja tanpa melihat lembaran dokumen yang berantakan atau terselip di mana-mana. Cukup satukan dokumen pentingmu, pasang binder klip ini, dan area kerjamu langsung terlihat bersih, teratur, dan jauh lebih rapi.\n\nSANGAT COCOK UNTUK:\nMerapikan laporan, tugas sekolah, dokumen kantor, dan tumpukan kuitansi\nMenjepit kabel kecil, menutup plastik kemasan, dan berbagai kebutuhan kreatif harian di rumah\n\nCATATAN TOKO:\n• Produk yang kami jual dijamin Original & Baru.\n• Cover/kemasan/motif/warna dikirim sesuai stock yang tersedia.\n• Mohon sertakan video unboxing untuk klaim produk.`);
+                                setSeoPrompt(`REKOMENDASI JUDUL SEO:\n\nName Tag Holder Plastik jepit/ ID Card Nametag Plastik Jepit Multi/Sakura No. 101 / 30-A/301 9x5.5cm name holder murah\n\nName Tag Holder Plastik jepit/ ID Card Nametag Plastik Jepit Multi/Sakura No. 101 / 30-A/301 9x5.5cm name jepit bening\n\nName Tag Holder Plastik jepit/ ID Card Nametag Plastik Jepit Multi/Sakura No. 101 / 30-A/301 9x5.5cm tag holder kantor\n\nDETAIL SPESIFIKASI:\nMerk   : Multi/Sakura\nTipe   : No. 101 / 30-A/301\nHarga  : Harga Tertera (1 PCS)\nUkuran : 9x5.5cm\n\nKEUNGGULAN UTAMA:\nTerbuat dari material plastik transparan yang tebal sehingga kartu identitas tetap aman, tidak mudah terlipat, dan terbaca jelas.\n\nDilengkapi dengan klip jepit yang kuat dan kokoh, memastikan name holder terpasang aman di saku baju tanpa takut mudah lepas.\n\nDesain simpel dan ringan yang sangat praktis digunakan untuk pemakaian harian tanpa membuat kain pakaian rusak atau tertarik.\n\nPENGALAMAN PEMAKAIAN:\nPernah ngerasa repot karena name tag sering jatuh atau posisinya miring saat lagi sibuk kerja? Dengan name tag holder plastik jepit ini, urusan identitas diri jadi super rapi dan aman seharian penuh. Jepitannya benar-benar mencengkeram kuat di saku atau kerah baju, jadi kamu bisa bebas beraktivitas, jalan cepat, atau sibuk di lapangan tanpa perlu bolak-balik membetulkan posisi ID card. Selain itu, bahan plastiknya yang bening bikin kartu kamu selalu bersih dari debu atau cipratan air, menjaga penampilan kamu tetap profesional dan meyakinkan di depan klien atau atasan.\n\nSANGAT COCOK UNTUK:\nKebutuhan identitas karyawan kantoran, panitia event, guru, mahasiswa, atau tenaga medis yang butuh kartu selalu terlihat jelas.\nMelindungi kartu akses gedung, kartu peserta seminar, atau kartu pelajar agar tidak cepat kusam, patah, atau hilang saat beraktivitas.\n\nCATATAN TOKO:\nProduk yang kami jual dijamin Original & Baru.\nCover/kemasan/motif/warna dikirim sesuai stock yang tersedia.\nMohon sertakan video unboxing untuk klaim produk.`);
                               }}
                               className="mt-4 px-4 py-2 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl text-xs font-bold transition-all shadow-md shadow-emerald-500/25 inline-flex items-center gap-1.5 cursor-pointer"
                             >
